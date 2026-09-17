@@ -1,5 +1,6 @@
 import { AgentInput, DraftingAgentResult, AgentMemoryEnvelope, SourceReference } from './types';
 import { LegalDraft, LawyerBrief } from '@/types/matter';
+import { ClaimSupportChecker } from '@/lib/reasoning/claim-support-checker';
 
 export class DraftingAgent {
   public async execute(
@@ -316,7 +317,7 @@ Complainant in Person`,
         }
       ],
       reliefSought: [
-        `Full restitution / refund of ${claimAmountStr} with 12% statutory interest.`,
+        `Full restitution / refund of ${claimAmountStr} with statutory interest as may be determined by the court.`,
         `Compensation for damages, delay, and litigation overheads.`
       ],
       evidentiaryReadiness: {
@@ -332,10 +333,28 @@ Complainant in Person`,
       estimatedClaimAmount: claimAmountStr,
       jurisdictionState: input.locationState || 'State of Jurisdiction',
       generatedAt: today,
-      groundingRefIds: ['narrative-user']
+      groundingRefIds: ['narrative-user'],
+      groundingStatus: 'partially_grounded'
     };
 
-    drafts.forEach(d => {
+    // Paragraph-level safety audit across all generated communication tiers
+    const auditedDrafts: LegalDraft[] = drafts.map(d => {
+      const audit = ClaimSupportChecker.auditDraftContent(d.content, {
+        isLawyerReady: d.communicationTier === 'lawyer_ready',
+        groundingRefIds: d.groundingRefIds
+      });
+
+      return {
+        ...d,
+        content: audit.sanitizedContent,
+        paragraphs: audit.paragraphs,
+        auditLog: audit.auditEntries,
+        requiresAdvocateReview: audit.requiresAdvocateReview,
+        groundingStatus: (d.groundingRefIds && d.groundingRefIds.length > 0 ? 'grounded' : 'partially_grounded')
+      };
+    });
+
+    auditedDrafts.forEach(d => {
       sourceReferences.push({
         id: d.id,
         type: 'doc',
@@ -345,7 +364,7 @@ Complainant in Person`,
 
     return {
       result: {
-        drafts,
+        drafts: auditedDrafts,
         lawyerBrief
       },
       confidenceScore: 0.95,

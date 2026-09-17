@@ -229,6 +229,23 @@ export function DraftStudio({ drafts }: DraftStudioProps) {
           </div>
         )}
 
+        {/* Lawyer-Ready Review Warning Seal */}
+        {(activeDraft.communicationTier === 'lawyer_ready' || activeDraft.requiresAdvocateReview) && (
+          <div className="mb-4 p-3 rounded-xl bg-purple-50/90 border border-purple-200 text-purple-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+            <div className="flex items-center space-x-2.5">
+              <span className="px-2 py-0.5 rounded bg-purple-200 text-purple-900 font-bold text-[10px] uppercase tracking-wider">
+                Review Before Sending
+              </span>
+              <span className="font-medium text-[11px]">
+                Statutory legal notice / court plaint draft. Recommended to verify final clauses with an enrolled Advocate or free DLSA legal aid counsel.
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded self-start sm:self-auto">
+              Advocates Act 1961
+            </span>
+          </div>
+        )}
+
         {/* Draft Metadata & Evidentiary Grounding Bar */}
         <div className="bg-stone-50 rounded-lg p-3.5 border border-stone-200 mb-4 space-y-2 text-xs">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -237,6 +254,12 @@ export function DraftStudio({ drafts }: DraftStudioProps) {
               {activeDraft.statutoryReference && (
                 <span className="text-[11px] font-semibold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
                   Law: {activeDraft.statutoryReference}
+                </span>
+              )}
+              {activeDraft.auditLog && activeDraft.auditLog.length > 0 && (
+                <span className="inline-flex items-center space-x-1 text-[11px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                  <span>Audited & Neutralized ({activeDraft.auditLog.length})</span>
                 </span>
               )}
               {activeDraft.groundingRefIds && activeDraft.groundingRefIds.length > 0 && (

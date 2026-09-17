@@ -81,6 +81,8 @@ export interface ExtractedFact {
   groundingRefIds?: string[];
 }
 
+export type GroundingStatus = 'grounded' | 'partially_grounded' | 'unsupported';
+
 export interface TimelineEvent {
   id: string;
   date: string;
@@ -91,6 +93,7 @@ export interface TimelineEvent {
   isKeyMilestone?: boolean;
   status: 'verified' | 'user_reported' | 'estimated';
   groundingRefIds?: string[];
+  groundingStatus?: GroundingStatus;
 }
 
 export interface RiskItem {
@@ -107,6 +110,7 @@ export interface RiskItem {
   mitigatingAction: string;
   legalContext: string;
   groundingRefIds?: string[];
+  groundingStatus?: GroundingStatus;
 }
 
 export interface MissingInformation {
@@ -130,6 +134,7 @@ export interface ActionStep {
   priority: 'must_do' | 'recommended' | 'optional';
   associatedDraftType?: LegalDraftType;
   groundingRefIds?: string[];
+  groundingStatus?: GroundingStatus;
 }
 
 export type LegalDraftType =
@@ -144,6 +149,22 @@ export type LegalDraftType =
 
 export type CommunicationTier = 'soft' | 'formal' | 'lawyer_ready';
 
+export interface DraftParagraph {
+  id: string;
+  text: string;
+  groundingRefIds?: string[];
+  safetyStatus: 'safe' | 'rewritten' | 'counsel_review';
+  originalText?: string;
+  rewriteReason?: string;
+}
+
+export interface DraftAuditEntry {
+  original: string;
+  rewritten: string;
+  reason: string;
+  timestamp: string;
+}
+
 export interface LegalDraft {
   id: string;
   matterId: string;
@@ -154,11 +175,15 @@ export interface LegalDraft {
   recipientAddress?: string;
   subject: string;
   content: string;
+  paragraphs?: DraftParagraph[];
   statutoryReference?: string;
   disclaimer: string;
   createdAt: string;
   status: 'draft' | 'customized' | 'ready_to_send';
   groundingRefIds?: string[];
+  groundingStatus?: GroundingStatus;
+  auditLog?: DraftAuditEntry[];
+  requiresAdvocateReview?: boolean;
 }
 
 export interface EscalationRoute {
@@ -182,6 +207,8 @@ export interface EscalationRoute {
   stepsToApply: string[];
   costEstimate: string;
   stateApplicable?: string;
+  groundingRefIds?: string[];
+  groundingStatus?: GroundingStatus;
 }
 
 export interface LawyerBrief {
@@ -200,6 +227,7 @@ export interface LawyerBrief {
   jurisdictionState?: string;
   generatedAt: string;
   groundingRefIds?: string[];
+  groundingStatus?: GroundingStatus;
 }
 
 export interface TrustSafetyItem {
@@ -210,6 +238,7 @@ export interface TrustSafetyItem {
   disclaimer?: string;
   confidenceScore?: number;
   groundingRefIds?: string[];
+  groundingStatus?: GroundingStatus;
 }
 
 // Evidence Graph Structure
@@ -309,4 +338,62 @@ export interface Matter {
 
   // 12. Normalized Evidence Graph Layer
   evidenceGraph?: EvidenceGraphData;
+
+  // 13. Safety & Rewriting Audit Trail
+  auditLog?: Array<{
+    original: string;
+    rewritten: string;
+    reason: string;
+    timestamp: string;
+    component: string;
+  }>;
+
+  // 14. Multilingual & Localization Support (Ready for Indic Languages)
+  language?: 'en' | 'hi' | 'hinglish' | 'mr';
 }
+
+// -------------------------------------------------------------
+// Future-Ready Foundation Interfaces
+// Ready for OCR, pgvector/RAG, Supabase, and Multilingual LLMs
+// -------------------------------------------------------------
+
+export interface DocumentParserProvider {
+  parseDocument(file: { buffer?: ArrayBuffer; text?: string; mimeType: string; filename: string }): Promise<{
+    extractedText: string;
+    confidence: number;
+    detectedPages?: number;
+    clauses?: Array<{ title: string; text: string; pageNumber?: number }>;
+    entities?: Array<{ name: string; type: string }>;
+  }>;
+}
+
+export interface LegalRAGProvider {
+  searchStatutes(query: string, criteria: {
+    category: MatterCategory;
+    state?: string;
+    limit?: number;
+  }): Promise<Array<{
+    statute: string;
+    section: string;
+    title: string;
+    relevanceScore: number;
+    snippet: string;
+    precedents?: string[];
+  }>>;
+}
+
+export interface MatterStorageProvider {
+  saveMatter(matter: Matter): Promise<Matter>;
+  getMatter(id: string): Promise<Matter | null>;
+  listMatters(userId?: string): Promise<Matter[]>;
+  deleteMatter(id: string): Promise<boolean>;
+}
+
+export interface MultilingualExplanationProvider {
+  translateExplanation(text: string, targetLanguage: 'en' | 'hi' | 'hinglish' | 'mr'): Promise<{
+    translatedText: string;
+    language: 'en' | 'hi' | 'hinglish' | 'mr';
+    glossaryTerms?: Record<string, string>;
+  }>;
+}
+

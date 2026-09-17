@@ -96,7 +96,18 @@ export class SafetyVerificationAgent {
       text: 'Final representation in court hearings, swearing formal affidavits under oath, or filing vakalatnama requires an enrolled Advocate or authorized legal aid counsel.',
       citation: 'Advocates Act, 1961',
       confidenceScore: 0.98,
-      groundingRefIds: ['statute-advocates-act']
+      groundingRefIds: ['statute-advocates-act'],
+      groundingStatus: 'grounded'
+    });
+
+    // 5. Explicit 5th Tier: Unsupported / Missing Proof Item
+    trustSafetyItems.push({
+      tier: 'unsupported',
+      label: 'Evidentiary Gap / Unsupported Claim',
+      text: 'Any assertion lacking contemporaneous documentation (e.g., signed joint inspection protocol, original GST repair bills, or postal tracking receipt) is classified as an unverified possibility and cannot be claimed as an established fact.',
+      disclaimer: 'Upload verifying documents or answer missing details to substantiate this before formal proceedings.',
+      confidenceScore: 0.3,
+      groundingStatus: 'unsupported'
     });
 
     const mandatoryDisclaimers = [

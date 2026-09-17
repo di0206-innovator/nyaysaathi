@@ -13,6 +13,7 @@ import { DraftStudio } from '@/components/matter/DraftStudio';
 import { LawyerBriefCard } from '@/components/matter/LawyerBriefCard';
 import { EscalationPathwayCard } from '@/components/matter/EscalationPathwayCard';
 import { FollowUpQA } from '@/components/matter/FollowUpQA';
+import { GroundingExplorer } from '@/components/matter/GroundingExplorer';
 import {
   Scale,
   Sparkles,
@@ -23,11 +24,13 @@ import {
   FolderLock,
   Briefcase,
   Users,
-  MessageSquare
+  MessageSquare,
+  ShieldCheck
 } from 'lucide-react';
 
 type TabType =
   | 'overview'
+  | 'grounding'
   | 'timeline'
   | 'risks'
   | 'actions'
@@ -70,9 +73,13 @@ export default function MatterDetailPage({
     };
   }, [id]);
 
-  const handleReanalyze = async () => {
+  const handleReanalyze = async (trigger: string = 'full') => {
     try {
-      const res = await fetch(`/api/matters/${id}/analyze`, { method: 'POST' });
+      const res = await fetch(`/api/matters/${id}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trigger })
+      });
       const data = await res.json();
       if (data.success && data.data) {
         setMatter(data.data);
@@ -96,6 +103,9 @@ export default function MatterDetailPage({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ missingInformation: updatedMissing })
     });
+
+    // Selective re-analysis trigger: missing_info_answered
+    await handleReanalyze('missing_info_answered');
   };
 
   const handleUploadSimulate = async (newDoc: { title: string; type: DocumentEvidence['type']; extractedText?: string }) => {
@@ -123,6 +133,9 @@ export default function MatterDetailPage({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ documents: updatedDocs })
     });
+
+    // Selective re-analysis trigger: doc_uploaded
+    await handleReanalyze('doc_uploaded');
   };
 
   if (loading) {
@@ -155,6 +168,7 @@ export default function MatterDetailPage({
 
   const navTabs = [
     { id: 'overview' as const, label: 'Situation & Trust', icon: <Sparkles className="w-4 h-4" /> },
+    { id: 'grounding' as const, label: 'Grounding & Evidence Graph', icon: <ShieldCheck className="w-4 h-4" /> },
     { id: 'timeline' as const, label: 'What Happened (Timeline)', icon: <Calendar className="w-4 h-4" /> },
     { id: 'risks' as const, label: 'Pay Attention (Risks)', icon: <ShieldAlert className="w-4 h-4" />, count: matter.risks.length },
     { id: 'actions' as const, label: 'Next Steps (Action Plan)', icon: <ListTodo className="w-4 h-4" /> },
@@ -168,7 +182,7 @@ export default function MatterDetailPage({
   return (
     <div className="min-h-screen bg-stone-50/60 pb-20">
       {/* 1. Header */}
-      <MatterHeader matter={matter} onReanalyze={handleReanalyze} />
+      <MatterHeader matter={matter} onReanalyze={() => handleReanalyze('full')} />
 
       {/* 2. Responsive Navigation Sub-Bar */}
       <div className="sticky top-16 z-40 bg-white border-b border-stone-200 shadow-2xs">
@@ -260,9 +274,14 @@ export default function MatterDetailPage({
               </div>
             </div>
 
-            {/* 4-Tier Trust & Safety Card */}
-            <TrustSafetyCard items={matter.trustSafetyItems} />
+            {/* 5-Tier Trust & Safety Card with Safety Audit Trail */}
+            <TrustSafetyCard items={matter.trustSafetyItems} auditLog={matter.auditLog} />
           </div>
+        )}
+
+        {/* TAB 1.5: GROUNDING & EVIDENCE GRAPH EXPLORER */}
+        {activeTab === 'grounding' && (
+          <GroundingExplorer matter={matter} onUploadClick={() => setActiveTab('evidence')} />
         )}
 
         {/* TAB 2: TIMELINE */}

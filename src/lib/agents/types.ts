@@ -40,7 +40,8 @@ export type ReanalysisTrigger =
   | 'full'
   | 'missing_info_answered'
   | 'doc_uploaded'
-  | 'party_updated';
+  | 'party_updated'
+  | 'amount_updated';
 
 export interface AgentInput {
   matterId: string;
@@ -54,6 +55,12 @@ export interface AgentInput {
   claimAmount?: number;
   existingMissingInformation?: MissingInformation[];
   existingEvidenceGraph?: EvidenceGraphData;
+  existingFacts?: ExtractedFact[];
+  existingTimelineEvents?: TimelineEvent[];
+  existingStatutes?: Array<{ statute: string; section: string; title: string; applicabilityNote: string }>;
+  existingRisks?: RiskItem[];
+  existingActionPlan?: ActionStep[];
+  existingDrafts?: LegalDraft[];
   trigger?: ReanalysisTrigger;
 }
 

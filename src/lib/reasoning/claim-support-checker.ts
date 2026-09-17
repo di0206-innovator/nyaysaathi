@@ -1,4 +1,4 @@
-import { TrustSafetyTier } from '@/types/matter';
+import { TrustSafetyTier, DraftParagraph, DraftAuditEntry } from '@/types/matter';
 
 export interface StatementAuditResult {
   originalText: string;
@@ -11,17 +11,79 @@ export interface StatementAuditResult {
   requiresClarificationPrompt?: boolean;
 }
 
+export interface DraftAuditResult {
+  sanitizedContent: string;
+  paragraphs: DraftParagraph[];
+  auditEntries: DraftAuditEntry[];
+  aggressivePhrasesNeutralizedCount: number;
+  requiresAdvocateReview: boolean;
+}
+
 export class ClaimSupportChecker {
   /**
    * Overconfident or aggressive legal phrases that must be rewritten into neutral,
    * non-definitive informational language.
    */
-  private static OVERCONFIDENT_PATTERNS = [
-    { pattern: /you (will|shall) (definitely|certainly|100%) win/gi, replacement: 'you have a statutory ground under Indian law to claim' },
-    { pattern: /the (landlord|merchant|employer|builder) is (definitely|guilty of|proven to be) (a criminal|fraudulent|guilty)/gi, replacement: 'the conduct appears inconsistent with contractual or statutory duties' },
-    { pattern: /the court (will|must) rule in your favor/gi, replacement: 'the relevant forum typically evaluates these documented facts' },
-    { pattern: /there is zero risk/gi, replacement: 'the procedural position appears supported by provided documentation' },
-    { pattern: /you do not need any lawyer whatsoever/gi, replacement: 'you can initiate pre-litigation conciliation or e-Daakhil without counsel, while formal litigation may benefit from an advocate' }
+  private static OVERCONFIDENT_PATTERNS: Array<{
+    pattern: RegExp;
+    replacement: string;
+    reason: string;
+  }> = [
+    {
+      pattern: /you (will|shall) (definitely|certainly|100%) win/gi,
+      replacement: 'you have a statutory ground under Indian law to claim',
+      reason: 'Neutralized guaranteed outcome claim into grounded statutory basis.'
+    },
+    {
+      pattern: /\b(is|are\s+)?(completely\s+|wholly\s+|strictly\s+|blatantly\s+)?illegal\b/gi,
+      replacement: 'appears inconsistent with contractual terms and statutory guidelines',
+      reason: 'Softened aggressive "illegal" assertion to factual non-compliance.'
+    },
+    {
+      pattern: /\b(is|are\s+)?(completely\s+|wholly\s+|strictly\s+|blatantly\s+)?unlawful\b/gi,
+      replacement: 'is untenable under applicable legal provisions',
+      reason: 'Replaced conclusive "unlawful" statement with neutral legal evaluation.'
+    },
+    {
+      pattern: /\b(you are|the applicant is) (strictly\s+|fully\s+|definitely\s+)?entitled to\b/gi,
+      replacement: 'you have a documented basis to seek',
+      reason: 'Replaced entitlement certainty with verifiable claim phrasing.'
+    },
+    {
+      pattern: /\b(must pay|shall be forced to pay)\b/gi,
+      replacement: 'is formally requested to remit / refund',
+      reason: 'Tempered coercive "must pay" demand into formal request.'
+    },
+    {
+      pattern: /\b(\d{1,2}%)\s*(penal\s+interest|punitive\s+interest)\b/gi,
+      replacement: 'statutory interest as may be determined by the competent forum',
+      reason: 'Replaced arbitrary fixed penal interest rate with forum-determined statutory interest.'
+    },
+    {
+      pattern: /the (landlord|merchant|employer|builder) (is\s+definitely|definitely\s+committed|is\s+guilty\s+of|is\s+proven\s+to\s+be|committed)\s+(a\s+)?(criminal\s+fraud|criminal|fraudulent|fraud|guilty)/gi,
+      replacement: 'the conduct appears inconsistent with contractual or statutory duties',
+      reason: 'Replaced defamatory criminal characterization with conduct-based description.'
+    },
+    {
+      pattern: /the court (will|must) rule in your favor/gi,
+      replacement: 'the relevant adjudicating forum evaluates these documented facts',
+      reason: 'Removed judicial verdict prediction.'
+    },
+    {
+      pattern: /there is zero risk/gi,
+      replacement: 'the procedural position appears supported by provided documentation',
+      reason: 'Replaced "zero risk" claim with accurate procedural statement.'
+    },
+    {
+      pattern: /you do not need any lawyer whatsoever/gi,
+      replacement: 'you can initiate pre-litigation conciliation or e-Daakhil without counsel, while formal litigation may benefit from an advocate',
+      reason: 'Qualified lawyer requirement statement.'
+    },
+    {
+      pattern: /\b(we guarantee|guaranteed outcome|assured recovery|guarantee\s+full\s+recovery(\s+in\s+court)?)\b/gi,
+      replacement: 'subject to evidentiary adjudication by the competent forum',
+      reason: 'Removed guarantee promise.'
+    }
   ];
 
   /**
@@ -40,11 +102,11 @@ export class ClaimSupportChecker {
     const groundingRefIds: string[] = [];
 
     // 1. Check and rewrite overconfident / unsafe assertions
-    for (const { pattern, replacement } of this.OVERCONFIDENT_PATTERNS) {
+    for (const { pattern, replacement, reason } of this.OVERCONFIDENT_PATTERNS) {
       if (pattern.test(revised)) {
         revised = revised.replace(pattern, replacement);
         wasRewritten = true;
-        reasons.push('Rewrote definitive legal guarantee into informational procedural language.');
+        reasons.push(reason);
       }
     }
 
@@ -84,9 +146,9 @@ export class ClaimSupportChecker {
         tier = 'counsel_required';
         confidence = 0.92;
         reasons.push('Involves formal judicial litigation or advocate-exclusive mandate under Advocates Act 1961.');
-      } else if (lower.includes('unsupported') || lower.includes('speculative')) {
+      } else if (lower.includes('unsupported') || lower.includes('speculative') || (!hasDocSupport && !hasFactSupport && !hasStatuteSupport)) {
         tier = 'unsupported';
-        confidence = 0.3;
+        confidence = 0.35;
         reasons.push('Unsupported statement without factual, documentary, or statutory grounding.');
       } else {
         tier = 'possibility';
@@ -107,6 +169,68 @@ export class ClaimSupportChecker {
       reasons,
       wasRewritten,
       requiresClarificationPrompt
+    };
+  }
+
+  /**
+   * Audits full legal draft content paragraph-by-paragraph.
+   * Rewrites aggressive phrases, tracks modifications, and flags lawyer-review needs.
+   */
+  public static auditDraftContent(
+    content: string,
+    options: {
+      isLawyerReady?: boolean;
+      groundingRefIds?: string[];
+    } = {}
+  ): DraftAuditResult {
+    const rawParagraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+    const auditedParagraphs: DraftParagraph[] = [];
+    const auditEntries: DraftAuditEntry[] = [];
+    let aggressivePhrasesNeutralizedCount = 0;
+
+    const sanitizedParagraphTexts: string[] = [];
+
+    rawParagraphs.forEach((para, idx) => {
+      let currentParaText = para;
+      let paraModified = false;
+      const reasons: string[] = [];
+
+      for (const { pattern, replacement, reason } of this.OVERCONFIDENT_PATTERNS) {
+        if (pattern.test(currentParaText)) {
+          const originalSnippet = currentParaText;
+          currentParaText = currentParaText.replace(pattern, replacement);
+          paraModified = true;
+          aggressivePhrasesNeutralizedCount++;
+          reasons.push(reason);
+          auditEntries.push({
+            original: originalSnippet.trim(),
+            rewritten: currentParaText.trim(),
+            reason,
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+
+      sanitizedParagraphTexts.push(currentParaText);
+
+      auditedParagraphs.push({
+        id: `para-${idx + 1}`,
+        text: currentParaText,
+        originalText: paraModified ? para : undefined,
+        groundingRefIds: options.groundingRefIds,
+        safetyStatus: paraModified ? 'rewritten' : options.isLawyerReady ? 'counsel_review' : 'safe',
+        rewriteReason: reasons.length > 0 ? reasons.join(' ') : undefined
+      });
+    });
+
+    const sanitizedContent = sanitizedParagraphTexts.join('\n\n');
+
+    return {
+      sanitizedContent,
+      paragraphs: auditedParagraphs,
+      auditEntries,
+      aggressivePhrasesNeutralizedCount,
+      requiresAdvocateReview: !!options.isLawyerReady
     };
   }
 }

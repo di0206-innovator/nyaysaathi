@@ -478,7 +478,34 @@ Encl: Copy of Rental Agreement, NEFT Payment Slip, Move-out Handover Chat Record
         tier: 'counsel_required',
         label: 'Advocate Consultation for Court Plaint',
         text: 'If the landlord fails to respond to the demand notice and you decide to file a formal plaint before the Court of Small Causes, an enrolled Advocate must draft and file the vakalatnama.',
-        citation: 'Advocates Act, 1961'
+        citation: 'Advocates Act, 1961',
+        confidenceScore: 0.98,
+        groundingStatus: 'grounded'
+      },
+      {
+        tier: 'unsupported',
+        label: 'Unsubstantiated Damage Deductions',
+        text: 'The landlord\'s claim of ₹40,000 for repainting and ₹25,000 deep sanitization is wholly lacking contractor tax receipts or joint move-out inspection signoffs, and is classified as unverified.',
+        disclaimer: 'Evidentiary burden of proof lies on landlord under Section 101/102 Bharatiya Sakshya Adhiniyam 2023.',
+        confidenceScore: 0.25,
+        groundingStatus: 'unsupported'
+      }
+    ],
+
+    auditLog: [
+      {
+        original: 'The landlord is committing illegal theft of deposit and must pay 18% penal interest.',
+        rewritten: 'The landlord is withholding the security deposit in apparent breach of Clause 9; statutory interest as determined by the forum may be sought.',
+        reason: 'Replaced aggressive criminal claim and fixed penal interest with factual breach analysis.',
+        timestamp: '2026-09-17T10:15:00Z',
+        component: 'SafetyVerificationAgent'
+      },
+      {
+        original: 'You will definitely win before the Bengaluru Rent Tribunal with zero risk.',
+        rewritten: 'You have a grounded statutory basis under the Indian Contract Act 1872 based on provided receipts.',
+        reason: 'Neutralized judicial outcome guarantee into evidence-supported claim basis.',
+        timestamp: '2026-09-17T10:15:02Z',
+        component: 'ClaimSupportChecker'
       }
     ]
   },
@@ -853,7 +880,27 @@ Complainant in Person`,
         tier: 'counsel_required',
         label: 'Appeals to State Commission',
         text: 'If the matter requires an appeal from District to State Commission, engaging a specialized consumer advocate is recommended.',
-        citation: 'Section 41 CPA 2019'
+        citation: 'Section 41 CPA 2019',
+        confidenceScore: 0.95,
+        groundingStatus: 'grounded'
+      },
+      {
+        tier: 'unsupported',
+        label: 'Internal Pressure Damage Allegation',
+        text: 'The brand\'s claim that user caused internal display pressure without any external drop or glass cracks is an unsupported assertion lacking forensic hardware diagnosis.',
+        disclaimer: 'Burden of proving user-induced physical impact lies with manufacturer.',
+        confidenceScore: 0.3,
+        groundingStatus: 'unsupported'
+      }
+    ],
+
+    auditLog: [
+      {
+        original: 'Apex Mobile committed criminal cheating and must replace the phone within 24 hours.',
+        rewritten: 'The refusal of warranty appears to constitute deficiency in service under Section 2(11) CPA 2019; replacement or refund may be sought.',
+        reason: 'Replaced coercive criminal charge with consumer deficiency in service statutory ground.',
+        timestamp: '2026-09-15T09:15:00Z',
+        component: 'SafetyVerificationAgent'
       }
     ]
   }
