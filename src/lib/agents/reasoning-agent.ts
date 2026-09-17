@@ -1,15 +1,34 @@
-import { AgentInput, ReasoningAgentResult } from './types';
+import { AgentInput, ReasoningAgentResult, AgentMemoryEnvelope, SourceReference } from './types';
 
 export class ReasoningAgent {
-  /**
-   * Synthesizes the legal position, evaluating the strongest points in favor of the user,
-   * procedural vulnerabilities, and anticipated defense arguments of the opposing party.
-   */
-  public async execute(input: AgentInput): Promise<ReasoningAgentResult> {
+  public async execute(
+    input: AgentInput,
+    extractedFacts: Array<{ id: string; statement: string }>,
+    statutes: Array<{ statute: string; section: string }>
+  ): Promise<AgentMemoryEnvelope<ReasoningAgentResult>> {
+    const sourceReferences: SourceReference[] = [];
+    const assumptions: string[] = [];
+    const unresolvedQuestions: string[] = [];
     const caseStrengths: string[] = [];
     const caseWeaknesses: string[] = [];
     let primaryLegalRemedy = '';
     let counterPartyProbableDefense = '';
+
+    extractedFacts.forEach(f => {
+      sourceReferences.push({
+        id: f.id,
+        type: 'fact',
+        label: f.statement
+      });
+    });
+
+    statutes.forEach((s, idx) => {
+      sourceReferences.push({
+        id: `statute-ref-${idx + 1}`,
+        type: 'statute',
+        label: `${s.statute} (${s.section})`
+      });
+    });
 
     switch (input.category) {
       case 'tenancy_housing':
@@ -22,7 +41,7 @@ export class ReasoningAgent {
           'Absence of joint move-out inspection protocol signed at key handover.',
           'Possible dispute over reasonable wear and tear vs actual damage deductions.'
         );
-        primaryLegalRemedy = 'Issue statutory Demand Notice under Contract Law / Rent Control seeking deposit return with 12% interest within 15 days, followed by Small Causes Court or Rent Court filing.';
+        primaryLegalRemedy = 'Issue a polite request followed by a formal 15-day Demand Notice seeking deposit return with 12% interest, followed by DLSA pre-litigation mediation or Small Causes Court filing.';
         counterPartyProbableDefense = 'Opposing party may claim undocumented property damage, repainting overheads, or forfeiture due to notice period dispute.';
         break;
 
@@ -35,7 +54,7 @@ export class ReasoningAgent {
         caseWeaknesses.push(
           'Manufacturer may argue physical/liquid damage or unapproved third-party tampering.'
         );
-        primaryLegalRemedy = 'File direct e-Daakhil consumer complaint before District Commission seeking full refund, replacement, plus compensation for mental agony under CPA 2019 Section 35.';
+        primaryLegalRemedy = 'Lodge National Consumer Helpline (1915) docket, followed by an online e-Daakhil consumer complaint before the District Commission under Section 35 CPA 2019.';
         counterPartyProbableDefense = 'Merchant / OEM may contend user induced defect or breach of warranty clause.';
         break;
 
@@ -59,16 +78,23 @@ export class ReasoningAgent {
         caseWeaknesses.push(
           'Need to establish strict documentary proof of financial loss incurred.'
         );
-        primaryLegalRemedy = 'Formal Legal Demand Notice giving 15-day cure window prior to initiating civil recovery proceedings.';
+        primaryLegalRemedy = 'Formal written demand giving 15-day cure window prior to initiating DLSA mediation or civil recovery proceedings.';
         counterPartyProbableDefense = 'Denial of liability or attribution of delay to external factors.';
         break;
     }
 
     return {
-      caseStrengths,
-      caseWeaknesses,
-      primaryLegalRemedy,
-      counterPartyProbableDefense
+      result: {
+        caseStrengths,
+        caseWeaknesses,
+        primaryLegalRemedy,
+        counterPartyProbableDefense
+      },
+      confidenceScore: 0.92,
+      sourceReferences,
+      assumptions,
+      unresolvedQuestions,
+      safetyFlags: []
     };
   }
 }

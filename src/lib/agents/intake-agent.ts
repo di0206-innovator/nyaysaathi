@@ -1,20 +1,29 @@
-import { AgentInput, IntakeAgentResult } from './types';
+import { AgentInput, IntakeAgentResult, AgentMemoryEnvelope, SourceReference } from './types';
 import { Party } from '@/types/matter';
 
 export class IntakeAgent {
-  /**
-   * Parses free-form user narrative and structured intake inputs,
-   * normalizes parties, extracts amounts, and synthesizes key legal conflict.
-   */
-  public async execute(input: AgentInput): Promise<IntakeAgentResult> {
+  public async execute(input: AgentInput): Promise<AgentMemoryEnvelope<IntakeAgentResult>> {
     const text = input.userStory;
-    
+    const sourceReferences: SourceReference[] = [
+      { id: 'narrative-user', type: 'claim', label: 'User narrative input' }
+    ];
+    const assumptions: string[] = [];
+    const unresolvedQuestions: string[] = [];
+
     // Extract financial amounts if mentioned in text and not provided
     let extractedAmount = input.claimAmount;
     if (!extractedAmount) {
       const amountMatch = text.match(/(?:₹|rs\.?|inr)\s*([\d,]+)/i);
       if (amountMatch) {
         extractedAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
+        sourceReferences.push({
+          id: 'claim-amount-extracted',
+          type: 'claim',
+          label: `Extracted claim amount: ₹${extractedAmount.toLocaleString('en-IN')}`
+        });
+      } else {
+        assumptions.push('Claim amount not quantified in monetary units; evaluating non-monetary restitution.');
+        unresolvedQuestions.push('What is the exact financial amount or value of goods/services in dispute?');
       }
     }
 
@@ -33,9 +42,9 @@ export class IntakeAgent {
         name: 'Opposing Entity / Respondent',
         role: 'Opposing Party'
       });
+      assumptions.push('Defaulted party roles to Aggrieved Citizen vs. Opposing Entity.');
     }
 
-    // Generate plain-language summary & legal classification
     let plainLanguageSummary = '';
     let keyConflict = '';
     let legalNature = '';
@@ -43,7 +52,7 @@ export class IntakeAgent {
     switch (input.category) {
       case 'tenancy_housing':
         plainLanguageSummary = `Dispute regarding rental housing tenancy, involving security deposit withholding or maintenance deduction without proper itemized bills.`;
-        keyConflict = `Withholding of refund post vacant possession without mutual agreement.`;
+        keyConflict = `Withholding of deposit refund post vacant possession without mutual agreement or authentic repair invoices.`;
         legalNature = `Civil Contractual & Rent Control Violation`;
         break;
       case 'consumer_dispute':
@@ -78,7 +87,7 @@ export class IntakeAgent {
         break;
     }
 
-    return {
+    const result: IntakeAgentResult = {
       refinedTitle: input.title || `${input.category.replace(/_/g, ' ').toUpperCase()} Matter`,
       detectedCategory: input.category,
       detectedSubCategory: input.category.replace(/_/g, ' '),
@@ -87,6 +96,15 @@ export class IntakeAgent {
       plainLanguageSummary,
       keyConflict,
       legalNature
+    };
+
+    return {
+      result,
+      confidenceScore: 0.94,
+      sourceReferences,
+      assumptions,
+      unresolvedQuestions,
+      safetyFlags: []
     };
   }
 }

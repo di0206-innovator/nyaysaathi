@@ -21,7 +21,8 @@ export type TrustSafetyTier =
   | 'fact'
   | 'explanation'
   | 'possibility'
-  | 'counsel_required';
+  | 'counsel_required'
+  | 'unsupported';
 
 export interface Party {
   id: string;
@@ -77,6 +78,7 @@ export interface ExtractedFact {
   verified: boolean;
   tier: TrustSafetyTier;
   confidence: number;
+  groundingRefIds?: string[];
 }
 
 export interface TimelineEvent {
@@ -88,6 +90,7 @@ export interface TimelineEvent {
   evidenceTitle?: string;
   isKeyMilestone?: boolean;
   status: 'verified' | 'user_reported' | 'estimated';
+  groundingRefIds?: string[];
 }
 
 export interface RiskItem {
@@ -103,6 +106,7 @@ export interface RiskItem {
   };
   mitigatingAction: string;
   legalContext: string;
+  groundingRefIds?: string[];
 }
 
 export interface MissingInformation {
@@ -113,6 +117,7 @@ export interface MissingInformation {
   suggestedSource: string;
   isAnswered: boolean;
   answer?: string;
+  groundingRefIds?: string[];
 }
 
 export interface ActionStep {
@@ -124,9 +129,12 @@ export interface ActionStep {
   status: 'pending' | 'in_progress' | 'completed';
   priority: 'must_do' | 'recommended' | 'optional';
   associatedDraftType?: LegalDraftType;
+  groundingRefIds?: string[];
 }
 
 export type LegalDraftType =
+  | 'soft_request'
+  | 'formal_demand'
   | 'legal_notice'
   | 'consumer_complaint'
   | 'rti_application'
@@ -134,10 +142,13 @@ export type LegalDraftType =
   | 'police_grievance'
   | 'employer_representation';
 
+export type CommunicationTier = 'soft' | 'formal' | 'lawyer_ready';
+
 export interface LegalDraft {
   id: string;
   matterId: string;
   type: LegalDraftType;
+  communicationTier: CommunicationTier;
   title: string;
   recipientName: string;
   recipientAddress?: string;
@@ -147,6 +158,7 @@ export interface LegalDraft {
   disclaimer: string;
   createdAt: string;
   status: 'draft' | 'customized' | 'ready_to_send';
+  groundingRefIds?: string[];
 }
 
 export interface EscalationRoute {
@@ -163,18 +175,20 @@ export interface EscalationRoute {
   description: string;
   criteriaMet: boolean;
   eligibilityDescription: string;
+  matchingReason?: string;
   officialPortalUrl?: string;
   tollFreeNumber?: string;
   physicalAuthority?: string;
   stepsToApply: string[];
   costEstimate: string;
+  stateApplicable?: string;
 }
 
 export interface LawyerBrief {
   id: string;
   matterId: string;
   executiveSummary: string;
-  keyChronology: Array<{ date: string; event: string }>;
+  keyChronology: Array<{ date: string; event: string; docRefId?: string }>;
   legalIssuesIdentified: string[];
   statutoryReferences: Array<{ statute: string; section?: string; applicability: string }>;
   reliefSought: string[];
@@ -185,6 +199,7 @@ export interface LawyerBrief {
   estimatedClaimAmount?: string;
   jurisdictionState?: string;
   generatedAt: string;
+  groundingRefIds?: string[];
 }
 
 export interface TrustSafetyItem {
@@ -193,6 +208,52 @@ export interface TrustSafetyItem {
   text: string;
   citation?: string;
   disclaimer?: string;
+  confidenceScore?: number;
+  groundingRefIds?: string[];
+}
+
+// Evidence Graph Structure
+export type EvidenceNodeType =
+  | 'claim'
+  | 'doc'
+  | 'fact'
+  | 'timeline'
+  | 'statute'
+  | 'risk'
+  | 'missing_info'
+  | 'action'
+  | 'draft';
+
+export type EvidenceEdgeRelation =
+  | 'supports'
+  | 'derives_from'
+  | 'contradicts'
+  | 'mitigates'
+  | 'requires'
+  | 'evidenced_by'
+  | 'governed_by';
+
+export interface EvidenceGraphNode {
+  id: string;
+  type: EvidenceNodeType;
+  label: string;
+  content: string;
+  confidence: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface EvidenceGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  relation: EvidenceEdgeRelation;
+  weight?: number;
+}
+
+export interface EvidenceGraphData {
+  nodes: EvidenceGraphNode[];
+  edges: EvidenceGraphEdge[];
+  updatedAt: string;
 }
 
 export interface Matter {
@@ -245,4 +306,7 @@ export interface Matter {
   
   // 11. Trust & Safety Breakdown
   trustSafetyItems: TrustSafetyItem[];
+
+  // 12. Normalized Evidence Graph Layer
+  evidenceGraph?: EvidenceGraphData;
 }

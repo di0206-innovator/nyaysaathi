@@ -1,6 +1,7 @@
 import { Matter, MatterCategory, Party, DocumentEvidence } from '@/types/matter';
 import { SEED_MATTERS } from './seed-data';
 import { MatterOrchestrator } from '@/lib/agents/orchestrator';
+import { ReanalysisTrigger } from '@/lib/agents/types';
 
 // In-memory global store across server requests in dev
 let mattersStore: Matter[] = [...SEED_MATTERS];
@@ -97,9 +98,9 @@ export const MockDB = {
   },
 
   /**
-   * Re-run agent analysis pipeline on existing matter
+   * Re-run agent analysis pipeline on existing matter with selective trigger support
    */
-  async reanalyzeMatter(id: string): Promise<Matter | null> {
+  async reanalyzeMatter(id: string, trigger?: ReanalysisTrigger): Promise<Matter | null> {
     const existing = await this.getMatterById(id);
     if (!existing) return null;
 
@@ -112,7 +113,8 @@ export const MockDB = {
       locationCity: existing.locationCity,
       locationState: existing.locationState,
       parties: existing.parties,
-      documents: existing.documents
+      documents: existing.documents,
+      trigger: trigger || 'full'
     });
 
     await this.updateMatter(id, result.matter);

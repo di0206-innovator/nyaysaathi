@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MockDB } from '@/lib/db/mock-db';
+import { ReanalysisTrigger } from '@/lib/agents/types';
 
 export async function POST(
   req: NextRequest,
@@ -7,7 +8,19 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const reanalyzed = await MockDB.reanalyzeMatter(id);
+    let trigger: ReanalysisTrigger | undefined;
+
+    try {
+      const body = await req.json();
+      if (body && body.trigger) {
+        trigger = body.trigger as ReanalysisTrigger;
+      }
+    } catch {
+      // Body may be empty, default to full
+      trigger = 'full';
+    }
+
+    const reanalyzed = await MockDB.reanalyzeMatter(id, trigger);
 
     if (!reanalyzed) {
       return NextResponse.json(
@@ -18,7 +31,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: 'Matter re-analyzed across 9 internal agents successfully',
+      message: `Matter re-analyzed successfully (Trigger: ${trigger || 'full'})`,
       data: reanalyzed
     });
   } catch (error: unknown) {

@@ -225,13 +225,95 @@ export const SEED_MATTERS: Matter[] = [
 
     drafts: [
       {
-        id: 'draft-1',
+        id: 'draft-1-soft',
         matterId: 'matter-bengaluru-rent',
-        type: 'landlord_demand_letter',
-        title: 'Formal Demand Notice for Immediate Refund of ₹75,000 Security Deposit',
+        type: 'soft_request',
+        communicationTier: 'soft',
+        title: '🌱 Settlement Request (WhatsApp / Email Friendly)',
         recipientName: 'R. K. Sundaram (Landlord)',
         recipientAddress: 'No. 14, 8th Main, Indiranagar, Bengaluru - 560038',
-        subject: 'DEMAND FOR IMMEDIATE REFUND OF SECURITY DEPOSIT OF ₹75,000 FOR FLAT 302, GREEN RESIDENCY, KORAMANGALA',
+        subject: 'Friendly Follow-up: Security Deposit Refund for Flat 302, Koramangala',
+        content: `Dear Mr. Sundaram,
+
+I hope you are doing well.
+
+I am writing to politely follow up on the refund of my ₹75,000 security deposit for Flat 302, Green Residency, Koramangala 4th Block, which was vacated on 31 July 2026 after serving the required 30-day notice.
+
+As we noted during the key handover, the apartment was left clean and in good condition with all utility bills cleared. Under our rental agreement (Clause 9), the deposit refund was scheduled within 15 days of handover.
+
+Regarding the repainting and sanitization deductions mentioned earlier: normal wear and tear over an 18-month tenancy is typically landlord maintenance under standard tenancy practices. If there were specific third-party repair bills, please share the GST invoices so we can reconcile them transparently.
+
+I would truly appreciate it if we can settle this amicably without unnecessary complications. Could you please confirm when the ₹75,000 transfer can be initiated to my bank account?
+
+Bank Details:
+Account Name: Arjun Verma
+A/C No: 9190200881234
+IFSC: UTIB0002938
+
+Thank you for your cooperation and support during my stay.
+
+Warm regards,
+Arjun Verma
++91 98765 43210`,
+        statutoryReference: 'Indian Contract Act, 1872 & Karnataka Rent Jurisprudence',
+        disclaimer: 'Recommended first-contact communication to resolve disputes amicably without adversarial escalation.',
+        groundingRefIds: ['fact-1', 'fact-2', 'fact-3', 'doc-1', 'doc-2', 'doc-3'],
+        createdAt: '2026-09-17',
+        status: 'ready_to_send'
+      },
+      {
+        id: 'draft-1-formal',
+        matterId: 'matter-bengaluru-rent',
+        type: 'formal_demand',
+        communicationTier: 'formal',
+        title: '📄 Formal Demand Letter (Pre-Notice Letter)',
+        recipientName: 'R. K. Sundaram (Landlord)',
+        recipientAddress: 'No. 14, 8th Main, Indiranagar, Bengaluru - 560038',
+        subject: 'FORMAL REQUISITION FOR IMMEDIATE DISBURSEMENT OF ₹75,000 SECURITY DEPOSIT',
+        content: `Date: 17 September 2026
+
+To,
+Mr. R. K. Sundaram
+No. 14, 8th Main, Indiranagar,
+Bengaluru, Karnataka - 560038
+Email: rksundaram.property@gmail.com
+
+From:
+Mr. Arjun Verma
+Flat No. 101, Palm Heights, HSR Layout,
+Bengaluru, Karnataka - 560102
+Mobile: +91 98765 43210
+
+SUBJECT: FORMAL DEMAND FOR REFUND OF ₹75,000 SECURITY DEPOSIT - FLAT 302, GREEN RESIDENCY, KORAMANGALA
+
+Dear Sir,
+
+This is a formal communication regarding the full refund of the interest-free refundable security deposit of ₹75,000/- paid under our Rental Agreement dated 1st February 2025.
+
+1. In compliance with Clause 9 of the agreement, a 30-day notice was served on 30th June 2026. Vacant, peaceful possession of the premises was delivered to your representative on 31st July 2026.
+2. Under Clause 9, the refund was due on or before 15th August 2026. More than 45 days have now elapsed.
+3. Your proposed deduction of ₹65,000 without contemporaneous joint inspection notes or verified GST repair invoices is unsustainable under law, as ordinary wear and tear cannot be charged to the tenant.
+
+You are formally requested to remit the undisputed amount of ₹75,000/- within SEVEN (7) DAYS of receipt of this letter to avoid formal legal proceedings before the District Legal Services Authority (DLSA) or Small Causes Court.
+
+Yours faithfully,
+
+(Arjun Verma)`,
+        statutoryReference: 'Section 73, Indian Contract Act 1872',
+        disclaimer: 'Dated formal letter setting a 7-day cure window prior to legal notice dispatch.',
+        groundingRefIds: ['fact-1', 'fact-2', 'fact-3', 'doc-1', 'doc-2'],
+        createdAt: '2026-09-17',
+        status: 'ready_to_send'
+      },
+      {
+        id: 'draft-1-legal',
+        matterId: 'matter-bengaluru-rent',
+        type: 'landlord_demand_letter',
+        communicationTier: 'lawyer_ready',
+        title: '⚖️ Statutory Legal Notice (Lawyer-Ready / RPAD)',
+        recipientName: 'R. K. Sundaram (Landlord)',
+        recipientAddress: 'No. 14, 8th Main, Indiranagar, Bengaluru - 560038',
+        subject: 'LEGAL DEMAND NOTICE UNDER INDIAN CONTRACT ACT FOR REFUND OF ₹75,000 DEPOSIT',
         content: `BY REGISTERED POST WITH ACKNOWLEDGEMENT DUE / SPEED POST & EMAIL
 
 Date: 17 September 2026
@@ -259,7 +341,7 @@ Under instructions and on my own behalf, I hereby serve upon you this formal Dem
 
 2. That in accordance with Clause 9 of the said agreement, I served a formal 30-day notice on 30th June 2026 expressing my intention to vacate the premises on 31st July 2026.
 
-3. That on 31st July 2026, I peacefully vacated the subject premises and handed over vacant possession along with all original keys to your designated representative. The apartment was delivered in pristine, clean, and tenantable condition with all pending electricity and water bills settled in full.
+3. That on 31st July 2026, I peacefully vacated the subject premises and handed over vacant possession along with all original keys to your designated representative. The apartment was delivered in tenantable condition with all pending utility dues settled in full.
 
 4. That under Clause 9 of the agreement, you were contractually obligated to refund the entire Security Deposit of ₹75,000/- within 15 days of receiving vacant possession (i.e. on or before 15th August 2026).
 
@@ -277,7 +359,8 @@ Yours sincerely,
 (Arjun Verma)
 Encl: Copy of Rental Agreement, NEFT Payment Slip, Move-out Handover Chat Record.`,
         statutoryReference: 'Indian Contract Act 1872 & Karnataka Rent Act / Model Tenancy Act',
-        disclaimer: 'This draft is generated based on your inputs and agreement terms. Please verify bank account details and delivery address before posting.',
+        disclaimer: 'This draft is generated based on your inputs and agreement terms. For maximum evidentiary value, serve via Speed Post with Acknowledgement Due (RPAD).',
+        groundingRefIds: ['fact-1', 'fact-2', 'fact-3', 'doc-1', 'doc-2', 'doc-3'],
         createdAt: '2026-09-17',
         status: 'ready_to_send'
       }
@@ -560,11 +643,88 @@ Encl: Copy of Rental Agreement, NEFT Payment Slip, Move-out Handover Chat Record
 
     drafts: [
       {
-        id: 'draft-1',
+        id: 'draft-2-soft',
+        matterId: 'matter-mumbai-consumer',
+        type: 'soft_request',
+        communicationTier: 'soft',
+        title: '🌱 Customer Support Escalation (Email / App Grievance)',
+        recipientName: 'Apex Mobile India Customer Grievance Cell',
+        recipientAddress: 'Corporate Office, Bandra Kurla Complex, Mumbai - 400051',
+        subject: 'Grievance: Warranty Denial for Display Green Lines - Job Sheet #MUM-88421',
+        content: `Dear Customer Support Team,
+
+I am writing regarding my Apex Pro 5G smartphone (IMEI: 864201928374615, Invoice #RET-9921 dated 10 Dec 2025), which is currently under active 1-year manufacturer warranty.
+
+Following the recent official OTA software update on 20 August 2026, the device display developed permanent vertical green lines. I deposited the handset at your authorized Andheri service center under Job Sheet #MUM-88421.
+
+The service center intake record clearly confirms the outer body and front glass are completely scratch-free with no physical damage or water exposure. Despite this, the service team has denied warranty coverage citing 'internal pressure' and asked for ₹14,500 repair charges.
+
+Since this issue is widely acknowledged as a software update display glitch, I kindly request the grievance team to review this case and approve a complimentary screen replacement under standard warranty terms.
+
+I have attached copies of the tax invoice and the initial service intake sheet for your reference.
+
+Looking forward to your positive response and resolution.
+
+Warm regards,
+Pooja Mehta
++91 98200 54321`,
+        statutoryReference: 'Consumer Protection Act, 2019 (Warranty Obligations)',
+        disclaimer: 'Settlement-first grievance email to manufacturer before escalating to NCH or e-Daakhil.',
+        groundingRefIds: ['fact-1', 'fact-2', 'doc-1', 'doc-2'],
+        createdAt: '2026-09-17',
+        status: 'ready_to_send'
+      },
+      {
+        id: 'draft-2-formal',
+        matterId: 'matter-mumbai-consumer',
+        type: 'formal_demand',
+        communicationTier: 'formal',
+        title: '📄 Formal Pre-Litigation Demand to Brand Nodal Officer',
+        recipientName: 'Nodal / Grievance Officer, Apex Mobile India Pvt. Ltd.',
+        recipientAddress: 'Corporate Office, Bandra Kurla Complex, Mumbai - 400051',
+        subject: 'FORMAL DEMAND FOR FREE WARRANTY REPAIR / PRODUCT REPLACEMENT - JOB SHEET #MUM-88421',
+        content: `Date: 17 September 2026
+
+To:
+The Principal Nodal Officer
+Apex Mobile India Pvt. Ltd.
+Corporate Office, BKC, Mumbai - 400051
+Email: nodalofficer.india@apexmobile.com
+
+From:
+Ms. Pooja Mehta
+Residing at Mumbai Suburban
+Mobile: +91 98200 54321
+Email: pooja.mehta@email.com
+
+SUBJECT: FORMAL DEMAND UNDER CONSUMER PROTECTION ACT 2019 FOR RECTIFICATION OF DEFICIENCY IN SERVICE (JOB SHEET #MUM-88421)
+
+Sir / Madam,
+
+1. I am the bona fide purchaser of Apex Pro 5G handset purchased for ₹42,000/- on 10.12.2025 under Tax Invoice RET-9921, carrying active 1-year warranty.
+2. On 20.08.2026, within active warranty, the display malfunctioned with green lines post official firmware update.
+3. Job Sheet #MUM-88421 confirms zero external impact or crack.
+4. The demand of ₹14,500/- for display replacement constitutes 'Deficiency in Service' under Section 2(11) and 'Unfair Trade Practice' under Section 2(47) of the Consumer Protection Act, 2019.
+
+You are formally called upon to arrange free display replacement or refund ₹42,000/- within SEVEN (7) DAYS of receipt of this notice, failing which a consumer complaint shall be lodged on the e-Daakhil portal without further reference.
+
+Yours faithfully,
+
+(Pooja Mehta)`,
+        statutoryReference: 'Section 2(11) & Section 2(47), Consumer Protection Act 2019',
+        disclaimer: 'Pre-litigation demand letter setting a 7-day cure window prior to filing on e-Daakhil.',
+        groundingRefIds: ['fact-1', 'fact-2', 'doc-1', 'doc-2'],
+        createdAt: '2026-09-17',
+        status: 'ready_to_send'
+      },
+      {
+        id: 'draft-2-legal',
         matterId: 'matter-mumbai-consumer',
         type: 'consumer_complaint',
-        title: 'e-Daakhil Consumer Complaint Plaint under Section 35 CPA 2019',
+        communicationTier: 'lawyer_ready',
+        title: '⚖️ e-Daakhil Consumer Complaint Plaint (Section 35 CPA)',
         recipientName: 'District Consumer Disputes Redressal Commission, Mumbai Suburban',
+        recipientAddress: 'Administrative Building, Bandra (E), Mumbai - 400051',
         subject: 'CONSUMER COMPLAINT UNDER SECTION 35 FOR DEFICIENCY IN SERVICE AND REFUSAL OF WARRANTY',
         content: `BEFORE THE HON'BLE DISTRICT CONSUMER DISPUTES REDRESSAL COMMISSION, MUMBAI SUBURBAN
 
@@ -572,14 +732,14 @@ COMPLAINT NO. ________ / 2026
 
 IN THE MATTER OF:
 Ms. Pooja Mehta
-Residing at: [Insert Mumbai Address]
+Residing at: Mumbai Suburban
 ...COMPLAINANT
 
 VERSUS
 
 1. Apex Mobile India Pvt. Ltd.
 Through its Managing Director
-[Corporate Address, BKC, Mumbai]
+Corporate Address, BKC, Mumbai - 400051
 
 2. Authorized Electronics Retailer, Bandra
 ...OPPOSITE PARTIES
@@ -608,6 +768,7 @@ c) Direct payment of ₹10,000/- towards litigation costs incurred.
 Complainant in Person`,
         statutoryReference: 'Consumer Protection Act, 2019 (Section 2(11), 2(47), 35)',
         disclaimer: 'Generated for direct filing on the e-Daakhil digital portal (edaakhil.nic.in). No advocate mandate required for filing.',
+        groundingRefIds: ['fact-1', 'fact-2', 'doc-1', 'doc-2'],
         createdAt: '2026-09-17',
         status: 'ready_to_send'
       }

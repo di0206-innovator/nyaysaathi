@@ -1,39 +1,49 @@
-import { AgentInput, LegalRetrievalAgentResult } from './types';
-import { INDIAN_STATUTES } from '@/lib/legal/statutes';
+import { AgentInput, LegalRetrievalAgentResult, AgentMemoryEnvelope, SourceReference } from './types';
+import { StatuteMatcher } from '@/lib/legal/statute-matcher';
 
 export class LegalRetrievalAgent {
-  /**
-   * Identifies applicable Indian statutory frameworks, relevant sections,
-   * jurisdictional forums, and limitation periods for the matter.
-   */
-  public async execute(input: AgentInput): Promise<LegalRetrievalAgentResult> {
-    const matchingStatutes = INDIAN_STATUTES.filter(
-      s => s.category === input.category || s.category === 'other'
-    );
+  public async execute(input: AgentInput): Promise<AgentMemoryEnvelope<LegalRetrievalAgentResult>> {
+    const sourceReferences: SourceReference[] = [];
+    const assumptions: string[] = [];
+    const unresolvedQuestions: string[] = [];
 
-    const applicableStatutes = matchingStatutes.map(s => ({
-      statute: s.statute,
-      section: s.section,
-      title: s.title,
-      applicabilityNote: s.plainSummary,
-      limitationMonths: s.limitationMonths,
-      forum: s.forumOrAuthority
-    }));
+    const matched = StatuteMatcher.match({
+      category: input.category,
+      state: input.locationState,
+      claimAmount: input.claimAmount,
+      hasRegisteredAgreement: input.documents.some(d => d.type === 'rental_agreement' || d.title.toLowerCase().includes('agreement'))
+    });
 
-    // If no exact match, fallback to general civil remedy
-    if (applicableStatutes.length === 0) {
-      applicableStatutes.push({
-        statute: 'Code of Civil Procedure, 1908 & Indian Contract Act, 1872',
-        section: 'Section 73 (Compensation for breach of contract)',
-        title: 'Damages for Breach of Legal Duty or Contract',
-        applicabilityNote: 'Provides right to seek restitution and monetary compensation for direct losses sustained.',
-        limitationMonths: 36,
-        forum: 'Civil Court of Competent Jurisdiction'
+    const applicableStatutes = matched.map((s, idx) => {
+      const statuteId = `statute-${idx + 1}`;
+      sourceReferences.push({
+        id: statuteId,
+        type: 'statute',
+        label: `${s.statute} (${s.section})`,
+        excerpt: s.plainSummary
       });
-    }
+
+      return {
+        statute: s.statute,
+        section: s.section,
+        title: s.title,
+        applicabilityNote: s.plainSummary,
+        limitationMonths: s.limitationMonths,
+        forum: s.forumOrAuthority,
+        matchScore: s.matchScore,
+        matchReason: s.matchReason
+      };
+    });
 
     return {
-      applicableStatutes
+      result: {
+        applicableStatutes
+      },
+      confidenceScore: 0.95,
+      sourceReferences,
+      assumptions,
+      unresolvedQuestions,
+      safetyFlags: []
     };
   }
 }
