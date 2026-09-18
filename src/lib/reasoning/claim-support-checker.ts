@@ -35,12 +35,12 @@ export class ClaimSupportChecker {
       reason: 'Neutralized guaranteed outcome claim into grounded statutory basis.'
     },
     {
-      pattern: /\b(is|are\s+)?(completely\s+|wholly\s+|strictly\s+|blatantly\s+)?illegal\b/gi,
+      pattern: /\b(is|are\s+)?(completely\s+|wholly\s+|strictly\s+|blatantly\s+)?(illegally|illegal)\b/gi,
       replacement: 'appears inconsistent with contractual terms and statutory guidelines',
       reason: 'Softened aggressive "illegal" assertion to factual non-compliance.'
     },
     {
-      pattern: /\b(is|are\s+)?(completely\s+|wholly\s+|strictly\s+|blatantly\s+)?unlawful\b/gi,
+      pattern: /\b(is|are\s+)?(completely\s+|wholly\s+|strictly\s+|blatantly\s+)?(unlawfully|unlawful)\b/gi,
       replacement: 'is untenable under applicable legal provisions',
       reason: 'Replaced conclusive "unlawful" statement with neutral legal evaluation.'
     },

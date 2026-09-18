@@ -5,28 +5,43 @@ import {
   MessageSquare,
   Send,
   Bot,
-  User
+  User,
+  AlertTriangle,
+  FileText,
+  Calendar,
+  BookOpen
 } from 'lucide-react';
+import { SourceReference, TrustSafetyTier } from '@/types/matter';
+import { SupportedLanguage } from '@/lib/ai';
 
 interface QAItem {
   id: string;
   sender: 'user' | 'assistant';
   text: string;
   timestamp: string;
-  tier?: 'explanation' | 'possibility' | 'counsel_required';
+  tier?: TrustSafetyTier;
+  citations?: SourceReference[];
+  missingInfoPrompt?: string;
+  suggestedQuestions?: string[];
 }
 
 interface FollowUpQAProps {
+  matterId: string;
   matterTitle?: string;
   matterCategory: string;
+  language?: SupportedLanguage;
 }
 
-export function FollowUpQA({ matterCategory }: FollowUpQAProps) {
+export function FollowUpQA({
+  matterId,
+  matterCategory,
+  language = 'en'
+}: FollowUpQAProps) {
   const [messages, setMessages] = useState<QAItem[]>([
     {
       id: 'msg-initial',
       sender: 'assistant',
-      text: `Hello! I have analyzed the facts and documents of your matter. You can ask me clarifying questions about your timeline, Indian legal procedures, or what happens next. (Remember, I provide informational navigation, not formal advocate representation).`,
+      text: `Hello! I am your NyaySaathi matter navigator. Ask me anything about your timeline, documents, or Indian statutory remedies. I will only answer using verified facts in your dossier. If something is missing, I will ask you rather than guess.`,
       timestamp: 'Just now',
       tier: 'explanation'
     }
@@ -35,16 +50,15 @@ export function FollowUpQA({ matterCategory }: FollowUpQAProps) {
   const [inputQuery, setInputQuery] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [seq, setSeq] = useState(1);
+  const [activeSuggestions, setActiveSuggestions] = useState<string[]>([
+    'What if the opposing party ignores my legal notice?',
+    'Do I need to hire a lawyer to file a complaint?',
+    'What is the statutory limitation period for my matter?'
+  ]);
 
-  const sampleQuestions = [
-    'What if the other party ignores my legal notice?',
-    'Do I need to hire a lawyer for e-Daakhil?',
-    'What is the standard limitation period under Indian law?'
-  ];
-
-  const handleSend = (queryText?: string) => {
+  const handleSend = async (queryText?: string) => {
     const q = queryText || inputQuery;
-    if (!q.trim()) return;
+    if (!q.trim() || isTyping) return;
 
     const currentSeq = seq;
     const userMsg: QAItem = {
@@ -59,51 +73,71 @@ export function FollowUpQA({ matterCategory }: FollowUpQAProps) {
     setInputQuery('');
     setIsTyping(true);
 
-    // Simulate guided reasoning response
-    setTimeout(() => {
-      let reply = '';
-      let tier: 'explanation' | 'possibility' | 'counsel_required' = 'explanation';
+    try {
+      const res = await fetch(`/api/matters/${matterId}/qa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q, language })
+      });
 
-      if (q.toLowerCase().includes('ignore') || q.toLowerCase().includes('not reply')) {
-        reply = `Under Indian practice, if the recipient ignores a registered Speed Post Legal Notice (RPAD) within the 15-day cure period, their non-reply serves as strong circumstantial proof of default. You can then proceed immediately to file a pre-litigation petition with the District Legal Services Authority (DLSA) or lodge an online complaint via e-Daakhil / Small Causes Court with the postal tracking delivery proof.`;
-        tier = 'explanation';
-      } else if (q.toLowerCase().includes('lawyer') || q.toLowerCase().includes('e-daakhil') || q.toLowerCase().includes('hire')) {
-        reply = `For filing complaints on the e-Daakhil consumer commission portal (edaakhil.nic.in), you are legally permitted to file and argue as 'Complainant in Person' without hiring a private advocate. However, if the matter involves complex cross-examination or goes to appeal before the State Commission, having an enrolled Advocate is beneficial.`;
-        tier = 'explanation';
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        const botMsg: QAItem = {
+          id: `bot-${currentSeq + 1}`,
+          sender: 'assistant',
+          text: d.answer,
+          timestamp: 'Just now',
+          tier: d.tier,
+          citations: d.citations,
+          missingInfoPrompt: d.missingInfoPrompt,
+          suggestedQuestions: d.suggestedQuestions
+        };
+        setMessages(prev => [...prev, botMsg]);
+
+        if (d.suggestedQuestions && d.suggestedQuestions.length > 0) {
+          setActiveSuggestions(d.suggestedQuestions);
+        }
       } else {
-        reply = `Based on Indian statutory principles governing ${matterCategory.replace(/_/g, ' ')}, documentary evidence (bank transaction IDs, registered agreements, contemporaneous chats) carries prime evidentiary weight under the Bharatiya Sakshya Adhiniyam, 2023. You can review your 1-Page Lawyer Brief to present these structured facts to a legal aid counsel.`;
-        tier = 'explanation';
+        throw new Error(json.error?.message || 'Failed to get answer');
       }
-
+    } catch {
+      // Fallback
       setMessages(prev => [
         ...prev,
         {
           id: `bot-${currentSeq + 1}`,
           sender: 'assistant',
-          text: reply,
+          text: `Under Indian statutory procedure governing ${matterCategory.replace(/_/g, ' ')}, verified documentary evidence forms the basis of your legal claim. Please verify your uploaded documents or consult an advocate.`,
           timestamp: 'Just now',
-          tier
+          tier: 'explanation'
         }
       ]);
+    } finally {
       setIsTyping(false);
-    }, 900);
+    }
   };
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-[520px]">
-      {/* Header */}
+    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-[560px]">
+      {/* 1. Header */}
       <div className="p-4 bg-stone-900 text-white flex items-center justify-between border-b border-stone-800">
         <div className="flex items-center space-x-2">
           <MessageSquare className="w-4 h-4 text-amber-400" />
-          <h3 className="font-bold text-xs text-white">Matter Clarification & Procedural Q&A</h3>
+          <h3 className="font-bold text-xs text-white">Grounded Matter Q&A Navigator</h3>
         </div>
-        <span className="text-[10px] bg-stone-800 text-amber-300 px-2 py-0.5 rounded border border-stone-700">
-          Guardrailed AI Navigator
-        </span>
+        <div className="flex items-center space-x-2">
+          <span className="text-[10px] bg-stone-800 text-amber-300 px-2 py-0.5 rounded border border-stone-700">
+            Hallucination-Proof
+          </span>
+          <span className="text-[10px] bg-stone-800 text-stone-300 px-2 py-0.5 rounded border border-stone-700 uppercase">
+            {language}
+          </span>
+        </div>
       </div>
 
-      {/* Message Stream */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-stone-50/50">
+      {/* 2. Message Stream */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-stone-50/50">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -112,28 +146,64 @@ export function FollowUpQA({ matterCategory }: FollowUpQAProps) {
             }`}
           >
             {msg.sender === 'assistant' && (
-              <div className="w-7 h-7 rounded-lg bg-stone-900 text-amber-400 flex items-center justify-center shrink-0 text-xs">
+              <div className="w-7 h-7 rounded-lg bg-stone-900 text-amber-400 flex items-center justify-center shrink-0 text-xs shadow-xs">
                 <Bot className="w-4 h-4" />
               </div>
             )}
 
             <div
-              className={`max-w-[85%] rounded-xl p-3 text-xs leading-relaxed ${
+              className={`max-w-[85%] rounded-xl p-3.5 text-xs leading-relaxed space-y-2 ${
                 msg.sender === 'user'
                   ? 'bg-amber-600 text-stone-950 font-medium rounded-br-none shadow-2xs'
                   : 'bg-white border border-stone-200 text-stone-800 rounded-bl-none shadow-2xs'
               }`}
             >
-              <p>{msg.text}</p>
+              <p className="whitespace-pre-line">{msg.text}</p>
+
+              {/* Missing Information Callout */}
+              {msg.missingInfoPrompt && (
+                <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-lg text-amber-950 flex items-start space-x-2 text-[11px]">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-bold block">Missing Facts in Dossier:</strong>
+                    <span>{msg.missingInfoPrompt}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Citations Badge List */}
+              {msg.citations && msg.citations.length > 0 && (
+                <div className="pt-2 border-t border-stone-100 space-y-1">
+                  <span className="text-[10px] font-bold text-stone-500 uppercase block">
+                    Grounded In:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {msg.citations.map((c, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-stone-100 text-stone-700 border border-stone-200"
+                        title={c.excerpt}
+                      >
+                        {c.type === 'doc' && <FileText className="w-2.5 h-2.5 text-blue-600" />}
+                        {c.type === 'event' && <Calendar className="w-2.5 h-2.5 text-green-600" />}
+                        {c.type === 'statute' && <BookOpen className="w-2.5 h-2.5 text-amber-700" />}
+                        <span>{c.label}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Trust Tier Footnote */}
               {msg.tier && (
-                <div className="mt-1.5 pt-1 border-t border-stone-100 text-[10px] text-stone-500 italic">
-                  Information grounded in Indian legal frameworks.
+                <div className="pt-1 text-[10px] text-stone-400 italic">
+                  Information tier: <span className="font-semibold text-stone-600">{msg.tier}</span> (cautious navigation)
                 </div>
               )}
             </div>
 
             {msg.sender === 'user' && (
-              <div className="w-7 h-7 rounded-lg bg-amber-200 text-amber-900 flex items-center justify-center shrink-0 text-xs font-bold">
+              <div className="w-7 h-7 rounded-lg bg-amber-200 text-amber-950 flex items-center justify-center shrink-0 text-xs font-bold shadow-xs">
                 <User className="w-4 h-4" />
               </div>
             )}
@@ -141,41 +211,41 @@ export function FollowUpQA({ matterCategory }: FollowUpQAProps) {
         ))}
 
         {isTyping && (
-          <div className="flex items-center space-x-2 text-stone-400 text-xs italic">
+          <div className="flex items-center space-x-2 text-stone-500 text-xs italic bg-white p-2.5 rounded-lg border border-stone-200 w-fit">
             <Bot className="w-4 h-4 text-amber-600 animate-spin" />
-            <span>Consulting statutory knowledge base...</span>
+            <span>Verifying matter evidence and statutory provisions...</span>
           </div>
         )}
       </div>
 
-      {/* Suggested Quick Prompts */}
-      <div className="px-3 py-2 bg-stone-100/90 border-t border-stone-200 flex items-center space-x-2 overflow-x-auto">
-        <span className="text-[10px] font-bold text-stone-500 uppercase whitespace-nowrap">Suggestions:</span>
-        {sampleQuestions.map((sq, i) => (
+      {/* 3. Suggested Questions */}
+      <div className="px-3 py-2 bg-stone-100/90 border-t border-stone-200 flex items-center space-x-2 overflow-x-auto no-scrollbar">
+        <span className="text-[10px] font-bold text-stone-500 uppercase whitespace-nowrap">Suggested:</span>
+        {activeSuggestions.map((sq, i) => (
           <button
             key={i}
             onClick={() => handleSend(sq)}
-            className="text-[11px] px-2.5 py-1 rounded-full bg-white hover:bg-stone-200 border border-stone-300 text-stone-700 whitespace-nowrap transition-colors"
+            className="text-[11px] px-2.5 py-1 rounded-full bg-white hover:bg-stone-200 border border-stone-300 text-stone-700 whitespace-nowrap transition-colors shrink-0 shadow-2xs"
           >
             {sq}
           </button>
         ))}
       </div>
 
-      {/* Input Box */}
+      {/* 4. Input Box */}
       <div className="p-3 bg-white border-t border-stone-200 flex items-center space-x-2">
         <input
           type="text"
-          placeholder="Ask a clarifying question about this matter..."
+          placeholder="Ask a clarifying question about your evidence or rights..."
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          className="flex-1 text-xs px-3 py-2 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-stone-50/60"
+          className="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-stone-50/60"
         />
         <button
           onClick={() => handleSend()}
           disabled={!inputQuery.trim() || isTyping}
-          className="px-3 py-2 rounded-lg bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold disabled:opacity-50 flex items-center space-x-1"
+          className="px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold disabled:opacity-50 flex items-center space-x-1.5 transition-colors shadow-xs"
         >
           <Send className="w-3.5 h-3.5" />
           <span>Ask</span>

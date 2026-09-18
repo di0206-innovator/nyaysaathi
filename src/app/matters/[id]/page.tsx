@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, use, useMemo } from 'react';
 import Link from 'next/link';
 import { Matter, DocumentEvidence } from '@/types/matter';
 import { MatterHeader } from '@/components/matter/MatterHeader';
@@ -14,6 +14,12 @@ import { LawyerBriefCard } from '@/components/matter/LawyerBriefCard';
 import { EscalationPathwayCard } from '@/components/matter/EscalationPathwayCard';
 import { FollowUpQA } from '@/components/matter/FollowUpQA';
 import { GroundingExplorer } from '@/components/matter/GroundingExplorer';
+import { TrustDashboard } from '@/components/matter/TrustDashboard';
+import { DeadlineTrackerCard } from '@/components/matter/DeadlineTrackerCard';
+import { LanguageSelector } from '@/components/matter/LanguageSelector';
+import { DeadlineEngine } from '@/lib/deadlines/deadline-engine';
+import { SupportedLanguage } from '@/lib/ai';
+import { LocalizedMatterContent } from '@/lib/multilingual/language-service';
 import {
   Scale,
   Sparkles,
@@ -25,12 +31,16 @@ import {
   Briefcase,
   Users,
   MessageSquare,
-  ShieldCheck
+  ShieldCheck,
+  Clock,
+  Shield
 } from 'lucide-react';
 
 type TabType =
   | 'overview'
+  | 'trust'
   | 'grounding'
+  | 'deadlines'
   | 'timeline'
   | 'risks'
   | 'actions'
@@ -50,6 +60,9 @@ export default function MatterDetailPage({
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>('en');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [localizedContent, setLocalizedContent] = useState<LocalizedMatterContent | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -87,6 +100,34 @@ export default function MatterDetailPage({
       }
     } catch (err) {
       console.error('Failed to re-analyze', err);
+    }
+  };
+
+  const calculatedDeadlines = useMemo(() => {
+    return matter ? DeadlineEngine.calculateDeadlines(matter) : [];
+  }, [matter]);
+
+  const handleLanguageChange = async (lang: SupportedLanguage) => {
+    setCurrentLanguage(lang);
+    if (lang === 'en') {
+      setLocalizedContent(null);
+      return;
+    }
+    setIsTranslating(true);
+    try {
+      const res = await fetch(`/api/matters/${id}/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: lang })
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setLocalizedContent(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to translate matter', err);
+    } finally {
+      setIsTranslating(false);
     }
   };
 
@@ -168,15 +209,19 @@ export default function MatterDetailPage({
     );
   }
 
+  const criticalDeadlinesCount = calculatedDeadlines.filter(d => d.urgency === 'critical').length;
+
   const navTabs = [
-    { id: 'overview' as const, label: 'Situation & Trust', icon: <Sparkles className="w-4 h-4" /> },
-    { id: 'grounding' as const, label: 'Grounding & Evidence Graph', icon: <ShieldCheck className="w-4 h-4" /> },
-    { id: 'timeline' as const, label: 'What Happened (Timeline)', icon: <Calendar className="w-4 h-4" /> },
+    { id: 'overview' as const, label: 'Situation Summary', icon: <Sparkles className="w-4 h-4" /> },
+    { id: 'trust' as const, label: 'Trust Dashboard', icon: <Shield className="w-4 h-4" /> },
+    { id: 'grounding' as const, label: 'Evidence Graph', icon: <ShieldCheck className="w-4 h-4" /> },
+    { id: 'deadlines' as const, label: 'Deadlines & Windows', icon: <Clock className="w-4 h-4" />, count: criticalDeadlinesCount || undefined },
+    { id: 'timeline' as const, label: 'Timeline', icon: <Calendar className="w-4 h-4" /> },
     { id: 'risks' as const, label: 'Pay Attention (Risks)', icon: <ShieldAlert className="w-4 h-4" />, count: matter.risks.length },
-    { id: 'actions' as const, label: 'Next Steps (Action Plan)', icon: <ListTodo className="w-4 h-4" /> },
+    { id: 'actions' as const, label: 'Next Steps', icon: <ListTodo className="w-4 h-4" /> },
     { id: 'drafts' as const, label: 'Drafts & Notices', icon: <FileText className="w-4 h-4" />, count: matter.drafts.length },
     { id: 'evidence' as const, label: 'Evidence Locker', icon: <FolderLock className="w-4 h-4" />, count: matter.documents.length },
-    { id: 'brief' as const, label: 'Prepare for Lawyer (Brief)', icon: <Briefcase className="w-4 h-4" /> },
+    { id: 'brief' as const, label: 'Lawyer Brief', icon: <Briefcase className="w-4 h-4" /> },
     { id: 'escalate' as const, label: 'Escalation Routes', icon: <Scale className="w-4 h-4" /> },
     { id: 'qa' as const, label: 'Follow-Up Q&A', icon: <MessageSquare className="w-4 h-4" /> }
   ];
@@ -193,36 +238,46 @@ export default function MatterDetailPage({
         </div>
       )}
 
-      {/* 2. Responsive Navigation Sub-Bar */}
+      {/* 2. Responsive Navigation Sub-Bar & Multilingual Selector */}
       <div className="sticky top-16 z-40 bg-white border-b border-stone-200 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-1 overflow-x-auto py-2.5 no-scrollbar">
-            {navTabs.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                    isActive
-                      ? 'bg-stone-900 text-white shadow-xs'
-                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                  }`}
-                >
-                  <span className={isActive ? 'text-amber-400' : 'text-stone-400'}>{tab.icon}</span>
-                  <span>{tab.label}</span>
-                  {tab.count !== undefined && (
-                    <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                        isActive ? 'bg-stone-800 text-amber-300' : 'bg-stone-100 text-stone-600'
-                      }`}
-                    >
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 gap-2">
+            <div className="flex items-center space-x-1 overflow-x-auto py-1 no-scrollbar">
+              {navTabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                      isActive
+                        ? 'bg-stone-900 text-white shadow-xs'
+                        : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
+                    }`}
+                  >
+                    <span className={isActive ? 'text-amber-400' : 'text-stone-400'}>{tab.icon}</span>
+                    <span>{tab.label}</span>
+                    {tab.count !== undefined && (
+                      <span
+                        className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                          isActive ? 'bg-stone-800 text-amber-300' : 'bg-stone-100 text-stone-600'
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="shrink-0 flex items-center justify-end">
+              <LanguageSelector
+                currentLanguage={currentLanguage}
+                onLanguageChange={handleLanguageChange}
+                isLoading={isTranslating}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -244,18 +299,37 @@ export default function MatterDetailPage({
                 </div>
               </div>
 
-              <div className="text-xs sm:text-sm text-stone-800 leading-relaxed bg-stone-50 p-4 rounded-xl border border-stone-200/80 font-normal">
-                {matter.summary.plainLanguage}
+              <div className="text-xs sm:text-sm text-stone-800 leading-relaxed bg-stone-50 p-4 rounded-xl border border-stone-200/80 font-normal whitespace-pre-line">
+                {localizedContent ? localizedContent.summary.plainLanguage : matter.summary.plainLanguage}
               </div>
+
+              {localizedContent && Object.keys(localizedContent.glossary).length > 0 && (
+                <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-xs space-y-1.5">
+                  <strong className="text-amber-950 font-bold block">
+                    Legal Term Glossary ({currentLanguage.toUpperCase()}):
+                  </strong>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(localizedContent.glossary).map(([en, loc], i) => (
+                      <span key={i} className="px-2 py-0.5 rounded bg-white border border-amber-200 text-stone-800 text-[11px]">
+                        <strong>{en}:</strong> {loc}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-xs">
                 <div className="bg-amber-50/60 p-3 rounded-lg border border-amber-200">
                   <strong className="text-amber-950 font-bold block mb-0.5">Core Conflict:</strong>
-                  <span className="text-stone-700">{matter.summary.keyConflict}</span>
+                  <span className="text-stone-700">
+                    {localizedContent ? localizedContent.summary.keyConflict : matter.summary.keyConflict}
+                  </span>
                 </div>
                 <div className="bg-blue-50/60 p-3 rounded-lg border border-blue-200">
                   <strong className="text-blue-950 font-bold block mb-0.5">Legal Nature:</strong>
-                  <span className="text-stone-700">{matter.summary.legalNature}</span>
+                  <span className="text-stone-700">
+                    {localizedContent ? localizedContent.summary.legalNature : matter.summary.legalNature}
+                  </span>
                 </div>
               </div>
             </div>
@@ -288,9 +362,19 @@ export default function MatterDetailPage({
           </div>
         )}
 
+        {/* TAB 1.2: TRUST DASHBOARD */}
+        {activeTab === 'trust' && (
+          <TrustDashboard matter={matter} onUploadClick={() => setActiveTab('evidence')} />
+        )}
+
         {/* TAB 1.5: GROUNDING & EVIDENCE GRAPH EXPLORER */}
         {activeTab === 'grounding' && (
           <GroundingExplorer matter={matter} onUploadClick={() => setActiveTab('evidence')} />
+        )}
+
+        {/* TAB 1.8: STATUTORY DEADLINES & WINDOWS */}
+        {activeTab === 'deadlines' && (
+          <DeadlineTrackerCard deadlines={calculatedDeadlines} />
         )}
 
         {/* TAB 2: TIMELINE */}
@@ -334,7 +418,12 @@ export default function MatterDetailPage({
 
         {/* TAB 9: FOLLOW-UP Q&A */}
         {activeTab === 'qa' && (
-          <FollowUpQA matterTitle={matter.title} matterCategory={matter.category} />
+          <FollowUpQA
+            matterId={matter.id}
+            matterTitle={matter.title}
+            matterCategory={matter.category}
+            language={currentLanguage}
+          />
         )}
       </main>
     </div>

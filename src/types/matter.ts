@@ -406,3 +406,5 @@ export interface MultilingualExplanationProvider {
   }>;
 }
 
+export type { SourceReference } from '@/lib/agents/types';
+
