@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { MockDB } from '@/lib/db/mock-db';
-import { ReanalysisTrigger } from '@/lib/agents/types';
+import { NextRequest } from 'next/server';
+import { getMatterService } from '@/lib/repository';
+import { validateAnalyzeTrigger } from '@/lib/api/validation';
+import { apiSuccess, apiError } from '@/lib/api/response';
 
 export async function POST(
   req: NextRequest,
@@ -8,37 +9,38 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    let trigger: ReanalysisTrigger | undefined;
+    const userId = req.headers.get('x-user-id') || undefined;
 
+    let body: unknown = {};
     try {
-      const body = await req.json();
-      if (body && body.trigger) {
-        trigger = body.trigger as ReanalysisTrigger;
-      }
+      body = await req.json();
     } catch {
-      // Body may be empty, default to full
-      trigger = 'full';
+      // Body may be empty, defaults to full
+      body = {};
     }
 
-    const reanalyzed = await MockDB.reanalyzeMatter(id, trigger);
-
-    if (!reanalyzed) {
-      return NextResponse.json(
-        { success: false, error: 'Matter not found' },
-        { status: 404 }
+    const validation = validateAnalyzeTrigger(body);
+    if (!validation.isValid) {
+      return apiError(
+        validation.error || 'Invalid analysis trigger',
+        400,
+        'INVALID_TRIGGER'
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message: `Matter re-analyzed successfully (Trigger: ${trigger || 'full'})`,
-      data: reanalyzed
+    const service = getMatterService();
+    const reanalyzed = await service.reanalyzeMatter(id, validation.trigger, userId);
+
+    if (!reanalyzed) {
+      return apiError('Matter not found', 404, 'NOT_FOUND');
+    }
+
+    return apiSuccess(reanalyzed, 200, {
+      trigger: validation.trigger,
+      message: `Matter re-analyzed successfully (Trigger: ${validation.trigger})`
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to analyze matter';
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return apiError(message, 500, 'ANALYZE_MATTER_ERROR');
   }
 }

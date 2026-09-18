@@ -1,47 +1,57 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { MockDB } from '@/lib/db/mock-db';
+import { NextRequest } from 'next/server';
+import { getMatterService } from '@/lib/repository';
+import { validateCreateMatter } from '@/lib/api/validation';
+import { apiSuccess, apiError } from '@/lib/api/response';
+import { MatterCategory, MatterStatus } from '@/types/matter';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const matters = await MockDB.getAllMatters();
-    return NextResponse.json({ success: true, count: matters.length, data: matters });
+    const service = getMatterService();
+    const userId = req.headers.get('x-user-id') || undefined;
+    const { searchParams } = new URL(req.url);
+    const category = searchParams.get('category') || undefined;
+    const status = searchParams.get('status') || undefined;
+    const search = searchParams.get('search') || undefined;
+
+    const matters = await service.listMatters({
+      userId,
+      category: category as MatterCategory | undefined,
+      status: status as MatterStatus | undefined,
+      search
+    });
+
+    return apiSuccess(matters, 200, { count: matters.length });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch matters';
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return apiError(message, 500, 'FETCH_MATTERS_ERROR');
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    
-    if (!body.title || !body.category || !body.userStory) {
-      return NextResponse.json(
-        { success: false, error: 'Title, category, and user story narrative are required.' },
-        { status: 400 }
+    const validation = validateCreateMatter(body);
+
+    if (!validation.isValid || !validation.data) {
+      return apiError(
+        'Validation failed for matter creation.',
+        400,
+        'VALIDATION_ERROR',
+        validation.errors
       );
     }
 
-    const created = await MockDB.createMatter({
-      title: body.title,
-      category: body.category,
-      userStory: body.userStory,
-      claimAmount: body.claimAmount ? Number(body.claimAmount) : undefined,
-      locationCity: body.locationCity,
-      locationState: body.locationState,
-      parties: body.parties || [],
-      documents: body.documents || []
+    const service = getMatterService();
+    const userId = req.headers.get('x-user-id') || validation.data.userId || undefined;
+
+    const created = await service.createMatter({
+      ...validation.data,
+      userId
     });
 
-    return NextResponse.json({ success: true, data: created }, { status: 201 });
+    return apiSuccess(created, 201);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to create matter';
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return apiError(message, 500, 'CREATE_MATTER_ERROR');
   }
 }

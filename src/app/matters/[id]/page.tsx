@@ -48,6 +48,7 @@ export default function MatterDetailPage({
   const { id } = use(params);
   const [matter, setMatter] = useState<Matter | null>(null);
   const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   useEffect(() => {
@@ -108,34 +109,35 @@ export default function MatterDetailPage({
     await handleReanalyze('missing_info_answered');
   };
 
-  const handleUploadSimulate = async (newDoc: { title: string; type: DocumentEvidence['type']; extractedText?: string }) => {
+  const handleUploadSimulate = async (newDoc: { title: string; type: DocumentEvidence['type']; extractedText?: string; file?: File }) => {
     if (!matter) return;
-    const updatedDocs: DocumentEvidence[] = [
-      ...matter.documents,
-      {
-        id: `doc-${Date.now()}`,
-        title: newDoc.title,
-        type: newDoc.type,
-        fileSize: '1.4 MB',
-        uploadedAt: new Date().toISOString().split('T')[0],
-        extractedText: newDoc.extractedText,
-        classification: 'User Uploaded Proof',
-        confidenceScore: 0.95,
-        relevanceSummary: 'Corroborating evidence item supplied during active matter review.',
-        status: 'verified' as const
+    setAnalyzing(true);
+    try {
+      const formData = new FormData();
+      if (newDoc.file) {
+        formData.append('file', newDoc.file);
+      } else {
+        const textBlob = new Blob([newDoc.extractedText || newDoc.title], { type: 'text/plain' });
+        formData.append('file', textBlob, `${newDoc.title.replace(/[^a-zA-Z0-9.-]/g, '_')}.txt`);
       }
-    ];
+      formData.append('title', newDoc.title);
+      formData.append('type', newDoc.type);
 
-    setMatter({ ...matter, documents: updatedDocs });
-
-    await fetch(`/api/matters/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ documents: updatedDocs })
-    });
-
-    // Selective re-analysis trigger: doc_uploaded
-    await handleReanalyze('doc_uploaded');
+      const res = await fetch(`/api/matters/${id}/documents`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success && data.data?.matter) {
+        setMatter(data.data.matter);
+      } else {
+        await handleReanalyze('doc_uploaded');
+      }
+    } catch {
+      await handleReanalyze('doc_uploaded');
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   if (loading) {
@@ -183,6 +185,13 @@ export default function MatterDetailPage({
     <div className="min-h-screen bg-stone-50/60 pb-20">
       {/* 1. Header */}
       <MatterHeader matter={matter} onReanalyze={() => handleReanalyze('full')} />
+
+      {analyzing && (
+        <div className="bg-amber-500 text-stone-950 px-4 py-2 text-xs font-semibold flex items-center justify-center space-x-2 animate-pulse">
+          <Scale className="w-4 h-4 animate-spin" />
+          <span>Processing document evidence and executing selective re-analysis...</span>
+        </div>
+      )}
 
       {/* 2. Responsive Navigation Sub-Bar */}
       <div className="sticky top-16 z-40 bg-white border-b border-stone-200 shadow-2xs">

@@ -287,6 +287,7 @@ export interface EvidenceGraphData {
 
 export interface Matter {
   id: string;
+  userId?: string;
   title: string;
   category: MatterCategory;
   subCategory: string;
@@ -370,6 +371,8 @@ export interface DocumentParserProvider {
     detectedPages?: number;
     clauses?: Array<{ title: string; text: string; pageNumber?: number }>;
     entities?: Array<{ name: string; type: string }>;
+    classification?: string;
+    relevanceSummary?: string;
   }>;
 }
 

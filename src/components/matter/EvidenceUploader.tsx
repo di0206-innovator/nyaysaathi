@@ -12,7 +12,7 @@ import {
 
 interface EvidenceUploaderProps {
   documents: DocumentEvidence[];
-  onUploadSimulate?: (newDoc: { title: string; type: DocumentEvidence['type']; extractedText?: string }) => Promise<void>;
+  onUploadSimulate?: (newDoc: { title: string; type: DocumentEvidence['type']; extractedText?: string; file?: File }) => Promise<void>;
 }
 
 export function EvidenceUploader({ documents, onUploadSimulate }: EvidenceUploaderProps) {
@@ -20,24 +20,27 @@ export function EvidenceUploader({ documents, onUploadSimulate }: EvidenceUpload
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState<DocumentEvidence['type']>('other');
   const [newSnippet, setNewSnippet] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle) return;
+    if (!newTitle && !selectedFile) return;
 
     setIsSubmitting(true);
     try {
       if (onUploadSimulate) {
         await onUploadSimulate({
-          title: newTitle,
+          title: newTitle || selectedFile?.name || 'Uploaded Document',
           type: newType,
-          extractedText: newSnippet
+          extractedText: newSnippet,
+          file: selectedFile || undefined
         });
       }
       setShowAddModal(false);
       setNewTitle('');
       setNewSnippet('');
+      setSelectedFile(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -171,7 +174,30 @@ export function EvidenceUploader({ documents, onUploadSimulate }: EvidenceUpload
 
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Pasted Text / Key Excerpt (Optional)
+                  Upload Document File (PDF, Image, Text up to 10MB)
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.txt"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setSelectedFile(f);
+                    if (f && !newTitle) {
+                      setNewTitle(f.name.replace(/\.[^/.]+$/, ''));
+                    }
+                  }}
+                  className="w-full text-xs px-3 py-2 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-stone-50"
+                />
+                {selectedFile && (
+                  <p className="text-[11px] text-emerald-700 mt-1 font-medium">
+                    ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  Or Paste Text / Key Excerpt (Optional)
                 </label>
                 <textarea
                   rows={3}

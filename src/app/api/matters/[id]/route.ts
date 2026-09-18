@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { MockDB } from '@/lib/db/mock-db';
+import { NextRequest } from 'next/server';
+import { getMatterService } from '@/lib/repository';
+import { apiSuccess, apiError } from '@/lib/api/response';
 
 export async function GET(
   req: NextRequest,
@@ -7,22 +8,18 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const matter = await MockDB.getMatterById(id);
+    const userId = req.headers.get('x-user-id') || undefined;
+    const service = getMatterService();
+    const matter = await service.getMatterById(id, userId);
 
     if (!matter) {
-      return NextResponse.json(
-        { success: false, error: 'Matter not found' },
-        { status: 404 }
-      );
+      return apiError('Matter not found', 404, 'NOT_FOUND');
     }
 
-    return NextResponse.json({ success: true, data: matter });
+    return apiSuccess(matter);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch matter';
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return apiError(message, 500, 'FETCH_MATTER_ERROR');
   }
 }
 
@@ -32,23 +29,24 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    const userId = req.headers.get('x-user-id') || undefined;
     const updates = await req.json();
-    const updated = await MockDB.updateMatter(id, updates);
 
-    if (!updated) {
-      return NextResponse.json(
-        { success: false, error: 'Matter not found' },
-        { status: 404 }
-      );
+    if (!updates || typeof updates !== 'object') {
+      return apiError('Updates must be a valid JSON object', 400, 'INVALID_PAYLOAD');
     }
 
-    return NextResponse.json({ success: true, data: updated });
+    const service = getMatterService();
+    const updated = await service.updateMatter(id, updates, userId);
+
+    if (!updated) {
+      return apiError('Matter not found or unauthorized to update', 404, 'NOT_FOUND');
+    }
+
+    return apiSuccess(updated);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to update matter';
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return apiError(message, 500, 'UPDATE_MATTER_ERROR');
   }
 }
 
@@ -58,21 +56,17 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const deleted = await MockDB.deleteMatter(id);
+    const userId = req.headers.get('x-user-id') || undefined;
+    const service = getMatterService();
+    const deleted = await service.deleteMatter(id, userId);
 
     if (!deleted) {
-      return NextResponse.json(
-        { success: false, error: 'Matter not found' },
-        { status: 404 }
-      );
+      return apiError('Matter not found or unauthorized to delete', 404, 'NOT_FOUND');
     }
 
-    return NextResponse.json({ success: true, message: 'Matter deleted successfully' });
+    return apiSuccess({ id, deleted: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to delete matter';
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return apiError(message, 500, 'DELETE_MATTER_ERROR');
   }
 }
