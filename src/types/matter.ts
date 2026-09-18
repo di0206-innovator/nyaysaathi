@@ -330,8 +330,14 @@ export interface Matter {
   // 9. Escalation Routes
   escalationRoutes: EscalationRoute[];
   
-  // 10. Lawyer Brief
+  // 10. Lawyer Brief & Statutory References
   lawyerBrief?: LawyerBrief;
+  applicableStatutes?: Array<{
+    statute: string;
+    section: string;
+    title: string;
+    applicabilityNote: string;
+  }>;
   
   // 11. Trust & Safety Breakdown
   trustSafetyItems: TrustSafetyItem[];

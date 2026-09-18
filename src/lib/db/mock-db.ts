@@ -114,6 +114,19 @@ export const MockDB = {
       locationState: existing.locationState,
       parties: existing.parties,
       documents: existing.documents,
+      existingFacts: existing.facts,
+      existingTimelineEvents: existing.timelineEvents,
+      existingRisks: existing.risks,
+      existingMissingInformation: existing.missingInformation,
+      existingActionPlan: existing.actionPlan,
+      existingDrafts: existing.drafts,
+      existingStatutes: existing.applicableStatutes || existing.lawyerBrief?.statutoryReferences?.map(s => ({
+        statute: s.statute,
+        section: s.section || '',
+        title: s.statute,
+        applicabilityNote: s.applicability
+      })),
+      existingEvidenceGraph: existing.evidenceGraph,
       trigger: trigger || 'full'
     });
 

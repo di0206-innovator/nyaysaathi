@@ -260,7 +260,7 @@ export class MatterOrchestrator {
     });
 
     // Step 10: Compile Normalized Evidence Graph
-    const graph = new EvidenceGraph();
+    const graph = new EvidenceGraph(input.existingEvidenceGraph);
 
     // Add Claim node
     graph.addNode({
@@ -484,6 +484,7 @@ export class MatterOrchestrator {
       drafts: enforcedDrafts,
       escalationRoutes: enforcedEscalations,
       lawyerBrief: draftResult.lawyerBrief,
+      applicableStatutes: retrievalResult.applicableStatutes,
       trustSafetyItems: safetyResult.trustSafetyItems,
       evidenceGraph: graph.toJSON(),
       auditLog: consolidatedAuditLog,
@@ -516,6 +517,17 @@ export class MatterOrchestrator {
       claimAmount: matter.claimAmount,
       existingFacts: matter.facts,
       existingTimelineEvents: matter.timelineEvents,
+      existingRisks: matter.risks,
+      existingMissingInformation: matter.missingInformation,
+      existingActionPlan: matter.actionPlan,
+      existingDrafts: matter.drafts,
+      existingStatutes: matter.applicableStatutes || matter.lawyerBrief?.statutoryReferences?.map(s => ({
+        statute: s.statute,
+        section: s.section || '',
+        title: s.statute,
+        applicabilityNote: s.applicability
+      })),
+      existingEvidenceGraph: matter.evidenceGraph,
       trigger: options?.trigger || 'full'
     };
 

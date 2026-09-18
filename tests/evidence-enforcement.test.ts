@@ -6,6 +6,7 @@ import { Orchestrator } from '../src/lib/agents/orchestrator';
 import { DraftingAgent } from '../src/lib/agents/drafting-agent';
 import { EscalationMatcher } from '../src/lib/legal/escalation-matcher';
 import { SEED_MATTERS } from '../src/lib/db/seed-data';
+import { MockDB } from '../src/lib/db/mock-db';
 import type { AgentInput } from '../src/lib/agents/types';
 
 describe('Phase 3: Evidence Enforcement, Safety Hardening & Future Foundations', () => {
@@ -168,5 +169,23 @@ describe('Phase 3: Evidence Enforcement, Safety Hardening & Future Foundations',
     // Safety must always be the last agent in the execution sequence
     const lastAgent = missingInfoResult.agentResults[missingInfoResult.agentResults.length - 1];
     assert.strictEqual(lastAgent.agentName, 'Safety Verification Agent', 'Safety Verification Agent must always execute last');
+  });
+
+  it('7. MockDB.reanalyzeMatter passes existing state to orchestrator and preserves evidence graph', async () => {
+    // Initial fetch of seed matter from MockDB
+    const initialMatter = await MockDB.getMatterById('matter-bengaluru-rent');
+    assert.ok(initialMatter, 'Seed matter should exist in MockDB');
+
+    // Trigger selective reanalysis via MockDB
+    const reanalyzed = await MockDB.reanalyzeMatter('matter-bengaluru-rent', 'missing_info_answered');
+    assert.ok(reanalyzed, 'Reanalyzed matter should be returned');
+    assert.strictEqual(reanalyzed.id, 'matter-bengaluru-rent');
+
+    // Existing facts and timeline should be preserved
+    assert.ok(reanalyzed.facts.length > 0, 'Facts should be preserved and verified');
+    assert.ok(reanalyzed.timelineEvents.length > 0, 'Timeline events should be preserved');
+    assert.ok(reanalyzed.evidenceGraph, 'Evidence graph should be maintained');
+    assert.ok(reanalyzed.evidenceGraph.nodes.length > 0, 'Evidence graph nodes should exist');
+    assert.ok(Array.isArray(reanalyzed.auditLog), 'Audit log should be present');
   });
 });
