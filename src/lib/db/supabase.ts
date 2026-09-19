@@ -90,13 +90,17 @@ export function getSupabaseUserClient(accessToken: string): SupabaseClient | nul
 }
 
 /**
- * Primary server-side client accessor for repository adapters.
- * Uses admin client if configured, falling back to anon client.
+ * Server-side client accessor for repository adapters.
+ * If an authenticated user token is provided, returns an RLS-enforced user client.
+ * For unauthenticated server operations, uses the anonymous browser/public client.
+ * Privileged service-role operations must explicitly invoke `getSupabaseAdminClient()`.
  */
-export function getSupabaseClient(): SupabaseClient | null {
-  if (typeof window === 'undefined') {
-    const admin = getSupabaseAdminClient();
-    if (admin) return admin;
+export function getSupabaseClient(userToken?: string): SupabaseClient | null {
+  if (userToken) {
+    const userClient = getSupabaseUserClient(userToken);
+    if (userClient) return userClient;
   }
+
+  // Fallback to anonymous client adhering to RLS
   return getSupabaseBrowserClient();
 }

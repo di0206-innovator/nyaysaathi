@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ActionStep, ActionStatus, ActionResult } from '@/types/matter';
+import { apiFetch } from '@/lib/api/client';
 import {
   X,
   CheckCircle2,
@@ -44,9 +45,8 @@ export function ActionDetailModal({
     setError(null);
 
     try {
-      const res = await fetch(`/api/matters/${matterId}/actions`, {
+      const { data, error, ok } = await apiFetch(`/api/matters/${matterId}/actions`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           actionId: action.id,
           status,
@@ -61,12 +61,10 @@ export function ActionDetailModal({
         })
       });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || 'Failed to update action');
+      if (!ok || error || !data) {
+        throw new Error(error || 'Failed to update action');
       }
 
-      const data = await res.json();
       onActionUpdated(data.action);
       onClose();
     } catch (err: unknown) {

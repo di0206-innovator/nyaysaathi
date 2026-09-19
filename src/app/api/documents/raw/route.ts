@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/auth/auth-service';
 import { getMatterService } from '@/lib/repository';
+import { getStorageProvider } from '@/lib/storage/storage-provider';
 
 export async function GET(req: NextRequest) {
   try {
@@ -37,14 +38,33 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return new NextResponse(`[Document Content Verified & Secured]: ${decodedPath}`, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Content-Disposition': 'inline',
-        'X-Content-Type-Options': 'nosniff'
+    const storageProvider = getStorageProvider();
+
+    // 1. Attempt to stream file buffer directly
+    if (storageProvider.getFile) {
+      const fileData = await storageProvider.getFile(decodedPath);
+      if (fileData) {
+        return new NextResponse(new Uint8Array(fileData.buffer), {
+          status: 200,
+          headers: {
+            'Content-Type': fileData.mimeType,
+            'Content-Length': String(fileData.buffer.byteLength),
+            'Content-Disposition': 'inline',
+            'X-Content-Type-Options': 'nosniff'
+          }
+        });
       }
-    });
+    }
+
+    // 2. Attempt to redirect to signed URL if available
+    if (storageProvider.getSignedUrl) {
+      const signedUrl = await storageProvider.getSignedUrl(decodedPath);
+      if (signedUrl && !signedUrl.startsWith('/api/documents/raw')) {
+        return NextResponse.redirect(signedUrl);
+      }
+    }
+
+    return new NextResponse('Document not found in storage', { status: 404 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error fetching raw document';
     return new NextResponse(message, { status: 500 });

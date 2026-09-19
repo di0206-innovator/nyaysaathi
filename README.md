@@ -168,33 +168,48 @@ NyaySaathi includes a complete production-ready PostgreSQL / Supabase schema in 
 
 ---
 
-## Phase 6 — Production Readiness
+## 📊 System Truth & Capability Matrix
 
-Phase 6 hardens NyaySaathi into a production-grade, secure, and verifiable legal action navigation platform.
-
-### Component Readiness Matrix
-
-| Component | Status | Description |
+| Capability | Status | Implementation Truth |
 | :--- | :--- | :--- |
-| **Authentication & Tenant Isolation** | `Production` | Supabase Auth + Bearer / Cookie session extraction with strict server-side ownership checks on all matter routes. |
-| **Private Evidence Storage** | `Production` | Scoped deterministic private storage (`user/{userId}/matters/{matterId}/documents/{docId}/{filename}`) with 1-hour signed access URLs and 10MB file limits. |
-| **API Layer & Authorization** | `Production` | IDOR-proof server-side authorization on all `/api/matters/*` endpoints with rollback handling and path traversal prevention. |
-| **Legal RAG (pgvector)** | `Production` | Hybrid pgvector semantic search (`match_statutory_provisions`) on Supabase with automatic transparent fallback to local corpus. |
-| **AI Provider Layer (Gemini)** | `Production` | Gemini 2.5 Flash with AbortController timeouts (30s), exponential backoff retries on 429/5xx, robust JSON sanitization, and fallback flags. |
-| **Agent Pipeline Error Boundaries**| `Production` | Try-catch isolation around each agent in `MatterOrchestrator` ensuring partial agent failures retain prior valid matter state. |
-| **PII Redaction & Security** | `Production` | Server-side redaction for Aadhaar (12 digits), PAN, IFSC/bank accounts, and auth tokens in logs and exports. |
-| **Rate Limiting & Abuse Prevention**| `Production` | Sliding-window in-memory rate limiting across expensive routes (AI analysis, document uploads, legal Q&A). |
-| **Indic Multilingual Glossaries** | `Production` | Hindi, Hinglish, Marathi translation preserving statutory citations and legal terminology. |
-| **Deterministic Seed Demo** | `Production` | Seeded Bengaluru Tenancy Deposit matter showcasing full lifecycle without live cloud prerequisites. |
-| **Live Court API Integrations** | `Future` | Planned e-Courts / e-Daakhil API filing direct submission. |
+| **Authentication** | `Production` | Supabase Auth JWT verification; rejects spoofed `x-user-id` and mock tokens in production. |
+| **Private Storage** | `Production` | Scoped storage paths (`user/{userId}/matters/{matterId}/documents/...`) with signed URLs or stream authorization. |
+| **Document OCR / Extraction** | `Production / Degraded` | Genuine text extraction; fails closed (`needs_ocr` / `needs_review`) without fabricating evidence from filenames. |
+| **Legal RAG** | `Production / Degraded` | Gemini `text-embedding-004` (768-dim) pgvector retrieval; local deterministic fallback with transparent provenance. |
+| **Gemini AI Reasoning** | `Production / Degraded` | Gemini 2.5 Flash with runtime schema validation; fails closed rather than emitting fake confidence. |
+| **Deterministic Demo** | `Demo only` | Explicit demo isolation; never silently substituted for authenticated user data. |
+| **Notifications** | `Production` | Database-backed persistent notification store with user scoping, unread counts, and read states. |
+| **Action Tracking** | `Production` | Valid state transitions, field-preserving PATCH, persistent completion proofs, and analytical boundary separation. |
+| **Escalation Tracking** | `Production` | Canonical normalized tables tracking DLSA, e-Daakhil, RERA, and 1930 workflows. |
+| **Government Submission** | `Not integrated` | Citizen-guided preparation; external filing must be recorded by the user. |
+| **Email Dispatch** | `Not integrated` | Queue-simulated; reports unconfigured status truthfully without claiming false delivery. |
 
 ---
 
-### Authentication Architecture & Tenant Isolation
-NyaySaathi enforces multi-tenant isolation at the database, service, and API layers:
-1. **Server-Side Validation**: Every protected route (`/api/matters/*`) invokes `AuthService.getAuthenticatedUser()`, which extracts and validates the caller identity via Supabase JWT or authorized session cookies.
-2. **Strict Server-Side Ownership**: Endpoints verify `matter.userId === user.id`. Non-owners receive immediate `403 Forbidden` / `404 Not Found` responses to eliminate Insecure Direct Object References (IDOR).
-3. **Dual Client Model**: Public clients only ever receive `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The privileged `SUPABASE_SERVICE_ROLE_KEY` is strictly confined to server-only runtime contexts and is never exposed in client bundles.
+## Phase 8 — Production Integrity, Data Model Convergence & Real-World Trust
+
+Phase 8 elevates NyaySaathi into an internally truthful, data-consistent, and secure production platform:
+
+### 1. Hardened Authentication & RLS Boundaries
+- **Zero Spoofing**: `x-user-id` header and mock tokens are unconditionally rejected when Supabase is configured or `NODE_ENV === 'production'`.
+- **User-Scoped vs Admin Access**: Normal matter operations utilize user-scoped Supabase clients subject to PostgreSQL Row Level Security (`auth.uid() = user_id`).
+- **Eliminated Permissive Policies**: Dropped anonymous bypasses across all tables; child tables inherit ownership from parent matters.
+
+### 2. Mass Assignment Prevention
+- `PATCH /api/matters/[id]` strictly restricts client updates to an explicit allowlist (`title`, `userStory`, `claimAmount`, `locationCity`, `locationState`, `parties`, `language`, `missingInformation`).
+- Protected fields (`userId`, `createdAt`, `auditLog`, `trustSafetyItems`, `evidenceGraph`, `lawyerBrief`, `applicableStatutes`) cannot be modified via generic updates.
+
+### 3. Orchestrator State Boundaries & Analytical Separation
+- Complete separation between **Analytical State** (AI-derived: facts, risks, draft recommendations, evidence graph) and **Workflow State** (user-recorded: actions, communications, deadlines, resolutions, activity history).
+- AI re-analysis merges safely and will *never* overwrite user-executed progress or erase activity history.
+
+### 4. Normalized Persistence Convergence
+- Canonical normalized tables (`matter_actions`, `matter_communications`, `matter_deadlines`, `matter_escalations`, `matter_resolutions`, `matter_notifications`, `matter_activity_events`) act as the single source of truth across both Supabase and memory adapters.
+
+### 5. Genuine Evidence Extraction & Truthful RAG Provenance
+- Purged all synthetic evidence generation (no invented transactions or lease clauses based on filenames).
+- Vector embeddings aligned to 768 dimensions (Gemini `text-embedding-004`).
+- Safety-critical legal outputs fail closed (`unsupported`, `needs_review`) without emitting fabricated confidence scores.
 
 ---
 

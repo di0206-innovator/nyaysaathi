@@ -74,6 +74,8 @@ export interface DocumentEvidence {
   relevanceSummary?: string;
   keyQuotes?: string[];
   status: 'processing' | 'verified' | 'unverified';
+  storagePath?: string;
+  extractionStatus?: 'verified_extraction' | 'partial_extraction' | 'needs_review' | 'needs_ocr' | 'extraction_failed';
 }
 
 export interface ExtractedFact {
@@ -564,6 +566,7 @@ export interface DocumentParserProvider {
     entities?: Array<{ name: string; type: string }>;
     classification?: string;
     relevanceSummary?: string;
+    extractionStatus?: 'verified_extraction' | 'partial_extraction' | 'needs_review' | 'needs_ocr' | 'extraction_failed';
   }>;
 }
 

@@ -61,7 +61,7 @@ export class MemoryStorageAdapter implements IStorageAdapter {
 
       if (filter) {
         if (filter.userId) {
-          all = all.filter(m => !m.userId || m.userId === filter.userId);
+          all = all.filter(m => m.userId === filter.userId);
         }
         if (filter.category) {
           all = all.filter(m => m.category === filter.category);
@@ -238,6 +238,170 @@ export class MemoryStorageAdapter implements IStorageAdapter {
       if (!matter) throw new Error(`Matter not found: ${matterId}`);
       matter.evidenceGraph = deepClone(graph);
       return deepClone(graph);
+    }
+  };
+
+  private notificationsStore: import('@/types/matter').MatterNotification[] = [];
+
+  public actions: import('../types').IActionRepository = {
+    listByMatter: async (matterId: string) => {
+      const matter = this.store.get(matterId);
+      if (!matter) return [];
+      return (matter.actionPlan || []).map(deepClone);
+    },
+    update: async (matterId: string, actionId: string, updates: Partial<import('@/types/matter').ActionStep>) => {
+      const matter = this.store.get(matterId);
+      if (!matter) return null;
+      const idx = (matter.actionPlan || []).findIndex(a => a.id === actionId);
+      if (idx === -1) return null;
+      const updated = { ...matter.actionPlan[idx], ...deepClone(updates) };
+      matter.actionPlan[idx] = updated;
+      return deepClone(updated);
+    },
+    replace: async (matterId: string, actions: import('@/types/matter').ActionStep[]) => {
+      const matter = this.store.get(matterId);
+      if (!matter) throw new Error(`Matter not found: ${matterId}`);
+      matter.actionPlan = deepClone(actions);
+      return deepClone(actions);
+    }
+  };
+
+  public communications: import('../types').ICommunicationRepository = {
+    listByMatter: async (matterId: string) => {
+      const matter = this.store.get(matterId);
+      if (!matter) return [];
+      return (matter.communications || []).map(deepClone);
+    },
+    record: async (matterId: string, comm: import('@/types/matter').CommunicationRecord) => {
+      const matter = this.store.get(matterId);
+      if (!matter) throw new Error(`Matter not found: ${matterId}`);
+      if (!matter.communications) matter.communications = [];
+      matter.communications.unshift(deepClone(comm));
+      return deepClone(comm);
+    }
+  };
+
+  public activityEvents: import('../types').IActivityEventRepository = {
+    listByMatter: async (matterId: string) => {
+      const matter = this.store.get(matterId);
+      if (!matter) return [];
+      return (matter.activityEvents || []).map(deepClone);
+    },
+    record: async (matterId: string, event: import('@/types/matter').MatterActivityEvent) => {
+      const matter = this.store.get(matterId);
+      if (!matter) throw new Error(`Matter not found: ${matterId}`);
+      if (!matter.activityEvents) matter.activityEvents = [];
+      matter.activityEvents.unshift(deepClone(event));
+      return deepClone(event);
+    }
+  };
+
+  public deadlines: import('../types').IDeadlineRepository = {
+    listByMatter: async (matterId: string) => {
+      const matter = this.store.get(matterId);
+      if (!matter) return [];
+      return (matter.deadlines || []).map(deepClone);
+    },
+    upsert: async (matterId: string, deadline: import('@/types/matter').MatterDeadline) => {
+      const matter = this.store.get(matterId);
+      if (!matter) throw new Error(`Matter not found: ${matterId}`);
+      if (!matter.deadlines) matter.deadlines = [];
+      const idx = matter.deadlines.findIndex(d => d.id === deadline.id);
+      if (idx !== -1) {
+        matter.deadlines[idx] = deepClone(deadline);
+      } else {
+        matter.deadlines.push(deepClone(deadline));
+      }
+      return deepClone(deadline);
+    },
+    replace: async (matterId: string, deadlines: import('@/types/matter').MatterDeadline[]) => {
+      const matter = this.store.get(matterId);
+      if (!matter) throw new Error(`Matter not found: ${matterId}`);
+      matter.deadlines = deepClone(deadlines);
+      return deepClone(deadlines);
+    }
+  };
+
+  public escalations: import('../types').IEscalationRepository = {
+    listByMatter: async (matterId: string) => {
+      const matter = this.store.get(matterId);
+      if (!matter) return [];
+      return (matter.escalationWorkflows || []).map(deepClone);
+    },
+    update: async (matterId: string, routeId: string, updates: Partial<import('@/types/matter').EscalationWorkflowItem>) => {
+      const matter = this.store.get(matterId);
+      if (!matter) return null;
+      if (!matter.escalationWorkflows) matter.escalationWorkflows = [];
+      const idx = matter.escalationWorkflows.findIndex(e => e.routeId === routeId);
+      if (idx === -1) return null;
+      const updated = { ...matter.escalationWorkflows[idx], ...deepClone(updates) };
+      matter.escalationWorkflows[idx] = updated;
+      return deepClone(updated);
+    },
+    replace: async (matterId: string, workflows: import('@/types/matter').EscalationWorkflowItem[]) => {
+      const matter = this.store.get(matterId);
+      if (!matter) throw new Error(`Matter not found: ${matterId}`);
+      matter.escalationWorkflows = deepClone(workflows);
+      return deepClone(workflows);
+    }
+  };
+
+  public resolutions: import('../types').IResolutionRepository = {
+    getByMatter: async (matterId: string) => {
+      const matter = this.store.get(matterId);
+      if (!matter || !matter.resolution) return null;
+      return deepClone(matter.resolution);
+    },
+    resolve: async (matterId: string, resolution: import('@/types/matter').MatterResolutionRecord) => {
+      const matter = this.store.get(matterId);
+      if (!matter) throw new Error(`Matter not found: ${matterId}`);
+      matter.resolution = deepClone(resolution);
+      matter.status = 'resolved';
+      return deepClone(resolution);
+    },
+    reopen: async (matterId: string, reason: string, reopenedBy?: string) => {
+      const matter = this.store.get(matterId);
+      if (!matter || !matter.resolution) return null;
+      matter.resolution.isReopened = true;
+      matter.resolution.reopenedAt = new Date().toISOString();
+      matter.resolution.reopenedReason = reason;
+      matter.resolution.reopenedBy = reopenedBy || 'User';
+      matter.status = 'awaiting_user_action';
+      return deepClone(matter.resolution);
+    }
+  };
+
+  public notifications: import('../types').INotificationRepository = {
+    listByUser: async (userId: string) => {
+      return this.notificationsStore.filter(n => n.userId === userId).map(deepClone);
+    },
+    listByMatter: async (matterId: string) => {
+      return this.notificationsStore.filter(n => n.matterId === matterId).map(deepClone);
+    },
+    create: async (notification: import('@/types/matter').MatterNotification) => {
+      this.notificationsStore.unshift(deepClone(notification));
+      return deepClone(notification);
+    },
+    markRead: async (notificationId: string, userId?: string) => {
+      const notif = this.notificationsStore.find(n => n.id === notificationId && (!userId || n.userId === userId));
+      if (notif) {
+        notif.isRead = true;
+        return true;
+      }
+      return false;
+    },
+    markAllRead: async (userId: string) => {
+      let count = 0;
+      for (const n of this.notificationsStore) {
+        if (n.userId === userId && !n.isRead) {
+          n.isRead = true;
+          count++;
+        }
+      }
+      return count > 0;
+    },
+    getUnreadCount: async (userId: string) => {
+      return this.notificationsStore.filter(n => n.userId === userId && !n.isRead).length;
     }
   };
 }

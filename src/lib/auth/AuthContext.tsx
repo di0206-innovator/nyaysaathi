@@ -13,10 +13,12 @@ interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
   token: string | null;
+  isDemo: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
   signup: (email: string, password?: string, fullName?: string) => Promise<boolean>;
   logout: () => void;
   setDemoUser: (id: string, name?: string) => void;
+  enableDemoMode: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,18 +34,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
     }
-    return {
-      id: 'citizen-demo-01',
-      email: 'rohan.sharma@nyaysaathi.in',
-      name: 'Rohan Sharma (Demo)',
-      role: 'authenticated'
-    };
+    // Only default to demo user if explicit environment variable is enabled
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+      return {
+        id: 'citizen-demo-01',
+        email: 'rohan.sharma@nyaysaathi.in',
+        name: 'Rohan Sharma (Demo)',
+        role: 'authenticated'
+      };
+    }
+    return null;
   });
 
   const [token, setToken] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('nyaysaathi_token') || 'mock-user-citizen-demo-01';
+    const savedToken = localStorage.getItem('nyaysaathi_token');
+    if (savedToken) return savedToken;
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+      return 'mock-user-citizen-demo-01';
+    }
+    return null;
   });
+
+  const isDemo = Boolean(
+    (token && token.startsWith('mock-user-')) ||
+    (user && (user.id.includes('demo') || user.email.includes('demo')))
+  );
 
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -120,8 +136,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('nyaysaathi_token', t);
   };
 
+  const enableDemoMode = () => {
+    setDemoUser('citizen-demo-01', 'Rohan Sharma (Demo)');
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, token, login, signup, logout, setDemoUser }}>
+    <AuthContext.Provider value={{ user, loading, token, isDemo, login, signup, logout, setDemoUser, enableDemoMode }}>
       {children}
     </AuthContext.Provider>
   );

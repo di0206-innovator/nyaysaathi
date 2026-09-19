@@ -9,7 +9,7 @@ import {
   LocalEmbeddingProvider,
   IndicTranslationProvider
 } from './mock-providers';
-import { GeminiLLMProvider } from './gemini-provider';
+import { GeminiLLMProvider, GeminiEmbeddingProvider } from './gemini-provider';
 
 import { PgVectorLegalRAGProvider } from '@/lib/rag/pgvector-provider';
 
@@ -40,16 +40,20 @@ export function setLLMProvider(provider: LLMProvider) {
 
 export function getEmbeddingProvider(): EmbeddingProvider {
   if (!globalEmbeddingProvider) {
-    globalEmbeddingProvider = new LocalEmbeddingProvider();
+    if (process.env.GEMINI_API_KEY) {
+      globalEmbeddingProvider = new GeminiEmbeddingProvider(process.env.GEMINI_API_KEY);
+    } else {
+      globalEmbeddingProvider = new LocalEmbeddingProvider();
+    }
   }
-  return globalEmbeddingProvider;
+  return globalEmbeddingProvider!;
 }
 
 export function getLegalRAGProvider(): LegalRAGProvider {
   if (!globalLegalRAGProvider) {
     globalLegalRAGProvider = new PgVectorLegalRAGProvider(getEmbeddingProvider());
   }
-  return globalLegalRAGProvider;
+  return globalLegalRAGProvider!;
 }
 
 export function setLegalRAGProvider(provider: LegalRAGProvider) {

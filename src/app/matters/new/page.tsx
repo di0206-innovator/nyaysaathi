@@ -18,6 +18,8 @@ import {
   FileText,
   CheckCircle2
 } from 'lucide-react';
+import { apiFetch } from '@/lib/api/client';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export default function NewMatterPage() {
   return (
@@ -30,6 +32,7 @@ export default function NewMatterPage() {
 function NewMatterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { token } = useAuth();
   const initialCat = (searchParams.get('category') as MatterCategory) || 'tenancy_housing';
 
   const [step, setStep] = useState<number>(1);
@@ -107,9 +110,9 @@ function NewMatterContent() {
     }
 
     try {
-      const res = await fetch('/api/matters', {
+      const res = await apiFetch('/api/matters', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        token,
         body: JSON.stringify({
           title: title || `${category.replace(/_/g, ' ').toUpperCase()} Matter`,
           category,
@@ -122,7 +125,7 @@ function NewMatterContent() {
         })
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as { success?: boolean; data?: { id?: string } };
       if (data.success && data.data?.id) {
         router.push(`/matters/${data.data.id}`);
       } else {

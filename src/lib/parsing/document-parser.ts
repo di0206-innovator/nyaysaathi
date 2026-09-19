@@ -8,6 +8,7 @@ export interface ParsedDocumentResult {
   entities?: Array<{ name: string; type: string }>;
   classification?: string;
   relevanceSummary?: string;
+  extractionStatus: 'verified_extraction' | 'partial_extraction' | 'needs_review' | 'needs_ocr' | 'extraction_failed';
 }
 
 export class ProductionDocumentParser implements DocumentParserProvider {
@@ -35,18 +36,39 @@ export class ProductionDocumentParser implements DocumentParserProvider {
       return this.parseImageOcrContent(file.buffer, file.filename, mime);
     }
 
-    // Fallback parser
+    // Fallback parser for other files - never synthesize legal facts
+    const rawText = file.text || '';
+    if (rawText.trim()) {
+      return this.parseTextContent(rawText, file.filename);
+    }
+
     return {
-      extractedText: file.text || `Attached file ${file.filename}`,
-      confidence: 0.85,
+      extractedText: '',
+      confidence: 0.1,
       detectedPages: 1,
       classification: 'General Attachment',
-      relevanceSummary: `Document ${file.filename} ingested for matter context.`
+      extractionStatus: 'needs_review',
+      clauses: [],
+      entities: [],
+      relevanceSummary: `Document ${file.filename} ingested without automatic text extraction. No facts were inferred.`
     };
   }
 
   private parseTextContent(rawText: string, filename: string): ParsedDocumentResult {
-    const text = rawText.trim() || `Text document: ${filename}`;
+    const text = rawText.trim();
+    if (!text) {
+      return {
+        extractedText: '',
+        confidence: 0.0,
+        detectedPages: 1,
+        clauses: [],
+        entities: [],
+        classification: 'Empty Text Document',
+        extractionStatus: 'extraction_failed',
+        relevanceSummary: `File ${filename} contains no extractable text content.`
+      };
+    }
+
     const entities = this.extractEntities(text);
     const clauses = this.extractClauses(text);
 
@@ -56,8 +78,9 @@ export class ProductionDocumentParser implements DocumentParserProvider {
       detectedPages: Math.max(1, Math.ceil(text.length / 2000)),
       clauses,
       entities,
-      classification: 'Text Narrative / Written Notice',
-      relevanceSummary: `Extracted ${text.length} characters with ${entities.length} identified dates/sums and ${clauses.length} legal clauses.`
+      classification: 'Text Narrative / Written Document',
+      extractionStatus: 'verified_extraction',
+      relevanceSummary: `Extracted ${text.length} characters with ${entities.length} identified dates/sums and ${clauses.length} identified clauses.`
     };
   }
 
@@ -75,24 +98,45 @@ export class ProductionDocumentParser implements DocumentParserProvider {
       }
 
       // Extract ASCII text segments from PDF streams
-      const textMatches = str.match(/\(([^()]{3,})\)Tj/g) || str.match(/\[([^\]]+)\]TJ/g);
+      const textMatches = str.match(/\(([^()]{2,})\)Tj/g) || str.match(/\[([^\]]+)\]TJ/g);
       if (textMatches && textMatches.length > 0) {
         extractedText = textMatches
           .map(m => m.replace(/[()[\]TjTJ]/g, ''))
           .join(' ')
           .trim();
       }
+
+      // Also attempt stream text extraction if standard text operators are absent
+      if (!extractedText) {
+        const streamMatches = str.match(/stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g);
+        if (streamMatches) {
+          const printableChunks: string[] = [];
+          for (const s of streamMatches.slice(0, 5)) {
+            // Find printable ASCII sequences >= 4 chars
+            const words = s.match(/[A-Za-z0-9,.\s₹-]{4,}/g);
+            if (words && words.length > 3) {
+              printableChunks.push(words.join(' ').trim());
+            }
+          }
+          if (printableChunks.length > 0) {
+            extractedText = printableChunks.join('\n').trim();
+          }
+        }
+      }
     }
 
-    if (!extractedText) {
-      // Structured fallback matching filename context (e.g. lease agreement, tax invoice)
-      if (filename.includes('agreement') || filename.includes('lease') || filename.includes('rent')) {
-        extractedText = `TENANCY AGREEMENT / LEASE DEED (${filename}):\nThis Agreement confirms the residential tenancy and payment of security deposit. Clause: The security deposit of ₹75,000 paid via NEFT is refundable upon 30-day notice and vacant handover of premises.`;
-      } else if (filename.includes('invoice') || filename.includes('bill')) {
-        extractedText = `TAX INVOICE & PROOF OF PURCHASE (${filename}):\nGST registered transaction record showing payment of consideration and active warranty obligations.`;
-      } else {
-        extractedText = `Parsed legal PDF document: ${filename}. Contains structured documentary evidence submitted for matter adjudication.`;
-      }
+    // NEVER fabricate evidence or transactions from filename!
+    if (!extractedText || extractedText.length < 10) {
+      return {
+        extractedText: '',
+        confidence: 0.2,
+        detectedPages: pageCount,
+        clauses: [],
+        entities: [],
+        classification: 'Unprocessed PDF Document',
+        extractionStatus: 'needs_review',
+        relevanceSummary: `Text could not be reliably extracted from this PDF stream (${filename}). No legal facts were inferred from the filename or metadata.`
+      };
     }
 
     const entities = this.extractEntities(extractedText);
@@ -100,41 +144,28 @@ export class ProductionDocumentParser implements DocumentParserProvider {
 
     return {
       extractedText,
-      confidence: 0.95,
+      confidence: 0.88,
       detectedPages: pageCount,
       clauses,
       entities,
       classification: 'PDF Legal Evidence',
-      relevanceSummary: `PDF parsed (${pageCount} page(s)) with ${clauses.length} contractual covenants and verified transaction figures.`
+      extractionStatus: 'verified_extraction',
+      relevanceSummary: `PDF parsed (${pageCount} page(s)) with ${clauses.length} extracted clauses and ${entities.length} detected entities.`
     };
   }
 
-  private parseImageOcrContent(buffer: ArrayBuffer | undefined, filename: string, mimeType: string): ParsedDocumentResult {
-    const sizeBytes = buffer ? buffer.byteLength : 0;
-    let ocrText = '';
-    let classification = 'Screenshot / Photographic Proof';
-
-    if (filename.includes('receipt') || filename.includes('payment') || filename.includes('upi') || filename.includes('bank')) {
-      ocrText = `[OCR Extract - Payment Proof: ${filename}]\nTransaction Reference No: UPI/NEFT Verified.\nAmount: ₹75,000.00 transferred successfully.\nTimestamp: Completed on Banking Rail.`;
-      classification = 'Payment / Financial Receipt';
-    } else if (filename.includes('chat') || filename.includes('whatsapp')) {
-      ocrText = `[OCR Extract - Communication Record: ${filename}]\nChat transcripts showing formal 30-day move-out notice delivered to respondent.\nNotice read and acknowledged.`;
-      classification = 'Electronic Communication (WhatsApp / SMS)';
-    } else {
-      ocrText = `[OCR Extract - Image: ${filename} (${mimeType}, ${(sizeBytes / 1024).toFixed(1)} KB)]\nVisual document proof captured for legal record verification.`;
-    }
-
-    const entities = this.extractEntities(ocrText);
-    const clauses = this.extractClauses(ocrText);
-
+  private parseImageOcrContent(_buffer: ArrayBuffer | undefined, filename: string, mimeType: string): ParsedDocumentResult {
+    // In a production setup without OCR credentials, we FAIL TRUTHFULLY.
+    // We NEVER synthesize a ₹75,000 transaction or WhatsApp notice because of the filename!
     return {
-      extractedText: ocrText,
-      confidence: 0.92,
+      extractedText: '',
+      confidence: 0.0,
       detectedPages: 1,
-      clauses,
-      entities,
-      classification,
-      relevanceSummary: `OCR analyzed (${classification}) with verified monetary indicators and delivery confirmations.`
+      clauses: [],
+      entities: [],
+      classification: `Image / Photographic Proof (${mimeType})`,
+      extractionStatus: 'needs_ocr',
+      relevanceSummary: `Text could not be reliably extracted from image "${filename}" without an OCR provider. No legal fact was inferred from the filename or image metadata.`
     };
   }
 
@@ -158,30 +189,29 @@ export class ProductionDocumentParser implements DocumentParserProvider {
 
   private extractClauses(text: string): Array<{ title: string; text: string; pageNumber?: number }> {
     const clauses: Array<{ title: string; text: string; pageNumber?: number }> = [];
-    const lower = text.toLowerCase();
+    const sentences = text.split(/[.\n\r;]+/).map(s => s.trim()).filter(s => s.length > 15);
 
-    if (lower.includes('deposit') || lower.includes('refund')) {
-      clauses.push({
-        title: 'Security Deposit Refund Covenant',
-        text: 'Security deposit is returnable within stipulated period post vacant handover.',
-        pageNumber: 1
-      });
-    }
-
-    if (lower.includes('notice') || lower.includes('30-day') || lower.includes('15-day')) {
-      clauses.push({
-        title: 'Notice & Eviction Period Term',
-        text: 'Written 30-day advance notice shall be provided prior to vacating premises.',
-        pageNumber: 1
-      });
-    }
-
-    if (lower.includes('warranty') || lower.includes('defect') || lower.includes('guarantee')) {
-      clauses.push({
-        title: 'Statutory Warranty & Repair Covenant',
-        text: 'Merchant/Manufacturer shall remediate latent defects within warranty schedule.',
-        pageNumber: 1
-      });
+    for (const sentence of sentences) {
+      const lower = sentence.toLowerCase();
+      if ((lower.includes('deposit') || lower.includes('refund')) && !clauses.some(c => c.title.includes('Deposit'))) {
+        clauses.push({
+          title: 'Deposit / Refund Clause',
+          text: sentence,
+          pageNumber: 1
+        });
+      } else if ((lower.includes('notice') || lower.includes('eviction') || lower.includes('termination')) && !clauses.some(c => c.title.includes('Notice'))) {
+        clauses.push({
+          title: 'Notice / Termination Clause',
+          text: sentence,
+          pageNumber: 1
+        });
+      } else if ((lower.includes('warranty') || lower.includes('defect') || lower.includes('guarantee')) && !clauses.some(c => c.title.includes('Warranty'))) {
+        clauses.push({
+          title: 'Warranty / Defect Clause',
+          text: sentence,
+          pageNumber: 1
+        });
+      }
     }
 
     return clauses;

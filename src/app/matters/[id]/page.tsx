@@ -66,7 +66,7 @@ export default function MatterDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [matter, setMatter] = useState<Matter | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -82,9 +82,8 @@ export default function MatterDetailPage({
   const getAuthHeaders = useCallback((): Record<string, string> => {
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    if (user?.id) headers['x-user-id'] = user.id;
     return headers;
-  }, [token, user]);
+  }, [token]);
 
   useEffect(() => {
     let isMounted = true;
@@ -196,7 +195,10 @@ export default function MatterDetailPage({
 
     await fetch(`/api/matters/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
       body: JSON.stringify({ missingInformation: updatedMissing })
     });
 
@@ -220,6 +222,7 @@ export default function MatterDetailPage({
 
       const res = await fetch(`/api/matters/${id}/documents`, {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: formData
       });
       const data = await res.json();

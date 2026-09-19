@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { MatterResolutionRecord, ResolutionType } from '@/types/matter';
+import { apiFetch } from '@/lib/api/client';
 import {
   CheckCircle,
   X,
@@ -48,9 +49,8 @@ export function ResolutionModal({
     setError(null);
 
     try {
-      const res = await fetch(`/api/matters/${matterId}/resolution`, {
+      const { data, error, ok } = await apiFetch(`/api/matters/${matterId}/resolution`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           resolutionType,
           outcome,
@@ -60,13 +60,11 @@ export function ResolutionModal({
         })
       });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || 'Failed to record resolution');
+      if (!ok || error || !data) {
+        throw new Error(error || 'Failed to record resolution');
       }
 
-      const data = await res.json();
-      onResolutionSaved(data.resolution, false);
+      onResolutionSaved((data as { resolution: MatterResolutionRecord }).resolution, false);
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error resolving matter');
@@ -81,21 +79,18 @@ export function ResolutionModal({
     setError(null);
 
     try {
-      const res = await fetch(`/api/matters/${matterId}/resolution`, {
+      const { data, error, ok } = await apiFetch(`/api/matters/${matterId}/resolution`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reason: reopenReason || 'Reopened for follow-up enforcement'
         })
       });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || 'Failed to reopen matter');
+      if (!ok || error || !data) {
+        throw new Error(error || 'Failed to reopen matter');
       }
 
-      const data = await res.json();
-      onResolutionSaved(data.resolution, true);
+      onResolutionSaved((data as { resolution: MatterResolutionRecord }).resolution, true);
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error reopening matter');

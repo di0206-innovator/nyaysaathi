@@ -6,7 +6,14 @@ import {
   LegalDraft,
   EvidenceGraphData,
   MatterCategory,
-  MatterStatus
+  MatterStatus,
+  ActionStep,
+  CommunicationRecord,
+  MatterActivityEvent,
+  MatterDeadline,
+  EscalationWorkflowItem,
+  MatterResolutionRecord,
+  MatterNotification
 } from '@/types/matter';
 
 export interface MatterFilter {
@@ -55,6 +62,49 @@ export interface IEvidenceGraphRepository {
   save(matterId: string, graph: EvidenceGraphData): Promise<EvidenceGraphData>;
 }
 
+export interface IActionRepository {
+  listByMatter(matterId: string): Promise<ActionStep[]>;
+  update(matterId: string, actionId: string, updates: Partial<ActionStep>): Promise<ActionStep | null>;
+  replace(matterId: string, actions: ActionStep[]): Promise<ActionStep[]>;
+}
+
+export interface ICommunicationRepository {
+  listByMatter(matterId: string): Promise<CommunicationRecord[]>;
+  record(matterId: string, comm: CommunicationRecord): Promise<CommunicationRecord>;
+}
+
+export interface IActivityEventRepository {
+  listByMatter(matterId: string): Promise<MatterActivityEvent[]>;
+  record(matterId: string, event: MatterActivityEvent): Promise<MatterActivityEvent>;
+}
+
+export interface IDeadlineRepository {
+  listByMatter(matterId: string): Promise<MatterDeadline[]>;
+  upsert(matterId: string, deadline: MatterDeadline): Promise<MatterDeadline>;
+  replace(matterId: string, deadlines: MatterDeadline[]): Promise<MatterDeadline[]>;
+}
+
+export interface IEscalationRepository {
+  listByMatter(matterId: string): Promise<EscalationWorkflowItem[]>;
+  update(matterId: string, routeId: string, updates: Partial<EscalationWorkflowItem>): Promise<EscalationWorkflowItem | null>;
+  replace(matterId: string, workflows: EscalationWorkflowItem[]): Promise<EscalationWorkflowItem[]>;
+}
+
+export interface IResolutionRepository {
+  getByMatter(matterId: string): Promise<MatterResolutionRecord | null>;
+  resolve(matterId: string, resolution: MatterResolutionRecord): Promise<MatterResolutionRecord>;
+  reopen(matterId: string, reason: string, reopenedBy?: string): Promise<MatterResolutionRecord | null>;
+}
+
+export interface INotificationRepository {
+  listByUser(userId: string): Promise<MatterNotification[]>;
+  listByMatter(matterId: string): Promise<MatterNotification[]>;
+  create(notification: MatterNotification): Promise<MatterNotification>;
+  markRead(notificationId: string, userId?: string): Promise<boolean>;
+  markAllRead(userId: string): Promise<boolean>;
+  getUnreadCount(userId: string): Promise<number>;
+}
+
 export interface IStorageAdapter {
   matters: IMatterRepository;
   documents: IDocumentRepository;
@@ -62,4 +112,11 @@ export interface IStorageAdapter {
   risks: IRiskRepository;
   drafts: IDraftRepository;
   evidenceGraphs: IEvidenceGraphRepository;
+  actions?: IActionRepository;
+  communications?: ICommunicationRepository;
+  activityEvents?: IActivityEventRepository;
+  deadlines?: IDeadlineRepository;
+  escalations?: IEscalationRepository;
+  resolutions?: IResolutionRepository;
+  notifications?: INotificationRepository;
 }

@@ -21,6 +21,7 @@ export interface IStorageProvider {
   uploadFile(file: UploadFileInput): Promise<StoredFile>;
   deleteFile(fileUrl: string): Promise<boolean>;
   getSignedUrl?(storagePath: string, expiresInSeconds?: number): Promise<string | null>;
+  getFile?(storagePath: string): Promise<{ buffer: Buffer; mimeType: string } | null>;
 }
 
 function formatBytes(bytes: number): string {
@@ -78,6 +79,11 @@ export class LocalStorageProvider implements IStorageProvider {
 
   public async getSignedUrl(storagePath: string): Promise<string | null> {
     return `/api/documents/raw?path=${encodeURIComponent(storagePath)}`;
+  }
+
+  public async getFile(storagePath: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
+    const found = this.files.get(storagePath);
+    return found || null;
   }
 }
 
@@ -171,6 +177,23 @@ export class SupabaseStorageProvider implements IStorageProvider {
       .createSignedUrl(storagePath, expiresInSeconds);
 
     return error ? null : (data?.signedUrl || null);
+  }
+
+  public async getFile(storagePath: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
+    const client = getSupabaseClient();
+    if (!client) return null;
+
+    const { data, error } = await client.storage
+      .from(this.bucketName)
+      .download(storagePath);
+
+    if (error || !data) return null;
+
+    const arrayBuffer = await data.arrayBuffer();
+    return {
+      buffer: Buffer.from(arrayBuffer),
+      mimeType: data.type || 'application/octet-stream'
+    };
   }
 }
 

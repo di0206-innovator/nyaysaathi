@@ -67,6 +67,7 @@ export interface AgentInput {
   existingRisks?: RiskItem[];
   existingActionPlan?: ActionStep[];
   existingDrafts?: LegalDraft[];
+  existingMatter?: Matter;
   trigger?: ReanalysisTrigger;
 }
 

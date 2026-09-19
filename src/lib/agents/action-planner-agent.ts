@@ -20,7 +20,7 @@ export class ActionPlannerAgent {
             phase: 'immediate_48h',
             description: 'Export complete WhatsApp chat backup (.txt + media) with landlord/broker and preserve all UPI/bank debit statements.',
             estimatedTurnaround: '30 mins',
-            status: 'completed',
+            status: 'pending',
             priority: 'must_do',
             groundingRefIds: riskIds
           },
@@ -30,7 +30,7 @@ export class ActionPlannerAgent {
             phase: 'immediate_48h',
             description: 'Send a polite, structured settlement reminder giving 5-7 days for mutual deposit reconciliation.',
             estimatedTurnaround: '15 mins',
-            status: 'in_progress',
+            status: 'pending',
             priority: 'must_do',
             associatedDraftType: 'soft_request',
             groundingRefIds: riskIds
@@ -78,7 +78,7 @@ export class ActionPlannerAgent {
             phase: 'immediate_48h',
             description: 'Collate digital and physical copies of purchase invoice, warranty certificate, and service denial emails.',
             estimatedTurnaround: '20 mins',
-            status: 'completed',
+            status: 'pending',
             priority: 'must_do',
             groundingRefIds: riskIds
           },
@@ -88,7 +88,7 @@ export class ActionPlannerAgent {
             phase: 'immediate_48h',
             description: 'Submit structured escalation to brand customer care nodal officer citing job sheet number.',
             estimatedTurnaround: '20 mins',
-            status: 'in_progress',
+            status: 'pending',
             priority: 'must_do',
             associatedDraftType: 'soft_request',
             groundingRefIds: riskIds
@@ -136,7 +136,7 @@ export class ActionPlannerAgent {
             phase: 'immediate_48h',
             description: 'Collect all relevant agreements, payment slips, emails, and phone logs into a secure digital dossier.',
             estimatedTurnaround: '45 mins',
-            status: 'completed',
+            status: 'pending',
             priority: 'must_do',
             groundingRefIds: riskIds
           },
@@ -146,7 +146,7 @@ export class ActionPlannerAgent {
             phase: 'immediate_48h',
             description: 'Reach out in writing stating factual position and inviting prompt amicable resolution.',
             estimatedTurnaround: '30 mins',
-            status: 'in_progress',
+            status: 'pending',
             priority: 'must_do',
             associatedDraftType: 'soft_request',
             groundingRefIds: riskIds

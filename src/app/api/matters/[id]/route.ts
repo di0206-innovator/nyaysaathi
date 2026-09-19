@@ -3,6 +3,7 @@ import { getMatterService } from '@/lib/repository';
 import { apiSuccess, apiError } from '@/lib/api/response';
 import { AuthService } from '@/lib/auth/auth-service';
 import { Logger } from '@/lib/observability/logger';
+import { Matter } from '@/types/matter';
 
 export async function GET(
   req: NextRequest,
@@ -67,7 +68,69 @@ export async function PATCH(
       return apiError('Access denied: You cannot modify this matter', 403, 'FORBIDDEN');
     }
 
-    const updated = await service.updateMatter(id, updates, user.id);
+    // Lock resolved/closed matters against destructive modifications
+    if (existing.status === 'resolved' || existing.status === 'closed') {
+      return apiError('Matter is resolved/closed. Reopen the matter to make updates.', 403, 'MATTER_LOCKED');
+    }
+
+    // Protected fields that MUST NOT be modified via general PATCH
+    const PROTECTED_FIELDS = [
+      'id',
+      'userId',
+      'createdAt',
+      'auditLog',
+      'trustSafetyItems',
+      'evidenceGraph',
+      'lawyerBrief',
+      'applicableStatutes',
+      'status',
+      'actionPlan',
+      'activityEvents',
+      'communications',
+      'deadlines',
+      'escalationWorkflows',
+      'resolution',
+      'notifications'
+    ];
+
+    for (const field of PROTECTED_FIELDS) {
+      if (field in updates) {
+        return apiError(
+          `Direct modification of protected field '${field}' is not permitted. Use designated workflow APIs.`,
+          400,
+          'PROTECTED_FIELD_MODIFICATION'
+        );
+      }
+    }
+
+    // Allowlisted editable fields
+    const ALLOWED_FIELDS = [
+      'title',
+      'userStory',
+      'claimAmount',
+      'locationCity',
+      'locationState',
+      'parties',
+      'language',
+      'missingInformation'
+    ];
+
+    const sanitizedUpdates: Partial<Matter> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in updates) {
+        sanitizedUpdates[key as keyof Matter] = updates[key];
+      }
+    }
+
+    // Input validations
+    if (sanitizedUpdates.title !== undefined && (typeof sanitizedUpdates.title !== 'string' || sanitizedUpdates.title.trim().length === 0)) {
+      return apiError('Title must be a non-empty string', 400, 'INVALID_TITLE');
+    }
+    if (sanitizedUpdates.claimAmount !== undefined && (typeof sanitizedUpdates.claimAmount !== 'number' || sanitizedUpdates.claimAmount < 0)) {
+      return apiError('Claim amount must be a non-negative number', 400, 'INVALID_CLAIM_AMOUNT');
+    }
+
+    const updated = await service.updateMatter(id, sanitizedUpdates, user.id);
     if (!updated) {
       return apiError('Failed to update matter', 500, 'UPDATE_FAILED');
     }

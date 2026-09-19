@@ -33,13 +33,40 @@ export class DeadlineEngine {
     const deadlines: CalculatedDeadline[] = [];
     const now = new Date();
 
-    // 1. Notice Cure Period Deadlines (15-Day / 30-Day standard windows)
-    const hasNoticeDraft = matter.drafts.some(d => d.type === 'formal_demand' || d.type === 'legal_notice');
-    if (hasNoticeDraft) {
+    // 1. Notice Cure Period Deadlines
+    const dispatchedNotice = (matter.communications || []).find(
+      c => c.type === 'legal_notice' &&
+           c.direction === 'outgoing' &&
+           (c.status === 'sent' || c.status === 'awaiting_response')
+    );
+    const hasNoticeDraft = (matter.drafts || []).some(
+      d => d.type === 'formal_demand' || d.type === 'legal_notice'
+    );
+
+    if (dispatchedNotice) {
+      const sentDate = dispatchedNotice.createdAt ? new Date(dispatchedNotice.createdAt) : now;
+      const cureDue = dispatchedNotice.responseExpectedBy
+        ? new Date(dispatchedNotice.responseExpectedBy)
+        : new Date(sentDate.getTime() + 15 * 24 * 60 * 60 * 1000);
+      const diffTime = cureDue.getTime() - now.getTime();
+      const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      deadlines.push({
+        id: `deadline-notice-cure-${dispatchedNotice.id}`,
+        title: '15-Day Notice Statutory Cure Window (Verified Dispatch)',
+        category: 'notice_cure',
+        dueDate: cureDue.toISOString().split('T')[0],
+        daysRemaining: Math.max(0, daysRemaining),
+        urgency: daysRemaining <= 3 ? 'critical' : 'warning',
+        statuteBasis: 'Section 138 NI Act / CPC Section 80 Notice Practice',
+        consequenceIfMissed: 'Opposing party may claim notice was premature if filed in forum without 15 days cure.',
+        recommendedAction: 'Verify postal delivery slip or tracking report via registered post (RPAD).'
+      });
+    } else if (hasNoticeDraft) {
       const noticeDue = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
       deadlines.push({
         id: 'deadline-notice-cure-15d',
-        title: '15-Day Notice Cure Window',
+        title: '15-Day Notice Cure Window (Calculated Estimate)',
         category: 'notice_cure',
         dueDate: noticeDue.toISOString().split('T')[0],
         daysRemaining: 15,

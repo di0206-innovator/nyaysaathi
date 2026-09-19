@@ -24,15 +24,47 @@ export class AuthService {
     }
 
     // 2. Check Supabase cookies if no header
-    if (!token) {
-      const cookieToken = req.cookies.get('sb-access-token')?.value || req.cookies.get('supabase-auth-token')?.value;
+    if (!token && 'cookies' in req && req.cookies) {
+      const cookieToken = req.cookies.get?.('sb-access-token')?.value || req.cookies.get?.('supabase-auth-token')?.value;
       if (cookieToken) {
         token = cookieToken;
       }
     }
 
-    // 3. Verify token with Supabase Auth if configured
-    if (token && isSupabaseConfigured()) {
+    // 3. Strict Production Gate
+    // In production environments, NEVER accept synthetic identity tokens or x-user-id
+    if (process.env.NODE_ENV === 'production') {
+      if (token && token.startsWith('mock-user-')) {
+        return null;
+      }
+      if (req.headers.get('x-user-id')) {
+        return null;
+      }
+    }
+
+    // 4. Test / Explicit Demo Auth Fallback
+    // Permitted in local unit tests or explicit demo mode
+    const isExplicitDemoOrTest =
+      process.env.NODE_ENV === 'test' ||
+      !process.env.NODE_ENV ||
+      process.env.NODE_ENV === 'development' ||
+      process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+    if (isExplicitDemoOrTest && token && token.startsWith('mock-user-')) {
+      const id = token.replace('mock-user-', '');
+      return {
+        id,
+        email: `${id}@test.nyaysaathi.in`,
+        name: `Test User ${id}`,
+        role: id.includes('advocate') ? 'advocate' : 'authenticated'
+      };
+    }
+
+    // 5. Verify token with Supabase Auth if configured
+    if (isSupabaseConfigured()) {
+      if (!token) {
+        return null;
+      }
       try {
         const adminClient = getSupabaseAdminClient();
         if (adminClient) {
@@ -49,29 +81,21 @@ export class AuthService {
       } catch (err) {
         console.error('Supabase token verification error:', err);
       }
+      // When Supabase is configured, NEVER fall back to unverified mock headers
+      return null;
     }
 
-    // 4. Test / Local / Development Auth Fallback
-    // Allows deterministic testing and demo mode without requiring active Supabase cloud instance
-    const testUserId = req.headers.get('x-user-id');
-    if (testUserId) {
-      return {
-        id: testUserId,
-        email: `${testUserId}@nyaysaathi.internal`,
-        name: `User ${testUserId}`,
-        role: 'authenticated'
-      };
-    }
-
-    // Check if a test token format Bearer mock-user-* is passed
-    if (token && token.startsWith('mock-user-')) {
-      const id = token.replace('mock-user-', '');
-      return {
-        id,
-        email: `${id}@test.nyaysaathi.in`,
-        name: `Test User ${id}`,
-        role: 'authenticated'
-      };
+    // 6. In test/dev mode without Supabase, x-user-id fallback for dev tooling
+    if (isExplicitDemoOrTest && process.env.NODE_ENV !== 'production') {
+      const testUserId = req.headers.get('x-user-id');
+      if (testUserId) {
+        return {
+          id: testUserId,
+          email: `${testUserId}@nyaysaathi.internal`,
+          name: `User ${testUserId}`,
+          role: 'authenticated'
+        };
+      }
     }
 
     return null;
@@ -88,3 +112,5 @@ export class AuthService {
     return user;
   }
 }
+
+export const getAuthenticatedUser = (req: NextRequest | Request) => AuthService.getAuthenticatedUser(req as NextRequest);

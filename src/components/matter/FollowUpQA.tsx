@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { SourceReference, TrustSafetyTier } from '@/types/matter';
 import { SupportedLanguage } from '@/lib/ai';
+import { apiFetch } from '@/lib/api/client';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 interface QAItem {
   id: string;
@@ -37,13 +39,13 @@ export function FollowUpQA({
   matterCategory,
   language = 'en'
 }: FollowUpQAProps) {
+  const { token } = useAuth();
   const [messages, setMessages] = useState<QAItem[]>([
     {
       id: 'msg-initial',
       sender: 'assistant',
-      text: `Hello! I am your NyaySaathi matter navigator. Ask me anything about your timeline, documents, or Indian statutory remedies. I will only answer using verified facts in your dossier. If something is missing, I will ask you rather than guess.`,
-      timestamp: 'Just now',
-      tier: 'explanation'
+      text: `Hello! I have analyzed your ${matterCategory} matter. You can ask me follow-up questions about applicable laws, procedural requirements, or evidence strength.`,
+      timestamp: 'Just now'
     }
   ]);
 
@@ -74,9 +76,9 @@ export function FollowUpQA({
     setIsTyping(true);
 
     try {
-      const res = await fetch(`/api/matters/${matterId}/qa`, {
+      const res = await apiFetch(`/api/matters/${matterId}/qa`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        token,
         body: JSON.stringify({ query: q, language })
       });
 

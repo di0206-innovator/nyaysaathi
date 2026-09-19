@@ -58,23 +58,49 @@ export class MatterService {
    * Derive dynamic matter health / lifecycle status based on current activities.
    */
   public deriveMatterHealthStatus(matter: Matter): MatterStatus {
+    // 1. Preserve resolved or closed states
     if (matter.resolution && !matter.resolution.isReopened) {
       return 'resolved';
     }
+    if (matter.status === 'closed') {
+      return 'closed';
+    }
 
-    if (matter.escalationWorkflows?.some(e => e.status === 'hearing_scheduled' || e.status === 'under_review')) {
+    // 2. Active Escalation status
+    const activeEscalations = matter.escalationWorkflows || [];
+    const hasMediationHearing = activeEscalations.some(
+      e => (e.status === 'hearing_scheduled' || (e.routeId.includes('mediation') && e.status === 'under_review'))
+    );
+    if (hasMediationHearing) {
       return 'in_mediation';
     }
 
-    if (matter.escalationWorkflows?.some(e => e.status === 'submitted' || e.status === 'acknowledged')) {
+    const hasSubmittedEscalation = activeEscalations.some(
+      e => e.status === 'submitted' || e.status === 'acknowledged' || e.status === 'under_review'
+    );
+    if (hasSubmittedEscalation) {
       return 'awaiting_authority';
     }
 
-    if (matter.communications?.some(c => c.direction === 'outgoing' && (c.status === 'sent' || c.status === 'awaiting_response'))) {
-      return 'awaiting_other_party';
+    // 3. Evaluate LATEST communication rather than any historical record
+    const comms = (matter.communications || []).slice().sort((a, b) => 
+      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+    const latestComm = comms[0];
+    if (latestComm) {
+      // If the latest communication is outgoing and awaiting response or sent
+      if (
+        latestComm.direction === 'outgoing' &&
+        (latestComm.status === 'awaiting_response' || !!latestComm.responseExpectedBy || latestComm.status === 'sent')
+      ) {
+        return 'awaiting_other_party';
+      }
     }
 
-    const hasIncompleteActions = matter.actionPlan?.some(a => a.status === 'pending' || a.status === 'in_progress' || a.status === 'blocked');
+    // 4. Pending user action
+    const hasIncompleteActions = matter.actionPlan?.some(
+      a => a.status === 'pending' || a.status === 'in_progress' || a.status === 'blocked'
+    );
     if (hasIncompleteActions) {
       return 'awaiting_user_action';
     }
@@ -246,19 +272,53 @@ export class MatterService {
     const existing = await this.getMatterById(matterId, userId);
     if (!existing) throw new Error(`Matter not found: ${matterId}`);
 
+    if (existing.resolution && !existing.resolution.isReopened) {
+      throw new Error(`Cannot update actions on a resolved matter. Reopen the matter first.`);
+    }
+
     const actionIndex = existing.actionPlan.findIndex(a => a.id === actionId);
     if (actionIndex === -1) throw new Error(`Action step not found: ${actionId}`);
 
     const prevAction = existing.actionPlan[actionIndex];
-    const isCompleted = updates.status === 'completed';
+    const targetStatus = updates.status || prevAction.status;
+
+    // Validate state transitions
+    if (updates.status && updates.status !== prevAction.status) {
+      const validTransitions: Record<string, string[]> = {
+        pending: ['in_progress', 'skipped', 'blocked', 'completed'],
+        in_progress: ['completed', 'blocked', 'skipped', 'pending'],
+        blocked: ['in_progress', 'pending', 'skipped'],
+        completed: ['pending'],
+        skipped: ['pending', 'in_progress']
+      };
+      if (!validTransitions[prevAction.status]?.includes(updates.status)) {
+        throw new Error(`Invalid action status transition from '${prevAction.status}' to '${updates.status}'`);
+      }
+    }
+
+    const isCompleted = targetStatus === 'completed';
     const isNowCompleted = isCompleted && prevAction.status !== 'completed';
+
+    // Preserve completion metadata unless transitioning back to incomplete
+    let completedAt = prevAction.completedAt;
+    if (updates.completedAt !== undefined) {
+      completedAt = updates.completedAt;
+    } else if (isNowCompleted) {
+      completedAt = new Date().toISOString();
+    } else if (updates.status && updates.status !== 'completed') {
+      completedAt = undefined;
+    }
 
     const updatedAction: ActionStep = {
       ...prevAction,
       ...updates,
-      completedAt: isCompleted
-        ? (updates.completedAt || prevAction.completedAt || new Date().toISOString())
-        : undefined
+      status: targetStatus,
+      completedAt,
+      completionProof: updates.completionProof !== undefined ? updates.completionProof : prevAction.completionProof,
+      result: updates.result !== undefined ? updates.result : prevAction.result,
+      notes: updates.notes !== undefined ? updates.notes : prevAction.notes,
+      dueDate: updates.dueDate !== undefined ? updates.dueDate : prevAction.dueDate,
+      blockingReason: updates.blockingReason !== undefined ? updates.blockingReason : prevAction.blockingReason
     };
 
     const newActionPlan = [...existing.actionPlan];
@@ -406,6 +466,14 @@ export class MatterService {
 
     await this.adapter.matters.update(matterId, updatedMatter, userId);
     return updatedMatter;
+  }
+
+  public async upsertDeadline(
+    matterId: string,
+    deadlineInput: Omit<MatterDeadline, 'id'>,
+    userId?: string
+  ): Promise<Matter> {
+    return this.manageDeadline(matterId, deadlineInput, userId);
   }
 
   /**
@@ -665,6 +733,10 @@ export class MatterService {
       throw new Error(`Matter not found: ${matterId}`);
     }
 
+    if (existing.resolution && !existing.resolution.isReopened) {
+      throw new Error(`Cannot upload documents to a resolved matter. Reopen the matter first.`);
+    }
+
     const docId = `doc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     // Upload to private storage
@@ -693,20 +765,24 @@ export class MatterService {
         mimeType: file.mimeType
       });
 
+      const isVerified = parsed.extractionStatus === 'verified_extraction' || parsed.extractionStatus === 'partial_extraction';
+
       // Construct DocumentEvidence record
       const newDoc: DocumentEvidence = {
         id: docId,
         title: file.title || file.filename,
         type: file.type || 'other',
         fileUrl: stored.fileUrl,
+        storagePath: stored.storagePath || stored.fileUrl,
         fileSize: stored.fileSize,
         uploadedAt: new Date().toISOString().split('T')[0],
         extractedText: parsed.extractedText,
         classification: parsed.classification || 'Uploaded Document Evidence',
         confidenceScore: parsed.confidence,
+        extractionStatus: parsed.extractionStatus,
         relevanceSummary: parsed.relevanceSummary || 'Corroborating document ingested into matter evidence repository.',
         keyQuotes: parsed.clauses?.map(c => c.text) || [],
-        status: 'verified'
+        status: isVerified ? 'verified' : 'unverified'
       };
 
       // Save document to repository
@@ -719,7 +795,7 @@ export class MatterService {
         source: 'user_recorded',
         title: `Document Uploaded: ${newDoc.title}`,
         date: new Date().toISOString(),
-        description: `Uploaded ${file.filename} (${newDoc.type}). System extracted ${newDoc.keyQuotes?.length || 0} clauses.`,
+        description: `Uploaded ${file.filename} (${newDoc.type}). System extracted ${newDoc.keyQuotes?.length || 0} clauses. Status: ${newDoc.extractionStatus || 'needs_review'}.`,
         referenceId: docId
       }, userId);
 
@@ -750,6 +826,10 @@ export class MatterService {
   ): Promise<Matter | null> {
     const existing = await this.getMatterById(id, userId);
     if (!existing) return null;
+
+    if (existing.resolution && !existing.resolution.isReopened) {
+      throw new Error(`Cannot re-analyze a resolved matter. Reopen the matter first.`);
+    }
 
     const pipelineResult = await this.orchestrator.executePipeline(existing, {
       trigger

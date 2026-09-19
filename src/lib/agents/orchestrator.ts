@@ -599,20 +599,47 @@ export class MatterOrchestrator {
       }
     });
 
-    // Assemble final updated Matter state
+    // Assemble final updated Matter state with strict boundary:
+    // Recomputed Analytical State + Preserved Workflow State
+    const baseMatter = input.existingMatter;
+
+    // Merge recommended action plan while preserving user execution states
+    const existingActionMap = new Map((input.existingActionPlan || baseMatter?.actionPlan || []).map(a => [a.id, a]));
+    const mergedActionPlan = enforcedActionPlan.map(newStep => {
+      const prev = existingActionMap.get(newStep.id) || (input.existingActionPlan || baseMatter?.actionPlan || []).find(a => a.title === newStep.title);
+      if (prev) {
+        return {
+          ...newStep,
+          status: prev.status || newStep.status,
+          completedAt: prev.completedAt,
+          completionProof: prev.completionProof,
+          notes: prev.notes || newStep.notes,
+          blockingReason: prev.blockingReason,
+          result: prev.result || newStep.result,
+          dueDate: prev.dueDate || newStep.dueDate
+        };
+      }
+      return newStep;
+    });
+
     const updatedMatter: Matter = {
-      id: input.matterId,
-      title: intakeResult.refinedTitle,
-      category: intakeResult.detectedCategory,
-      subCategory: intakeResult.detectedSubCategory,
-      status: 'action_ready',
-      createdAt: new Date().toISOString(),
+      // 1. Immutable Identity & Workflow State (Preserved)
+      id: baseMatter?.id || input.matterId || '',
+      userId: baseMatter?.userId,
+      createdAt: baseMatter?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      status: baseMatter?.status || 'action_ready',
+      language: baseMatter?.language || 'en',
+
+      // 2. Analytical State (Recomputed by Specialized Agents)
+      title: intakeResult.refinedTitle || input.title,
+      category: intakeResult.detectedCategory || input.category,
+      subCategory: intakeResult.detectedSubCategory,
       locationCity: input.locationCity,
       locationState: input.locationState,
-      claimAmount: intakeResult.claimAmount,
+      claimAmount: intakeResult.claimAmount !== undefined ? intakeResult.claimAmount : input.claimAmount,
       userStory: input.userStory,
-      parties: intakeResult.extractedParties,
+      parties: intakeResult.extractedParties && intakeResult.extractedParties.length > 0 ? intakeResult.extractedParties : input.parties,
       documents: docResult.processedDocuments,
       summary: {
         plainLanguage: intakeResult.plainLanguageSummary,
@@ -623,7 +650,7 @@ export class MatterOrchestrator {
       timelineEvents: timelineResult.timelineEvents,
       risks: enforcedRisks,
       missingInformation: finalMissingInfo,
-      actionPlan: enforcedActionPlan,
+      actionPlan: mergedActionPlan,
       drafts: enforcedDrafts,
       escalationRoutes: enforcedEscalations,
       lawyerBrief: draftResult.lawyerBrief,
@@ -631,7 +658,14 @@ export class MatterOrchestrator {
       trustSafetyItems: safetyResult.trustSafetyItems,
       evidenceGraph: graph.toJSON(),
       auditLog: consolidatedAuditLog,
-      language: 'en'
+
+      // 3. Persistent Workflow Collections (Never Overwritten by Analytical Loop)
+      activityEvents: baseMatter?.activityEvents || [],
+      communications: baseMatter?.communications || [],
+      deadlines: baseMatter?.deadlines || [],
+      escalationWorkflows: baseMatter?.escalationWorkflows || [],
+      resolution: baseMatter?.resolution,
+      notifications: baseMatter?.notifications || []
     };
 
     return {
@@ -675,6 +709,7 @@ export class MatterOrchestrator {
         applicabilityNote: s.applicability
       })),
       existingEvidenceGraph: matter.evidenceGraph,
+      existingMatter: matter,
       trigger: options?.trigger || 'full'
     };
 
@@ -688,4 +723,10 @@ export class MatterOrchestrator {
 }
 
 export const Orchestrator = MatterOrchestrator;
+
+export async function executePipeline(input: AgentInput): Promise<Matter> {
+  const orchestrator = new MatterOrchestrator();
+  const res = await orchestrator.processMatter(input);
+  return res.matter;
+}
 

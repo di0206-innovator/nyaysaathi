@@ -5,7 +5,14 @@ import {
   TimelineEvent,
   RiskItem,
   LegalDraft,
-  EvidenceGraphData
+  EvidenceGraphData,
+  ActionStep,
+  CommunicationRecord,
+  MatterActivityEvent,
+  MatterDeadline,
+  EscalationWorkflowItem,
+  MatterResolutionRecord,
+  MatterNotification
 } from '@/types/matter';
 import {
   IStorageAdapter,
@@ -15,6 +22,13 @@ import {
   IRiskRepository,
   IDraftRepository,
   IEvidenceGraphRepository,
+  IActionRepository,
+  ICommunicationRepository,
+  IActivityEventRepository,
+  IDeadlineRepository,
+  IEscalationRepository,
+  IResolutionRepository,
+  INotificationRepository,
   MatterFilter
 } from '../types';
 
@@ -264,6 +278,114 @@ export class SupabaseStorageAdapter implements IStorageAdapter {
         await this.client.from('audit_logs').insert(auditRows);
       }
 
+      // 15. Insert matter_actions (Phase 7 normalized)
+      if (matter.actionPlan && matter.actionPlan.length > 0) {
+        const actionRows = matter.actionPlan.map(a => ({
+          matter_id: matter.id,
+          title: a.title,
+          phase: a.phase,
+          description: a.description,
+          estimated_turnaround: a.estimatedTurnaround || null,
+          status: a.status,
+          priority: a.priority,
+          associated_draft_type: a.associatedDraftType || null,
+          due_date: a.dueDate ? new Date(a.dueDate).toISOString() : null,
+          completed_at: a.completedAt ? new Date(a.completedAt).toISOString() : null,
+          notes: a.notes || null,
+          blocking_reason: a.blockingReason || null,
+          completion_proof: a.completionProof ? a.completionProof : null,
+          result: a.result || null,
+          grounding_status: a.groundingStatus || 'grounded'
+        }));
+        await this.client.from('matter_actions').insert(actionRows);
+      }
+
+      // 16. Insert matter_communications
+      if (matter.communications && matter.communications.length > 0) {
+        const commRows = matter.communications.map(c => ({
+          matter_id: matter.id,
+          type: c.type,
+          direction: c.direction,
+          date: c.date ? new Date(c.date).toISOString() : new Date().toISOString(),
+          counterparty: c.counterparty,
+          summary: c.summary,
+          reference_number: c.referenceNumber || null,
+          response_expected_by: c.responseExpectedBy ? new Date(c.responseExpectedBy).toISOString() : null,
+          status: c.status,
+          outcome_notes: c.outcomeNotes || null
+        }));
+        await this.client.from('matter_communications').insert(commRows);
+      }
+
+      // 17. Insert matter_activity_events
+      if (matter.activityEvents && matter.activityEvents.length > 0) {
+        const eventRows = matter.activityEvents.map(e => ({
+          matter_id: matter.id,
+          type: e.type,
+          source: e.source,
+          title: e.title,
+          date: e.date ? new Date(e.date).toISOString() : new Date().toISOString(),
+          description: e.description,
+          reference_id: e.referenceId || null,
+          metadata: e.metadata || {}
+        }));
+        await this.client.from('matter_activity_events').insert(eventRows);
+      }
+
+      // 18. Insert matter_deadlines
+      if (matter.deadlines && matter.deadlines.length > 0) {
+        const deadlineRows = matter.deadlines.map(d => ({
+          matter_id: matter.id,
+          title: d.title,
+          description: d.description || null,
+          due_date: new Date(d.dueDate).toISOString(),
+          type: d.type,
+          is_statutory: d.isStatutory ?? false,
+          is_user_defined: d.isUserDefined ?? false,
+          confidence: d.confidence || 0.85,
+          trust_tier: d.trustTier || 'explanation',
+          status: d.status,
+          statute_reference: d.statuteReference || null
+        }));
+        await this.client.from('matter_deadlines').insert(deadlineRows);
+      }
+
+      // 19. Insert matter_escalations
+      if (matter.escalationWorkflows && matter.escalationWorkflows.length > 0) {
+        const escRows = matter.escalationWorkflows.map(e => ({
+          matter_id: matter.id,
+          route_id: e.routeId,
+          authority_name: e.authorityName,
+          status: e.status,
+          requirements: e.requirements || [],
+          documents_required: e.documentsRequired || [],
+          submission_method: e.submissionMethod || 'online_portal',
+          official_portal: e.officialPortal || null,
+          reference_number: e.referenceNumber || null,
+          submitted_at: e.submittedAt ? new Date(e.submittedAt).toISOString() : null,
+          next_step: e.nextStep || null,
+          notes: e.notes || null
+        }));
+        await this.client.from('matter_escalations').insert(escRows);
+      }
+
+      // 20. Insert matter_resolutions
+      if (matter.resolution) {
+        await this.client.from('matter_resolutions').insert({
+          matter_id: matter.id,
+          resolved_at: new Date(matter.resolution.resolvedAt).toISOString(),
+          resolution_type: matter.resolution.resolutionType,
+          outcome: matter.resolution.outcome,
+          amount_recovered: matter.resolution.amountRecovered || null,
+          amount_disputed: matter.resolution.amountDisputed || null,
+          notes: matter.resolution.notes || null,
+          is_reopened: matter.resolution.isReopened ?? false,
+          reopened_at: matter.resolution.reopenedAt ? new Date(matter.resolution.reopenedAt).toISOString() : null,
+          reopened_reason: matter.resolution.reopenedReason || null,
+          reopened_by: matter.resolution.reopenedBy || null
+        });
+      }
+
       return matter;
     },
 
@@ -276,7 +398,7 @@ export class SupabaseStorageAdapter implements IStorageAdapter {
       const { data: matterRow, error } = await query;
       if (error || !matterRow) return null;
 
-      // Fetch related records in parallel
+      // Fetch related records in parallel, including Phase 7 normalized tables
       const [
         { data: parties },
         { data: docs },
@@ -290,7 +412,14 @@ export class SupabaseStorageAdapter implements IStorageAdapter {
         { data: escalations },
         { data: trustItems },
         { data: evidenceGraph },
-        { data: auditLogs }
+        { data: auditLogs },
+        { data: matterActions },
+        { data: matterComms },
+        { data: matterEvents },
+        { data: matterDeadlines },
+        { data: matterEscalations },
+        { data: matterResolution },
+        { data: matterNotifications }
       ] = await Promise.all([
         this.client.from('parties').select('*').eq('matter_id', id),
         this.client.from('documents').select('*').eq('matter_id', id),
@@ -304,7 +433,14 @@ export class SupabaseStorageAdapter implements IStorageAdapter {
         this.client.from('escalation_routes').select('*').eq('matter_id', id),
         this.client.from('trust_safety_items').select('*').eq('matter_id', id),
         this.client.from('evidence_graphs').select('*').eq('matter_id', id).maybeSingle(),
-        this.client.from('audit_logs').select('*').eq('matter_id', id)
+        this.client.from('audit_logs').select('*').eq('matter_id', id),
+        this.client.from('matter_actions').select('*').eq('matter_id', id),
+        this.client.from('matter_communications').select('*').eq('matter_id', id).order('created_at', { ascending: false }),
+        this.client.from('matter_activity_events').select('*').eq('matter_id', id).order('created_at', { ascending: false }),
+        this.client.from('matter_deadlines').select('*').eq('matter_id', id),
+        this.client.from('matter_escalations').select('*').eq('matter_id', id),
+        this.client.from('matter_resolutions').select('*').eq('matter_id', id).maybeSingle(),
+        this.client.from('matter_notifications').select('*').eq('matter_id', id).order('created_at', { ascending: false })
       ]);
 
       const constructed: Matter = {
@@ -339,11 +475,13 @@ export class SupabaseStorageAdapter implements IStorageAdapter {
           title: d.title,
           type: d.type,
           fileUrl: d.file_url || undefined,
+          storagePath: d.storage_path || d.file_url || undefined,
           fileSize: d.file_size || undefined,
           uploadedAt: d.created_at,
           extractedText: d.extracted_text || undefined,
           classification: d.classification || undefined,
           confidenceScore: d.confidence_score ? Number(d.confidence_score) : 0.95,
+          extractionStatus: d.extraction_status || undefined,
           relevanceSummary: d.relevance_summary || undefined,
           status: d.status
         })),
@@ -389,18 +527,38 @@ export class SupabaseStorageAdapter implements IStorageAdapter {
           isAnswered: m.is_answered,
           answer: m.answer || undefined
         })),
-        actionPlan: (actions || []).map(a => ({
-          id: a.id,
-          title: a.title,
-          phase: a.phase,
-          description: a.description,
-          estimatedTurnaround: a.estimated_turnaround || undefined,
-          status: a.status,
-          priority: a.priority,
-          associatedDraftType: a.associated_draft_type || undefined,
-          groundingStatus: a.grounding_status || 'grounded',
-          groundingRefIds: a.grounding_ref_ids || []
-        })),
+        actionPlan: (matterActions && matterActions.length > 0)
+          ? matterActions.map(a => ({
+              id: a.id,
+              title: a.title,
+              phase: a.phase,
+              description: a.description,
+              estimatedTurnaround: a.estimated_turnaround || undefined,
+              status: a.status,
+              priority: a.priority,
+              associatedDraftType: a.associated_draft_type || undefined,
+              dueDate: a.due_date || undefined,
+              completedAt: a.completed_at || undefined,
+              evidenceRequired: a.evidence_required || false,
+              notes: a.notes || undefined,
+              blockingReason: a.blocking_reason || undefined,
+              completionProof: a.completion_proof || undefined,
+              result: a.result || undefined,
+              groundingStatus: a.grounding_status || 'grounded',
+              groundingRefIds: []
+            }))
+          : (actions || []).map(a => ({
+              id: a.id,
+              title: a.title,
+              phase: a.phase,
+              description: a.description,
+              estimatedTurnaround: a.estimated_turnaround || undefined,
+              status: a.status,
+              priority: a.priority,
+              associatedDraftType: a.associated_draft_type || undefined,
+              groundingStatus: a.grounding_status || 'grounded',
+              groundingRefIds: a.grounding_ref_ids || []
+            })),
         drafts: (drafts || []).map(d => ({
           id: d.id,
           matterId: id,
@@ -469,6 +627,88 @@ export class SupabaseStorageAdapter implements IStorageAdapter {
           reason: a.reason,
           component: a.component || 'AI Safety',
           timestamp: a.created_at
+        })),
+        communications: (matterComms || []).map(c => ({
+          id: c.id,
+          matterId: id,
+          type: c.type,
+          direction: c.direction,
+          date: c.date,
+          counterparty: c.counterparty,
+          summary: c.summary,
+          referenceNumber: c.reference_number || undefined,
+          responseExpectedBy: c.response_expected_by || undefined,
+          status: c.status,
+          outcomeNotes: c.outcome_notes || undefined,
+          createdAt: c.created_at
+        })),
+        activityEvents: (matterEvents || []).map(e => ({
+          id: e.id,
+          matterId: id,
+          type: e.type,
+          source: e.source,
+          title: e.title,
+          date: e.date,
+          description: e.description,
+          referenceId: e.reference_id || undefined,
+          metadata: e.metadata || undefined
+        })),
+        deadlines: (matterDeadlines || []).map(d => ({
+          id: d.id,
+          matterId: id,
+          title: d.title,
+          description: d.description || undefined,
+          dueDate: d.due_date,
+          type: d.type,
+          isStatutory: d.is_statutory,
+          isUserDefined: d.is_user_defined,
+          confidence: d.confidence ? Number(d.confidence) : 0.85,
+          trustTier: d.trust_tier,
+          relatedActionId: d.related_action_id || undefined,
+          relatedEventId: d.related_event_id || undefined,
+          status: d.status,
+          statuteReference: d.statute_reference || undefined
+        })),
+        escalationWorkflows: (matterEscalations || []).map(e => ({
+          id: e.id,
+          matterId: id,
+          routeId: e.route_id,
+          authorityName: e.authority_name,
+          status: e.status,
+          requirements: e.requirements || [],
+          documentsRequired: e.documents_required || [],
+          optionalDocuments: e.optional_documents || [],
+          submissionMethod: e.submission_method,
+          officialPortal: e.official_portal || undefined,
+          referenceNumber: e.reference_number || undefined,
+          submittedAt: e.submitted_at || undefined,
+          acknowledgedAt: e.acknowledged_at || undefined,
+          nextStep: e.next_step || undefined,
+          notes: e.notes || undefined
+        })),
+        resolution: matterResolution ? {
+          resolvedAt: matterResolution.resolved_at,
+          resolutionType: matterResolution.resolution_type,
+          outcome: matterResolution.outcome,
+          amountRecovered: matterResolution.amount_recovered ? Number(matterResolution.amount_recovered) : undefined,
+          amountDisputed: matterResolution.amount_disputed ? Number(matterResolution.amount_disputed) : undefined,
+          notes: matterResolution.notes || undefined,
+          isReopened: matterResolution.is_reopened,
+          reopenedAt: matterResolution.reopened_at || undefined,
+          reopenedReason: matterResolution.reopened_reason || undefined,
+          reopenedBy: matterResolution.reopened_by || undefined
+        } : undefined,
+        notifications: (matterNotifications || []).map(n => ({
+          id: n.id,
+          matterId: id,
+          userId: n.user_id || undefined,
+          type: n.type,
+          title: n.title,
+          message: n.message,
+          channel: n.channel,
+          isRead: n.is_read,
+          createdAt: n.created_at,
+          metadata: n.metadata || undefined
         })),
         language: matterRow.language || 'en'
       };
@@ -887,6 +1127,484 @@ export class SupabaseStorageAdapter implements IStorageAdapter {
         updated_at: graph.updatedAt || new Date().toISOString()
       });
       return graph;
+    }
+  };
+
+  public actions: IActionRepository = {
+    listByMatter: async (matterId: string): Promise<ActionStep[]> => {
+      const { data } = await this.client.from('matter_actions')
+        .select('*')
+        .eq('matter_id', matterId)
+        .order('created_at', { ascending: true });
+      return (data || []).map(a => ({
+        id: a.id,
+        title: a.title,
+        phase: a.phase,
+        description: a.description,
+        estimatedTurnaround: a.estimated_turnaround || undefined,
+        status: a.status,
+        priority: a.priority,
+        associatedDraftType: a.associated_draft_type || undefined,
+        dueDate: a.due_date || undefined,
+        completedAt: a.completed_at || undefined,
+        evidenceRequired: a.evidence_required || false,
+        notes: a.notes || undefined,
+        blockingReason: a.blocking_reason || undefined,
+        completionProof: a.completion_proof || undefined,
+        result: a.result || undefined,
+        groundingStatus: a.grounding_status || 'grounded',
+        groundingRefIds: []
+      }));
+    },
+
+    update: async (matterId: string, actionId: string, updates: Partial<ActionStep>): Promise<ActionStep | null> => {
+      const updateData: Record<string, unknown> = {
+        updated_at: new Date().toISOString()
+      };
+      if (updates.status) updateData.status = updates.status;
+      if (updates.completedAt !== undefined) updateData.completed_at = updates.completedAt ? new Date(updates.completedAt).toISOString() : null;
+      if (updates.notes !== undefined) updateData.notes = updates.notes;
+      if (updates.blockingReason !== undefined) updateData.blocking_reason = updates.blockingReason;
+      if (updates.dueDate !== undefined) updateData.due_date = updates.dueDate ? new Date(updates.dueDate).toISOString() : null;
+      if (updates.completionProof !== undefined) updateData.completion_proof = updates.completionProof;
+      if (updates.result !== undefined) updateData.result = updates.result;
+
+      const { data, error } = await this.client.from('matter_actions')
+        .update(updateData)
+        .eq('matter_id', matterId)
+        .eq('id', actionId)
+        .select()
+        .single();
+
+      if (error || !data) return null;
+      return {
+        id: data.id,
+        title: data.title,
+        phase: data.phase,
+        description: data.description,
+        estimatedTurnaround: data.estimated_turnaround || undefined,
+        status: data.status,
+        priority: data.priority,
+        associatedDraftType: data.associated_draft_type || undefined,
+        dueDate: data.due_date || undefined,
+        completedAt: data.completed_at || undefined,
+        evidenceRequired: data.evidence_required || false,
+        notes: data.notes || undefined,
+        blockingReason: data.blocking_reason || undefined,
+        completionProof: data.completion_proof || undefined,
+        result: data.result || undefined,
+        groundingStatus: data.grounding_status || 'grounded',
+        groundingRefIds: []
+      };
+    },
+
+    replace: async (matterId: string, actions: ActionStep[]): Promise<ActionStep[]> => {
+      await this.client.from('matter_actions').delete().eq('matter_id', matterId);
+      if (actions.length > 0) {
+        const rows = actions.map(a => ({
+          id: a.id,
+          matter_id: matterId,
+          title: a.title,
+          phase: a.phase,
+          description: a.description,
+          estimated_turnaround: a.estimatedTurnaround || null,
+          status: a.status,
+          priority: a.priority,
+          associated_draft_type: a.associatedDraftType || null,
+          due_date: a.dueDate ? new Date(a.dueDate).toISOString() : null,
+          completed_at: a.completedAt ? new Date(a.completedAt).toISOString() : null,
+          notes: a.notes || null,
+          blocking_reason: a.blockingReason || null,
+          completion_proof: a.completionProof || null,
+          result: a.result || null,
+          grounding_status: a.groundingStatus || 'grounded'
+        }));
+        await this.client.from('matter_actions').insert(rows);
+      }
+      return actions;
+    }
+  };
+
+  public communications: ICommunicationRepository = {
+    listByMatter: async (matterId: string): Promise<CommunicationRecord[]> => {
+      const { data } = await this.client.from('matter_communications')
+        .select('*')
+        .eq('matter_id', matterId)
+        .order('created_at', { ascending: false });
+      return (data || []).map(c => ({
+        id: c.id,
+        matterId: c.matter_id,
+        type: c.type,
+        direction: c.direction,
+        date: c.date,
+        counterparty: c.counterparty,
+        summary: c.summary,
+        referenceNumber: c.reference_number || undefined,
+        responseExpectedBy: c.response_expected_by || undefined,
+        status: c.status,
+        outcomeNotes: c.outcome_notes || undefined,
+        createdAt: c.created_at
+      }));
+    },
+
+    record: async (matterId: string, comm: CommunicationRecord): Promise<CommunicationRecord> => {
+      const row = {
+        id: comm.id,
+        matter_id: matterId,
+        type: comm.type,
+        direction: comm.direction,
+        date: comm.date ? new Date(comm.date).toISOString() : new Date().toISOString(),
+        counterparty: comm.counterparty,
+        summary: comm.summary,
+        reference_number: comm.referenceNumber || null,
+        response_expected_by: comm.responseExpectedBy ? new Date(comm.responseExpectedBy).toISOString() : null,
+        status: comm.status,
+        outcome_notes: comm.outcomeNotes || null,
+        created_at: comm.createdAt ? new Date(comm.createdAt).toISOString() : new Date().toISOString()
+      };
+      await this.client.from('matter_communications').insert(row);
+      return comm;
+    }
+  };
+
+  public activityEvents: IActivityEventRepository = {
+    listByMatter: async (matterId: string): Promise<MatterActivityEvent[]> => {
+      const { data } = await this.client.from('matter_activity_events')
+        .select('*')
+        .eq('matter_id', matterId)
+        .order('created_at', { ascending: false });
+      return (data || []).map(e => ({
+        id: e.id,
+        matterId,
+        type: e.type,
+        source: e.source,
+        title: e.title,
+        date: e.date,
+        description: e.description,
+        referenceId: e.reference_id || undefined,
+        metadata: e.metadata || undefined
+      }));
+    },
+
+    record: async (matterId: string, event: MatterActivityEvent): Promise<MatterActivityEvent> => {
+      const row = {
+        id: event.id,
+        matter_id: matterId,
+        type: event.type,
+        source: event.source,
+        title: event.title,
+        date: event.date ? new Date(event.date).toISOString() : new Date().toISOString(),
+        description: event.description,
+        reference_id: event.referenceId || null,
+        metadata: event.metadata || {},
+        created_at: new Date().toISOString()
+      };
+      await this.client.from('matter_activity_events').insert(row);
+      return event;
+    }
+  };
+
+  public deadlines: IDeadlineRepository = {
+    listByMatter: async (matterId: string): Promise<MatterDeadline[]> => {
+      const { data } = await this.client.from('matter_deadlines')
+        .select('*')
+        .eq('matter_id', matterId)
+        .order('due_date', { ascending: true });
+      return (data || []).map(d => ({
+        id: d.id,
+        matterId,
+        title: d.title,
+        description: d.description || undefined,
+        dueDate: d.due_date,
+        type: d.type,
+        isStatutory: d.is_statutory,
+        isUserDefined: d.is_user_defined,
+        confidence: d.confidence ? Number(d.confidence) : 0.85,
+        trustTier: d.trust_tier,
+        relatedActionId: d.related_action_id || undefined,
+        relatedEventId: d.related_event_id || undefined,
+        status: d.status,
+        statuteReference: d.statute_reference || undefined
+      }));
+    },
+
+    upsert: async (matterId: string, deadline: MatterDeadline): Promise<MatterDeadline> => {
+      const row = {
+        id: deadline.id,
+        matter_id: matterId,
+        title: deadline.title,
+        description: deadline.description || null,
+        due_date: new Date(deadline.dueDate).toISOString(),
+        type: deadline.type,
+        is_statutory: deadline.isStatutory ?? false,
+        is_user_defined: deadline.isUserDefined ?? false,
+        confidence: deadline.confidence || 0.85,
+        trust_tier: deadline.trustTier || 'explanation',
+        related_action_id: deadline.relatedActionId || null,
+        related_event_id: deadline.relatedEventId || null,
+        status: deadline.status,
+        statute_reference: deadline.statuteReference || null
+      };
+      await this.client.from('matter_deadlines').upsert(row);
+      return deadline;
+    },
+
+    replace: async (matterId: string, deadlines: MatterDeadline[]): Promise<MatterDeadline[]> => {
+      await this.client.from('matter_deadlines').delete().eq('matter_id', matterId);
+      if (deadlines.length > 0) {
+        const rows = deadlines.map(d => ({
+          id: d.id,
+          matter_id: matterId,
+          title: d.title,
+          description: d.description || null,
+          due_date: new Date(d.dueDate).toISOString(),
+          type: d.type,
+          is_statutory: d.isStatutory ?? false,
+          is_user_defined: d.isUserDefined ?? false,
+          confidence: d.confidence || 0.85,
+          trust_tier: d.trustTier || 'explanation',
+          related_action_id: d.relatedActionId || null,
+          related_event_id: d.relatedEventId || null,
+          status: d.status,
+          statute_reference: d.statuteReference || null
+        }));
+        await this.client.from('matter_deadlines').insert(rows);
+      }
+      return deadlines;
+    }
+  };
+
+  public escalations: IEscalationRepository = {
+    listByMatter: async (matterId: string): Promise<EscalationWorkflowItem[]> => {
+      const { data } = await this.client.from('matter_escalations')
+        .select('*')
+        .eq('matter_id', matterId);
+      return (data || []).map(e => ({
+        id: e.id,
+        matterId,
+        routeId: e.route_id,
+        authorityName: e.authority_name,
+        status: e.status,
+        requirements: e.requirements || [],
+        documentsRequired: e.documents_required || [],
+        optionalDocuments: e.optional_documents || [],
+        submissionMethod: e.submission_method,
+        officialPortal: e.official_portal || undefined,
+        referenceNumber: e.reference_number || undefined,
+        submittedAt: e.submitted_at || undefined,
+        acknowledgedAt: e.acknowledged_at || undefined,
+        nextStep: e.next_step || undefined,
+        notes: e.notes || undefined
+      }));
+    },
+
+    update: async (matterId: string, routeId: string, updates: Partial<EscalationWorkflowItem>): Promise<EscalationWorkflowItem | null> => {
+      const updateData: Record<string, unknown> = {
+        updated_at: new Date().toISOString()
+      };
+      if (updates.status) updateData.status = updates.status;
+      if (updates.submittedAt !== undefined) updateData.submitted_at = updates.submittedAt ? new Date(updates.submittedAt).toISOString() : null;
+      if (updates.acknowledgedAt !== undefined) updateData.acknowledged_at = updates.acknowledgedAt ? new Date(updates.acknowledgedAt).toISOString() : null;
+      if (updates.referenceNumber !== undefined) updateData.reference_number = updates.referenceNumber;
+      if (updates.nextStep !== undefined) updateData.next_step = updates.nextStep;
+      if (updates.notes !== undefined) updateData.notes = updates.notes;
+
+      const { data, error } = await this.client.from('matter_escalations')
+        .update(updateData)
+        .eq('matter_id', matterId)
+        .eq('route_id', routeId)
+        .select()
+        .single();
+
+      if (error || !data) return null;
+      return {
+        id: data.id,
+        matterId,
+        routeId: data.route_id,
+        authorityName: data.authority_name,
+        status: data.status,
+        requirements: data.requirements || [],
+        documentsRequired: data.documents_required || [],
+        optionalDocuments: data.optional_documents || [],
+        submissionMethod: data.submission_method,
+        officialPortal: data.official_portal || undefined,
+        referenceNumber: data.reference_number || undefined,
+        submittedAt: data.submitted_at || undefined,
+        acknowledgedAt: data.acknowledged_at || undefined,
+        nextStep: data.next_step || undefined,
+        notes: data.notes || undefined
+      };
+    },
+
+    replace: async (matterId: string, workflows: EscalationWorkflowItem[]): Promise<EscalationWorkflowItem[]> => {
+      await this.client.from('matter_escalations').delete().eq('matter_id', matterId);
+      if (workflows.length > 0) {
+        const rows = workflows.map(e => ({
+          id: e.id,
+          matter_id: matterId,
+          route_id: e.routeId,
+          authority_name: e.authorityName,
+          status: e.status,
+          requirements: e.requirements || [],
+          documents_required: e.documentsRequired || [],
+          submission_method: e.submissionMethod || 'online_portal',
+          official_portal: e.officialPortal || null,
+          reference_number: e.referenceNumber || null,
+          submitted_at: e.submittedAt ? new Date(e.submittedAt).toISOString() : null,
+          next_step: e.nextStep || null,
+          notes: e.notes || null
+        }));
+        await this.client.from('matter_escalations').insert(rows);
+      }
+      return workflows;
+    }
+  };
+
+  public resolutions: IResolutionRepository = {
+    getByMatter: async (matterId: string): Promise<MatterResolutionRecord | null> => {
+      const { data } = await this.client.from('matter_resolutions')
+        .select('*')
+        .eq('matter_id', matterId)
+        .maybeSingle();
+      if (!data) return null;
+      return {
+        resolvedAt: data.resolved_at,
+        resolutionType: data.resolution_type,
+        outcome: data.outcome,
+        amountRecovered: data.amount_recovered ? Number(data.amount_recovered) : undefined,
+        amountDisputed: data.amount_disputed ? Number(data.amount_disputed) : undefined,
+        notes: data.notes || undefined,
+        isReopened: data.is_reopened,
+        reopenedAt: data.reopened_at || undefined,
+        reopenedReason: data.reopened_reason || undefined,
+        reopenedBy: data.reopened_by || undefined
+      };
+    },
+
+    resolve: async (matterId: string, resolution: MatterResolutionRecord): Promise<MatterResolutionRecord> => {
+      const row = {
+        matter_id: matterId,
+        resolved_at: new Date(resolution.resolvedAt).toISOString(),
+        resolution_type: resolution.resolutionType,
+        outcome: resolution.outcome,
+        amount_recovered: resolution.amountRecovered || null,
+        amount_disputed: resolution.amountDisputed || null,
+        notes: resolution.notes || null,
+        is_reopened: false,
+        updated_at: new Date().toISOString()
+      };
+      await this.client.from('matter_resolutions').upsert(row);
+      return resolution;
+    },
+
+    reopen: async (matterId: string, reason: string, reopenedBy?: string): Promise<MatterResolutionRecord | null> => {
+      const { data, error } = await this.client.from('matter_resolutions')
+        .update({
+          is_reopened: true,
+          reopened_at: new Date().toISOString(),
+          reopened_reason: reason,
+          reopened_by: reopenedBy || 'User',
+          updated_at: new Date().toISOString()
+        })
+        .eq('matter_id', matterId)
+        .select()
+        .single();
+
+      if (error || !data) return null;
+      return {
+        resolvedAt: data.resolved_at,
+        resolutionType: data.resolution_type,
+        outcome: data.outcome,
+        amountRecovered: data.amount_recovered ? Number(data.amount_recovered) : undefined,
+        amountDisputed: data.amount_disputed ? Number(data.amount_disputed) : undefined,
+        notes: data.notes || undefined,
+        isReopened: data.is_reopened,
+        reopenedAt: data.reopened_at || undefined,
+        reopenedReason: data.reopened_reason || undefined,
+        reopenedBy: data.reopened_by || undefined
+      };
+    }
+  };
+
+  public notifications: INotificationRepository = {
+    listByUser: async (userId: string): Promise<MatterNotification[]> => {
+      const { data } = await this.client.from('matter_notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      return (data || []).map(n => ({
+        id: n.id,
+        matterId: n.matter_id,
+        userId: n.user_id || undefined,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        channel: n.channel,
+        isRead: n.is_read,
+        createdAt: n.created_at,
+        metadata: n.metadata || undefined
+      }));
+    },
+
+    listByMatter: async (matterId: string): Promise<MatterNotification[]> => {
+      const { data } = await this.client.from('matter_notifications')
+        .select('*')
+        .eq('matter_id', matterId)
+        .order('created_at', { ascending: false });
+      return (data || []).map(n => ({
+        id: n.id,
+        matterId: n.matter_id,
+        userId: n.user_id || undefined,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        channel: n.channel,
+        isRead: n.is_read,
+        createdAt: n.created_at,
+        metadata: n.metadata || undefined
+      }));
+    },
+
+    create: async (notification: MatterNotification): Promise<MatterNotification> => {
+      const row = {
+        id: notification.id,
+        matter_id: notification.matterId,
+        user_id: notification.userId || null,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        channel: notification.channel,
+        is_read: notification.isRead,
+        metadata: notification.metadata || {},
+        created_at: notification.createdAt ? new Date(notification.createdAt).toISOString() : new Date().toISOString()
+      };
+      await this.client.from('matter_notifications').insert(row);
+      return notification;
+    },
+
+    markRead: async (notificationId: string, userId?: string): Promise<boolean> => {
+      let query = this.client.from('matter_notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+      if (userId) query = query.eq('user_id', userId);
+      const { error } = await query;
+      return !error;
+    },
+
+    markAllRead: async (userId: string): Promise<boolean> => {
+      const { error } = await this.client.from('matter_notifications')
+        .update({ is_read: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+      return !error;
+    },
+
+    getUnreadCount: async (userId: string): Promise<number> => {
+      const { count } = await this.client.from('matter_notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+      return count || 0;
     }
   };
 }

@@ -58,6 +58,45 @@ export class RateLimiter {
   }
 
   /**
+   * Distributed rate limit checking using Supabase / Postgres RPC.
+   * Seamlessly falls back to local in-memory sliding window when offline or in tests.
+   */
+  public static async checkAsync(
+    key: string,
+    maxRequests: number = 20,
+    windowSeconds: number = 60
+  ): Promise<{
+    allowed: boolean;
+    remaining: number;
+    resetSeconds: number;
+  }> {
+    try {
+      const { isSupabaseConfigured, getSupabaseClient } = await import('@/lib/db/supabase');
+      if (isSupabaseConfigured()) {
+        const client = getSupabaseClient();
+        if (client) {
+          const { data, error } = await client.rpc('check_rate_limit', {
+            p_key: key,
+            p_max_requests: maxRequests,
+            p_window_seconds: windowSeconds
+          });
+          if (!error && data && typeof data === 'object') {
+            return {
+              allowed: Boolean(data.allowed),
+              remaining: Number(data.remaining ?? 0),
+              resetSeconds: Number(data.resetSeconds ?? windowSeconds)
+            };
+          }
+        }
+      }
+    } catch {
+      // Fallback to in-memory sliding window
+    }
+
+    return this.check(key, maxRequests, windowSeconds);
+  }
+
+  /**
    * Resets the limiter store (useful for testing).
    */
   public static reset(): void {

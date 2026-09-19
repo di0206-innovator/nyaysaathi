@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AdvocateCasePack } from '@/lib/repository/matter-service';
+import { apiFetch } from '@/lib/api/client';
 import {
   Briefcase,
   Printer,
@@ -28,25 +29,20 @@ export function AdvocateCasePackModal({
     if (!isOpen) return;
 
     let ignore = false;
-    Promise.resolve().then(() => {
-      if (ignore) return;
+    async function loadCasePack() {
       setLoading(true);
       setError(null);
-      fetch(`/api/matters/${matterId}/advocate-pack`)
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to generate Advocate Case Pack');
-          return res.json();
-        })
-        .then(data => {
-          if (!ignore) setPack(data);
-        })
-        .catch(err => {
-          if (!ignore) setError(err.message);
-        })
-        .finally(() => {
-          if (!ignore) setLoading(false);
-        });
-    });
+      const { data, error: err, ok } = await apiFetch<AdvocateCasePack>(`/api/matters/${matterId}/advocate-pack`);
+      if (!ignore) {
+        if (!ok || err || !data) {
+          setError(err || 'Failed to generate Advocate Case Pack');
+        } else {
+          setPack(data);
+        }
+        setLoading(false);
+      }
+    }
+    loadCasePack();
 
     return () => {
       ignore = true;

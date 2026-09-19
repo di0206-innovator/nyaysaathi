@@ -38,8 +38,18 @@ export class InAppNotificationProvider implements INotificationProvider {
       metadata: payload.metadata
     };
 
+    try {
+      const { getStorageAdapter } = await import('@/lib/repository');
+      const adapter = getStorageAdapter();
+      if (adapter.notifications) {
+        await adapter.notifications.create(notification);
+      }
+    } catch {
+      // Fallback to local memory if storage adapter unavailable
+    }
+
     this.notifications.unshift(notification);
-    Logger.info('In-app notification created', {
+    Logger.info('In-app notification created and persisted', {
       matterId: payload.matterId,
       notificationType: payload.type
     });
@@ -55,13 +65,20 @@ export class InAppNotificationProvider implements INotificationProvider {
     return this.notifications.filter(n => n.userId === userId);
   }
 
-  public markAsRead(notificationId: string): boolean {
+  public markAsRead(notificationId: string, userId?: string): boolean {
     const notif = this.notifications.find(n => n.id === notificationId);
     if (notif) {
       notif.isRead = true;
-      return true;
     }
-    return false;
+    // Async fire-and-forget sync to adapter repository
+    import('@/lib/repository').then(({ getStorageAdapter }) => {
+      const adapter = getStorageAdapter();
+      if (adapter.notifications) {
+        adapter.notifications.markRead(notificationId, userId).catch(() => {});
+      }
+    }).catch(() => {});
+
+    return !!notif;
   }
 }
 
@@ -73,29 +90,60 @@ export class InAppNotificationProvider implements INotificationProvider {
 export class EmailNotificationProvider implements INotificationProvider {
   public name = 'EmailNotificationService';
   public channel = 'email' as const;
-  private isConfigured: boolean;
+  private apiKey?: string;
 
   constructor() {
-    this.isConfigured = Boolean(process.env.EMAIL_API_KEY);
+    this.apiKey = process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY;
   }
 
   public async send(payload: NotificationPayload): Promise<{ success: boolean; notificationId?: string; error?: string }> {
-    if (!this.isConfigured) {
+    if (!this.apiKey) {
       Logger.info('Email notification queued (email service not configured in current environment)', {
         matterId: payload.matterId,
         notificationType: payload.type
       });
       return {
         success: false,
-        error: 'Email provider not configured. Notifications preserved in-app.'
+        error: 'Email provider not configured. In-app notifications preserved.'
       };
     }
 
-    // In production with EMAIL_API_KEY, integrate real SMTP/API call here
-    return {
-      success: true,
-      notificationId: `email-${Date.now()}`
-    };
+    try {
+      // If RESEND_API_KEY is configured, call Resend API
+      const recipient = (payload.metadata?.recipientEmail as string) || 'recipient@example.com';
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: process.env.EMAIL_FROM || 'NyaySaathi <notifications@nyaysaathi.in>',
+          to: [recipient],
+          subject: `NyaySaathi Update: ${payload.title}`,
+          text: payload.message
+        })
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        return {
+          success: false,
+          error: `Email provider rejected send: ${res.status} ${errText}`
+        };
+      }
+
+      const data = await res.json();
+      return {
+        success: true,
+        notificationId: data.id || `email-${Date.now()}`
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: `Email delivery failed: ${String(err)}`
+      };
+    }
   }
 }
 

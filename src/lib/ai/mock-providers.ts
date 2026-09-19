@@ -57,6 +57,10 @@ export class DeterministicLLMProvider implements LLMProvider {
     // Return deep clone of schema example for deterministic contract adherence
     const content = JSON.parse(JSON.stringify(schema.example)) as T;
 
+    if (schema.validator && !schema.validator(content)) {
+      throw new Error(`Failed to generate valid structured response matching schema: ${schema.name}`);
+    }
+
     return {
       content,
       rawText: JSON.stringify(content),

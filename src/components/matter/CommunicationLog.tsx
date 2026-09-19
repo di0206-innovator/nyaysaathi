@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { CommunicationRecord, CommunicationType, CommunicationDirection } from '@/types/matter';
+import { apiFetch } from '@/lib/api/client';
 import {
   MessageSquare,
   Send,
@@ -45,9 +46,8 @@ export function CommunicationLog({
     setError(null);
 
     try {
-      const res = await fetch(`/api/matters/${matterId}/communications`, {
+      const { data, error, ok } = await apiFetch(`/api/matters/${matterId}/communications`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type,
           direction,
@@ -60,12 +60,10 @@ export function CommunicationLog({
         })
       });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || 'Failed to record communication');
+      if (!ok || error || !data) {
+        throw new Error(error || 'Failed to record communication');
       }
 
-      const data = await res.json();
       setComms(data.communications);
       if (onCommunicationAdded && data.communications?.[0]) {
         onCommunicationAdded(data.communications[0]);

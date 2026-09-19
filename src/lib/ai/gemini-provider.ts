@@ -2,9 +2,10 @@ import {
   LLMProvider,
   LLMGenerationOptions,
   LLMResponse,
-  StructuredGenerationSchema
+  StructuredGenerationSchema,
+  EmbeddingProvider
 } from './types';
-import { DeterministicLLMProvider } from './mock-providers';
+import { DeterministicLLMProvider, LocalEmbeddingProvider } from './mock-providers';
 import { Logger } from '@/lib/observability/logger';
 
 /**
@@ -169,21 +170,22 @@ export class GeminiLLMProvider implements LLMProvider {
         const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
         const parsed = this.cleanAndParseJSON<T>(text);
 
-        if (!parsed) {
-          Logger.warn('Gemini structured response failed JSON parsing, falling back', {
+        if (!parsed || !this.validateAgainstSchema(parsed, schema.example)) {
+          Logger.warn('Gemini structured response failed schema validation or JSON parsing, falling back', {
             rawLength: text.length,
             isFallback: true
           });
           return this.fallback.generateStructured(prompt, schema, options);
         }
 
+        // Defensible confidence score: 0.85 when structured parse & schema validation succeeded
         return {
           content: parsed,
           rawText: text,
           model: 'gemini-2.5-flash',
           provider: 'gemini_production',
           isFallback: false,
-          confidenceScore: 0.97
+          confidenceScore: 0.85
         };
       } catch (err) {
         clearTimeout(timeoutId);
@@ -202,6 +204,23 @@ export class GeminiLLMProvider implements LLMProvider {
   }
 
   /**
+   * Validate parsed JSON against schema structure to ensure integrity
+   */
+  private validateAgainstSchema<T>(parsed: unknown, example: T): boolean {
+    if (!parsed || typeof parsed !== 'object') return false;
+    const record = parsed as Record<string, unknown>;
+    if (example && typeof example === 'object') {
+      const requiredKeys = Object.keys(example as object);
+      for (const key of requiredKeys) {
+        if (!(key in record)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  /**
    * Cleans common LLM markdown artifacts (```json ... ```) and parses JSON.
    */
   private cleanAndParseJSON<T>(text: string): T | null {
@@ -216,5 +235,74 @@ export class GeminiLLMProvider implements LLMProvider {
     } catch {
       return null;
     }
+  }
+}
+
+/**
+ * Production Gemini Embedding Provider (text-embedding-004 - 768 dimensions)
+ */
+export class GeminiEmbeddingProvider implements EmbeddingProvider {
+  public name = 'Google-Gemini-text-embedding-004';
+  public dimensions = 768;
+  public dimension = 768;
+  private apiKey?: string;
+  private fallback: LocalEmbeddingProvider;
+
+  constructor(apiKey?: string) {
+    this.apiKey = apiKey || process.env.GEMINI_API_KEY;
+    this.fallback = new LocalEmbeddingProvider();
+  }
+
+  public async embedText(text: string): Promise<number[]> {
+    if (!this.apiKey) {
+      return this.fallback.embedText(text);
+    }
+
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${this.apiKey}`;
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'models/text-embedding-004',
+          content: { parts: [{ text }] }
+        })
+      });
+
+      if (!res.ok) {
+        Logger.warn(`Gemini text-embedding-004 returned status ${res.status}, falling back to local`, {
+          httpStatus: res.status
+        });
+        return this.fallback.embedText(text);
+      }
+
+      const data = await res.json();
+      const values = data.embedding?.values;
+      if (Array.isArray(values) && values.length === 768) {
+        return values;
+      }
+      return this.fallback.embedText(text);
+    } catch (err) {
+      Logger.warn('Gemini embedding failed, falling back to local embedding', { error: String(err) });
+      return this.fallback.embedText(text);
+    }
+  }
+
+  public async embedBatch(texts: string[]): Promise<number[][]> {
+    return Promise.all(texts.map(t => this.embedText(t)));
+  }
+
+  public cosineSimilarity(vectorA: number[], vectorB: number[]): number {
+    if (vectorA.length !== vectorB.length) return 0;
+    let dot = 0;
+    let magA = 0;
+    let magB = 0;
+    for (let i = 0; i < vectorA.length; i++) {
+      dot += vectorA[i] * vectorB[i];
+      magA += vectorA[i] * vectorA[i];
+      magB += vectorB[i] * vectorB[i];
+    }
+    const denom = Math.sqrt(magA) * Math.sqrt(magB);
+    return denom === 0 ? 0 : dot / denom;
   }
 }

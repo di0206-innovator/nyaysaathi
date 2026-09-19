@@ -47,13 +47,14 @@ export class PgVectorLegalRAGProvider implements LegalRAGProvider {
         return this.fallbackProvider.searchStatutes(query, criteria);
       }
 
-      // Generate query embedding vector (64 dimensions)
+      // Generate query embedding vector
       const queryVector = await this.embeddingProvider.embedText(
         `${criteria.category} ${criteria.state || ''} ${query}`
       );
 
-      // Invoke Supabase RPC match_statutory_provisions
-      const { data, error } = await client.rpc('match_statutory_provisions', {
+      // Invoke Supabase RPC according to embedding dimension (768 for text-embedding-004, 64 for local dev)
+      const rpcName = queryVector.length === 768 ? 'match_statutory_provisions_768' : 'match_statutory_provisions';
+      const { data, error } = await client.rpc(rpcName, {
         query_embedding: queryVector,
         filter_category: criteria.category !== 'other' ? criteria.category : null,
         filter_state: criteria.state || null,
@@ -105,7 +106,8 @@ export class PgVectorLegalRAGProvider implements LegalRAGProvider {
             category: row.category as MatterCategory,
             forumOrAuthority: row.forum_authority || 'Competent Court / Tribunal',
             remedy: row.remedy_type || 'Civil / Statutory Remedy',
-            sourceUrl: row.source_url || 'https://indiankanoon.org',
+            // Never fabricate a placeholder URL if not supported by source record
+            sourceUrl: row.source_url || undefined,
             jurisdiction: row.jurisdiction_state || 'Central / All India',
             keywords: [
               row.statute_name.toLowerCase(),

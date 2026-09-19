@@ -13,6 +13,7 @@ export interface StructuredGenerationSchema<T> {
   name: string;
   description: string;
   example: T;
+  validator?: (data: unknown) => data is T;
 }
 
 export interface LLMResponse<T = string> {
