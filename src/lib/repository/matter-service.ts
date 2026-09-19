@@ -124,59 +124,69 @@ export class MatterService {
       throw new Error(`Matter not found: ${matterId}`);
     }
 
-    // 1. Upload to storage
+    // 1. Generate document ID
+    const docId = `doc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+
+    // 2. Upload to private storage
     const storageProvider = getStorageProvider();
     const stored = await storageProvider.uploadFile({
       buffer: file.buffer,
       filename: file.filename,
       mimeType: file.mimeType,
-      matterId
+      matterId,
+      userId: existing.userId || userId,
+      documentId: docId
     });
 
-    // 2. Parse document content (text/PDF/image OCR)
-    const nodeBuf = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer);
-    const arrayBuffer = nodeBuf.buffer.slice(
-      nodeBuf.byteOffset,
-      nodeBuf.byteOffset + nodeBuf.byteLength
-    ) as ArrayBuffer;
+    try {
+      // 3. Parse document content (text/PDF/image OCR)
+      const nodeBuf = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer);
+      const arrayBuffer = nodeBuf.buffer.slice(
+        nodeBuf.byteOffset,
+        nodeBuf.byteOffset + nodeBuf.byteLength
+      ) as ArrayBuffer;
 
-    const parser = getDocumentParser();
-    const parsed = await parser.parseDocument({
-      buffer: arrayBuffer,
-      filename: file.filename,
-      mimeType: file.mimeType
-    });
+      const parser = getDocumentParser();
+      const parsed = await parser.parseDocument({
+        buffer: arrayBuffer,
+        filename: file.filename,
+        mimeType: file.mimeType
+      });
 
-    // 3. Construct DocumentEvidence record
-    const docId = `doc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    const newDoc: DocumentEvidence = {
-      id: docId,
-      title: file.title || file.filename,
-      type: file.type || 'other',
-      fileUrl: stored.fileUrl,
-      fileSize: stored.fileSize,
-      uploadedAt: new Date().toISOString().split('T')[0],
-      extractedText: parsed.extractedText,
-      classification: parsed.classification || 'Uploaded Document Evidence',
-      confidenceScore: parsed.confidence,
-      relevanceSummary: parsed.relevanceSummary || 'Corroborating document ingested into matter evidence repository.',
-      keyQuotes: parsed.clauses?.map(c => c.text) || [],
-      status: 'verified'
-    };
+      // 4. Construct DocumentEvidence record
+      const newDoc: DocumentEvidence = {
+        id: docId,
+        title: file.title || file.filename,
+        type: file.type || 'other',
+        fileUrl: stored.fileUrl,
+        fileSize: stored.fileSize,
+        uploadedAt: new Date().toISOString().split('T')[0],
+        extractedText: parsed.extractedText,
+        classification: parsed.classification || 'Uploaded Document Evidence',
+        confidenceScore: parsed.confidence,
+        relevanceSummary: parsed.relevanceSummary || 'Corroborating document ingested into matter evidence repository.',
+        keyQuotes: parsed.clauses?.map(c => c.text) || [],
+        status: 'verified'
+      };
 
-    // 4. Save document to repository
-    await this.adapter.documents.add(matterId, newDoc);
+      // 5. Save document to repository
+      await this.adapter.documents.add(matterId, newDoc);
 
-    // 5. Trigger selective re-analysis with doc_uploaded
-    const reanalyzed = await this.reanalyzeMatter(matterId, 'doc_uploaded', userId);
-    if (!reanalyzed) {
-      throw new Error(`Failed to re-analyze matter after document upload: ${matterId}`);
+      // 6. Trigger selective re-analysis with doc_uploaded
+      const reanalyzed = await this.reanalyzeMatter(matterId, 'doc_uploaded', userId);
+      if (!reanalyzed) {
+        throw new Error(`Failed to re-analyze matter after document upload: ${matterId}`);
+      }
+
+      return {
+        document: newDoc,
+        matter: reanalyzed
+      };
+    } catch (err) {
+      // Rollback uploaded storage file on failure to prevent inconsistent orphaned state
+      await storageProvider.deleteFile(stored.fileUrl).catch(() => {});
+      throw err;
     }
-
-    return {
-      document: newDoc,
-      matter: reanalyzed
-    };
   }
 
   /**

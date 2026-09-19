@@ -3,14 +3,32 @@ import { getMatterService } from '@/lib/repository';
 import { getMatterQAService } from '@/lib/qa/qa-service';
 import { apiSuccess, apiError } from '@/lib/api/response';
 import { SupportedLanguage } from '@/lib/ai';
+import { AuthService } from '@/lib/auth/auth-service';
+import { RateLimiter } from '@/lib/security/rate-limiter';
+import { Logger } from '@/lib/observability/logger';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await AuthService.getAuthenticatedUser(req);
+    if (!user) {
+      return apiError('Authentication required to ask matter questions', 401, 'UNAUTHORIZED');
+    }
+
     const { id } = await params;
-    const userId = req.headers.get('x-user-id') || undefined;
+
+    // Rate limit: 25 Q&A requests per minute
+    const rateCheck = RateLimiter.check(`qa-${user.id}`, 25, 60);
+    if (!rateCheck.allowed) {
+      return apiError(
+        `Legal Q&A rate limit exceeded. Please wait ${rateCheck.resetSeconds} seconds.`,
+        429,
+        'RATE_LIMIT_EXCEEDED'
+      );
+    }
+
     const body = await req.json();
 
     if (!body || typeof body !== 'object' || !body.query || typeof body.query !== 'string') {
@@ -27,18 +45,31 @@ export async function POST(
       : 'en';
 
     const matterService = getMatterService();
-    const matter = await matterService.getMatterById(id, userId);
+    const matter = await matterService.getMatterById(id, user.id);
 
     if (!matter) {
-      return apiError(`Matter not found: ${id}`, 404, 'NOT_FOUND');
+      return apiError(`Matter not found or access denied: ${id}`, 404, 'NOT_FOUND');
+    }
+
+    if (matter.userId && matter.userId !== user.id) {
+      return apiError('Access denied: You cannot query another user\'s legal matter', 403, 'FORBIDDEN');
     }
 
     const qaService = getMatterQAService();
     const result = await qaService.answerQuestion(matter, query, language);
 
+    Logger.info('Matter question answered with evidence grounding', {
+      userId: user.id,
+      matterId: id,
+      isFullyGrounded: result.isFullyGrounded,
+      citationsCount: result.citations.length,
+      operation: 'matter_qa'
+    });
+
     return apiSuccess(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to process matter question';
+    Logger.error('Failed to process matter question', error, { operation: 'matter_qa' });
     return apiError(message, 500, 'QA_PROCESSING_ERROR');
   }
 }

@@ -15,18 +15,24 @@ import {
   MapPin,
   Scale
 } from 'lucide-react';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export default function MattersListingPage() {
   const [matters, setMatters] = useState<Matter[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const { token, user } = useAuth();
 
   useEffect(() => {
     let isMounted = true;
     async function load() {
       try {
-        const res = await fetch('/api/matters');
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        if (user?.id) headers['x-user-id'] = user.id;
+
+        const res = await fetch('/api/matters', { headers });
         const data = await res.json();
         if (isMounted && data.success) {
           setMatters(data.data);
@@ -43,7 +49,7 @@ export default function MattersListingPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [token, user?.id]);
 
   const filteredMatters = matters.filter(m => {
     const matchesSearch =

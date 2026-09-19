@@ -168,6 +168,91 @@ NyaySaathi includes a complete production-ready PostgreSQL / Supabase schema in 
 
 ---
 
+## Phase 6 — Production Readiness
+
+Phase 6 hardens NyaySaathi into a production-grade, secure, and verifiable legal action navigation platform.
+
+### Component Readiness Matrix
+
+| Component | Status | Description |
+| :--- | :--- | :--- |
+| **Authentication & Tenant Isolation** | `Production` | Supabase Auth + Bearer / Cookie session extraction with strict server-side ownership checks on all matter routes. |
+| **Private Evidence Storage** | `Production` | Scoped deterministic private storage (`user/{userId}/matters/{matterId}/documents/{docId}/{filename}`) with 1-hour signed access URLs and 10MB file limits. |
+| **API Layer & Authorization** | `Production` | IDOR-proof server-side authorization on all `/api/matters/*` endpoints with rollback handling and path traversal prevention. |
+| **Legal RAG (pgvector)** | `Production` | Hybrid pgvector semantic search (`match_statutory_provisions`) on Supabase with automatic transparent fallback to local corpus. |
+| **AI Provider Layer (Gemini)** | `Production` | Gemini 2.5 Flash with AbortController timeouts (30s), exponential backoff retries on 429/5xx, robust JSON sanitization, and fallback flags. |
+| **Agent Pipeline Error Boundaries**| `Production` | Try-catch isolation around each agent in `MatterOrchestrator` ensuring partial agent failures retain prior valid matter state. |
+| **PII Redaction & Security** | `Production` | Server-side redaction for Aadhaar (12 digits), PAN, IFSC/bank accounts, and auth tokens in logs and exports. |
+| **Rate Limiting & Abuse Prevention**| `Production` | Sliding-window in-memory rate limiting across expensive routes (AI analysis, document uploads, legal Q&A). |
+| **Indic Multilingual Glossaries** | `Production` | Hindi, Hinglish, Marathi translation preserving statutory citations and legal terminology. |
+| **Deterministic Seed Demo** | `Production` | Seeded Bengaluru Tenancy Deposit matter showcasing full lifecycle without live cloud prerequisites. |
+| **Live Court API Integrations** | `Future` | Planned e-Courts / e-Daakhil API filing direct submission. |
+
+---
+
+### Authentication Architecture & Tenant Isolation
+NyaySaathi enforces multi-tenant isolation at the database, service, and API layers:
+1. **Server-Side Validation**: Every protected route (`/api/matters/*`) invokes `AuthService.getAuthenticatedUser()`, which extracts and validates the caller identity via Supabase JWT or authorized session cookies.
+2. **Strict Server-Side Ownership**: Endpoints verify `matter.userId === user.id`. Non-owners receive immediate `403 Forbidden` / `404 Not Found` responses to eliminate Insecure Direct Object References (IDOR).
+3. **Dual Client Model**: Public clients only ever receive `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The privileged `SUPABASE_SERVICE_ROLE_KEY` is strictly confined to server-only runtime contexts and is never exposed in client bundles.
+
+---
+
+### Storage Architecture
+Evidence documents are never stored in public buckets:
+- **Deterministic Path Structure**: `user/{userId}/matters/{matterId}/documents/{documentId}/{filename}`
+- **Security & Integrity**: Signed URLs are generated on-demand with a 3600-second expiration window.
+- **Upload Validation**: File uploads enforce a strict 10 MB ceiling and whitelist only verified MIME types (`application/pdf`, `image/png`, `image/jpeg`, `image/webp`, `text/plain`).
+- **Atomic Operations**: Database record creation and storage uploads are synchronized; if a file upload fails, the database record is rolled back cleanly.
+
+---
+
+### RAG Retrieval Pipeline & Fallback Transparency
+1. **Retrieval Flow**:
+   $$\text{Matter Narrative} \longrightarrow \text{Query Construction} \longrightarrow \text{64-dim / 1536-dim Embedding} \longrightarrow \text{pgvector Cosine Search} \longrightarrow \text{Category / State Filters} \longrightarrow \text{Top-K Sources}$$
+2. **Grounding Evaluation**:
+   - Scores $\ge 0.65$: Grounded statutory explanation (`explanation` tier).
+   - Scores $< 0.65$: Marked as uncertain (`possibility` tier) with explicit missing information callouts.
+   - Zero matches: Escalated to `counsel_required`.
+3. **Fallback Transparency**: If Supabase or external vector search is unreachable, the system transparently engages the deterministic statute corpus (`StatuteRAGProvider`), logging `isFallback: true` and returning traceable source metadata.
+
+---
+
+### Environment Variables
+
+| Variable | Description | Exposure |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Public (Browser & Server) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous public API key | Public (Browser & Server) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase administrative service role key | **Server-Only (Never Client)** |
+| `GEMINI_API_KEY` | Google Gemini API Key for production LLM calls | **Server-Only (Never Client)** |
+
+---
+
+### Testing & Verification
+
+NyaySaathi maintains an extensive test suite across Phases 2 through 6:
+
+```bash
+# Run complete test suite (Phase 2-6)
+npm test
+
+# Run ESLint validation
+npm run lint
+
+# Run optimized production build
+npm run build
+```
+
+---
+
+### Privacy & Security Notes
+- **Zero Raw PII Logging**: Aadhaar numbers (`XXXX-XXXX-XXXX`), PAN numbers, Indian bank accounts, and authorization tokens are automatically sanitized by `Redactor` before structured log emission.
+- **Path Traversal Protection**: Raw document retrieval routes sanitize filenames and block directory traversal (`..`).
+- **XSS Prevention**: User inputs are escaped and structured as sanitized JSON trees rather than raw HTML templates.
+
+---
+
 ## ⚖️ Important Legal Disclaimer
 
 *NyaySaathi is an informational navigation and case preparation system designed to assist citizens in structuring facts and understanding their options. It does not provide formal legal advice, practice law, or create an advocate-client relationship. For court representation, affidavit attestation, or complex litigation, please consult an enrolled Advocate or visit your nearest District Legal Services Authority (DLSA) center (National Legal Aid Helpline: 15100).*

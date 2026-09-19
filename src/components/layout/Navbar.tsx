@@ -4,9 +4,11 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Scale, PlusCircle, FolderLock, PhoneCall } from 'lucide-react';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export function Navbar() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 bg-stone-900/95 backdrop-blur-md border-b border-stone-800 text-stone-100">
@@ -62,6 +64,19 @@ export function Navbar() {
               <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
               <span>NALSA Legal Aid: <strong className="text-emerald-200">15100</strong></span>
             </div>
+
+            {/* User Session Profile Badge */}
+            {user ? (
+              <div className="flex items-center space-x-2 pl-2 border-l border-stone-800">
+                <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-bold text-amber-300">
+                  {user.name ? user.name[0].toUpperCase() : 'U'}
+                </div>
+                <div className="hidden sm:block text-left">
+                  <div className="text-xs font-medium text-stone-200 leading-none">{user.name || 'User'}</div>
+                  <div className="text-[10px] text-amber-400/80 leading-tight">Secure Tenant</div>
+                </div>
+              </div>
+            ) : null}
 
             <Link
               href="/matters/new"

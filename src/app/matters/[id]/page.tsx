@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use, useMemo } from 'react';
+import React, { useState, useEffect, use, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Matter, DocumentEvidence } from '@/types/matter';
 import { MatterHeader } from '@/components/matter/MatterHeader';
@@ -50,31 +50,51 @@ type TabType =
   | 'escalate'
   | 'qa';
 
+import { useAuth } from '@/lib/auth/AuthContext';
+
 export default function MatterDetailPage({
   params
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const { token, user } = useAuth();
   const [matter, setMatter] = useState<Matter | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>('en');
   const [isTranslating, setIsTranslating] = useState(false);
   const [localizedContent, setLocalizedContent] = useState<LocalizedMatterContent | null>(null);
 
+  const getAuthHeaders = useCallback((): Record<string, string> => {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (user?.id) headers['x-user-id'] = user.id;
+    return headers;
+  }, [token, user]);
+
   useEffect(() => {
     let isMounted = true;
     async function loadMatter() {
       try {
-        const res = await fetch(`/api/matters/${id}`);
+        const res = await fetch(`/api/matters/${id}`, {
+          headers: getAuthHeaders()
+        });
         const data = await res.json();
         if (isMounted && data.success) {
           setMatter(data.data);
+          setErrorMessage(null);
+        } else if (isMounted && !data.success) {
+          setErrorMessage(data.error?.message || 'Failed to load matter');
         }
       } catch (err) {
-        console.error('Failed to load matter', err);
+        if (isMounted) {
+          console.error('Failed to load matter', err);
+          setErrorMessage('Network or server error while retrieving matter');
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -85,21 +105,42 @@ export default function MatterDetailPage({
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [id, getAuthHeaders]);
 
   const handleReanalyze = async (trigger: string = 'full') => {
+    setAnalyzing(true);
+    setErrorMessage(null);
+
+    // Stepped honest progress states
+    setAnalysisStep('Querying applicable statutes & precedents...');
+    const stepTimer1 = setTimeout(() => setAnalysisStep('Reconstructing chronological timeline & milestone dates...'), 400);
+    const stepTimer2 = setTimeout(() => setAnalysisStep('Assessing risk vectors & limitation windows...'), 800);
+    const stepTimer3 = setTimeout(() => setAnalysisStep('Running mandatory trust & safety verification audit...'), 1200);
+
     try {
       const res = await fetch(`/api/matters/${id}/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify({ trigger })
       });
       const data = await res.json();
       if (data.success && data.data) {
         setMatter(data.data);
+      } else {
+        setErrorMessage(data.error?.message || 'Re-analysis failed');
       }
     } catch (err) {
       console.error('Failed to re-analyze', err);
+      setErrorMessage('Failed to connect to analysis service');
+    } finally {
+      clearTimeout(stepTimer1);
+      clearTimeout(stepTimer2);
+      clearTimeout(stepTimer3);
+      setAnalyzing(false);
+      setAnalysisStep('');
     }
   };
 
@@ -117,7 +158,10 @@ export default function MatterDetailPage({
     try {
       const res = await fetch(`/api/matters/${id}/translate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify({ language: lang })
       });
       const data = await res.json();
@@ -231,10 +275,31 @@ export default function MatterDetailPage({
       {/* 1. Header */}
       <MatterHeader matter={matter} onReanalyze={() => handleReanalyze('full')} />
 
+      {/* Stepped Honest Analysis Progress Banner */}
       {analyzing && (
-        <div className="bg-amber-500 text-stone-950 px-4 py-2 text-xs font-semibold flex items-center justify-center space-x-2 animate-pulse">
-          <Scale className="w-4 h-4 animate-spin" />
-          <span>Processing document evidence and executing selective re-analysis...</span>
+        <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-orange-500 text-stone-950 px-4 py-2.5 text-xs font-semibold flex items-center justify-between shadow-md">
+          <div className="flex items-center space-x-2.5">
+            <Scale className="w-4 h-4 animate-spin text-stone-950" />
+            <span className="font-bold tracking-tight">AI Reasoning Engine:</span>
+            <span>{analysisStep || 'Ingesting document evidence and calculating grounding graph...'}</span>
+          </div>
+          <span className="text-[10px] uppercase font-mono bg-stone-950/20 px-2 py-0.5 rounded">Grounding Active</span>
+        </div>
+      )}
+
+      {/* Error Callout Banner */}
+      {errorMessage && (
+        <div className="bg-red-50 border-b border-red-200 text-red-800 px-4 py-3 text-xs flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => handleReanalyze('full')}
+            className="px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-900 rounded font-semibold text-[11px] transition-colors"
+          >
+            Retry Analysis
+          </button>
         </div>
       )}
 

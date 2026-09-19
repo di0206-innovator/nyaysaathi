@@ -136,7 +136,7 @@ export interface PipelineExecutionResult {
   matter: Matter;
   logs: Array<{
     agentName: string;
-    status: 'completed' | 'skipped' | 'fallback';
+    status: 'completed' | 'skipped' | 'fallback' | 'failed';
     executionTimeMs: number;
     summary: string;
   }>;

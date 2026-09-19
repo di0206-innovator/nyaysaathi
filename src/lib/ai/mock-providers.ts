@@ -40,6 +40,8 @@ export class DeterministicLLMProvider implements LLMProvider {
       content: output,
       rawText: output,
       model: this.name,
+      provider: 'deterministic_mock',
+      isFallback: true,
       promptTokens: Math.ceil(prompt.length / 4),
       completionTokens: Math.ceil(output.length / 4),
       confidenceScore: 0.94
@@ -59,6 +61,8 @@ export class DeterministicLLMProvider implements LLMProvider {
       content,
       rawText: JSON.stringify(content),
       model: this.name,
+      provider: 'deterministic_mock',
+      isFallback: true,
       promptTokens: Math.ceil(prompt.length / 4),
       completionTokens: 120,
       confidenceScore: 0.95

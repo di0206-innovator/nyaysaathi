@@ -19,6 +19,8 @@ export interface LLMResponse<T = string> {
   content: T;
   rawText: string;
   model: string;
+  provider?: string;
+  isFallback?: boolean;
   promptTokens?: number;
   completionTokens?: number;
   confidenceScore: number;

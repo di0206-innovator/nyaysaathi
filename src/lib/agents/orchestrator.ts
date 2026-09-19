@@ -1,4 +1,10 @@
-import { AgentInput, PipelineExecutionResult, ReanalysisTrigger } from './types';
+import {
+  AgentInput,
+  PipelineExecutionResult,
+  ReanalysisTrigger,
+  IntakeAgentResult,
+  SafetyVerificationAgentResult
+} from './types';
 import { IntakeAgent } from './intake-agent';
 import { DocIntelAgent } from './doc-intel-agent';
 import { TimelineAgent } from './timeline-agent';
@@ -48,14 +54,35 @@ export class MatterOrchestrator {
 
     // Step 1: Intake & Entity Normalization
     const t0 = performance.now();
-    const intakeEnvelope = await this.intakeAgent.execute(input);
-    const intakeResult = intakeEnvelope.result;
-    logs.push({
-      agentName: 'Intake Agent',
-      status: 'completed',
-      executionTimeMs: Math.round(performance.now() - t0),
-      summary: `Normalized ${intakeResult.extractedParties.length} parties, category: ${intakeResult.detectedCategory} (Confidence: ${intakeEnvelope.confidenceScore}, Trigger: ${trigger})`
-    });
+    let intakeResult: IntakeAgentResult;
+    try {
+      const intakeEnvelope = await this.intakeAgent.execute(input);
+      intakeResult = intakeEnvelope.result;
+      logs.push({
+        agentName: 'Intake Agent',
+        status: 'completed',
+        executionTimeMs: Math.round(performance.now() - t0),
+        summary: `Normalized ${intakeResult.extractedParties.length} parties, category: ${intakeResult.detectedCategory} (Confidence: ${intakeEnvelope.confidenceScore}, Trigger: ${trigger})`
+      });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      intakeResult = {
+        refinedTitle: input.title,
+        detectedCategory: input.category,
+        detectedSubCategory: 'General Legal Dispute',
+        extractedParties: input.parties,
+        claimAmount: input.claimAmount,
+        plainLanguageSummary: input.userStory.slice(0, 200),
+        keyConflict: 'Dispute identified from initial story narrative',
+        legalNature: 'Civil / Statutory grievance under evaluation'
+      };
+      logs.push({
+        agentName: 'Intake Agent',
+        status: 'failed',
+        executionTimeMs: Math.round(performance.now() - t0),
+        summary: `Intake Agent failed: ${errMsg}. Retained raw narrative.`
+      });
+    }
 
     // Step 2: Document Intelligence
     let docResult = {
@@ -64,14 +91,24 @@ export class MatterOrchestrator {
     };
     if (shouldRunDocIntel) {
       const t1 = performance.now();
-      const docEnvelope = await this.docIntelAgent.execute(input);
-      docResult = docEnvelope.result;
-      logs.push({
-        agentName: 'Document Intelligence Agent',
-        status: 'completed',
-        executionTimeMs: Math.round(performance.now() - t1),
-        summary: `Processed ${docResult.processedDocuments.length} evidence items and extracted ${docResult.extractedFacts.length} grounded facts`
-      });
+      try {
+        const docEnvelope = await this.docIntelAgent.execute(input);
+        docResult = docEnvelope.result;
+        logs.push({
+          agentName: 'Document Intelligence Agent',
+          status: 'completed',
+          executionTimeMs: Math.round(performance.now() - t1),
+          summary: `Processed ${docResult.processedDocuments.length} evidence items and extracted ${docResult.extractedFacts.length} grounded facts`
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logs.push({
+          agentName: 'Document Intelligence Agent',
+          status: 'failed',
+          executionTimeMs: Math.round(performance.now() - t1),
+          summary: `Document Intelligence error: ${errMsg}. Retained ${docResult.extractedFacts.length} existing facts.`
+        });
+      }
     } else {
       logs.push({
         agentName: 'Document Intelligence Agent',
@@ -88,14 +125,24 @@ export class MatterOrchestrator {
     };
     if (shouldRunTimeline) {
       const t2 = performance.now();
-      const timelineEnvelope = await this.timelineAgent.execute(input, docResult);
-      timelineResult = timelineEnvelope.result;
-      logs.push({
-        agentName: 'Context & Timeline Agent',
-        status: 'completed',
-        executionTimeMs: Math.round(performance.now() - t2),
-        summary: `Constructed ${timelineResult.timelineEvents.length} chronological milestones, identified ${timelineResult.identifiedGaps.length} gaps`
-      });
+      try {
+        const timelineEnvelope = await this.timelineAgent.execute(input, docResult);
+        timelineResult = timelineEnvelope.result;
+        logs.push({
+          agentName: 'Context & Timeline Agent',
+          status: 'completed',
+          executionTimeMs: Math.round(performance.now() - t2),
+          summary: `Constructed ${timelineResult.timelineEvents.length} chronological milestones, identified ${timelineResult.identifiedGaps.length} gaps`
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logs.push({
+          agentName: 'Context & Timeline Agent',
+          status: 'failed',
+          executionTimeMs: Math.round(performance.now() - t2),
+          summary: `Timeline reconstruction error: ${errMsg}. Retained existing timeline events.`
+        });
+      }
     } else {
       logs.push({
         agentName: 'Context & Timeline Agent',
@@ -111,14 +158,24 @@ export class MatterOrchestrator {
     };
     if (shouldRunRetrieval) {
       const t3 = performance.now();
-      const retrievalEnvelope = await this.retrievalAgent.execute(input);
-      retrievalResult = retrievalEnvelope.result;
-      logs.push({
-        agentName: 'Legal Retrieval Agent',
-        status: 'completed',
-        executionTimeMs: Math.round(performance.now() - t3),
-        summary: `Matched ${retrievalResult.applicableStatutes.length} statutory provisions under Indian law`
-      });
+      try {
+        const retrievalEnvelope = await this.retrievalAgent.execute(input);
+        retrievalResult = retrievalEnvelope.result;
+        logs.push({
+          agentName: 'Legal Retrieval Agent',
+          status: 'completed',
+          executionTimeMs: Math.round(performance.now() - t3),
+          summary: `Matched ${retrievalResult.applicableStatutes.length} statutory provisions under Indian law`
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logs.push({
+          agentName: 'Legal Retrieval Agent',
+          status: 'failed',
+          executionTimeMs: Math.round(performance.now() - t3),
+          summary: `Statutory retrieval error: ${errMsg}. Retained cached statutory provisions.`
+        });
+      }
     } else {
       logs.push({
         agentName: 'Legal Retrieval Agent',
@@ -137,18 +194,28 @@ export class MatterOrchestrator {
     };
     if (shouldRunReasoning || reasoningResult.caseStrengths.length === 0) {
       const t4 = performance.now();
-      const reasoningEnvelope = await this.reasoningAgent.execute(
-        input,
-        docResult.extractedFacts,
-        retrievalResult.applicableStatutes
-      );
-      reasoningResult = reasoningEnvelope.result;
-      logs.push({
-        agentName: 'Reasoning Agent',
-        status: 'completed',
-        executionTimeMs: Math.round(performance.now() - t4),
-        summary: `Identified ${reasoningResult.caseStrengths.length} strengths and ${reasoningResult.caseWeaknesses.length} potential counter-arguments`
-      });
+      try {
+        const reasoningEnvelope = await this.reasoningAgent.execute(
+          input,
+          docResult.extractedFacts,
+          retrievalResult.applicableStatutes
+        );
+        reasoningResult = reasoningEnvelope.result;
+        logs.push({
+          agentName: 'Reasoning Agent',
+          status: 'completed',
+          executionTimeMs: Math.round(performance.now() - t4),
+          summary: `Identified ${reasoningResult.caseStrengths.length} strengths and ${reasoningResult.caseWeaknesses.length} potential counter-arguments`
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logs.push({
+          agentName: 'Reasoning Agent',
+          status: 'failed',
+          executionTimeMs: Math.round(performance.now() - t4),
+          summary: `Reasoning agent error: ${errMsg}. Defaulted to cautious evaluation.`
+        });
+      }
     } else {
       logs.push({
         agentName: 'Reasoning Agent',
@@ -165,14 +232,24 @@ export class MatterOrchestrator {
     };
     if (shouldRunRisk || riskResult.risks.length === 0) {
       const t5 = performance.now();
-      const riskEnvelope = await this.riskAgent.execute(input, docResult.extractedFacts);
-      riskResult = riskEnvelope.result;
-      logs.push({
-        agentName: 'Risk Assessment Agent',
-        status: 'completed',
-        executionTimeMs: Math.round(performance.now() - t5),
-        summary: `Calculated ${riskResult.risks.length} risk vectors and ${riskResult.missingInformation.length} missing evidence items`
-      });
+      try {
+        const riskEnvelope = await this.riskAgent.execute(input, docResult.extractedFacts);
+        riskResult = riskEnvelope.result;
+        logs.push({
+          agentName: 'Risk Assessment Agent',
+          status: 'completed',
+          executionTimeMs: Math.round(performance.now() - t5),
+          summary: `Calculated ${riskResult.risks.length} risk vectors and ${riskResult.missingInformation.length} missing evidence items`
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logs.push({
+          agentName: 'Risk Assessment Agent',
+          status: 'failed',
+          executionTimeMs: Math.round(performance.now() - t5),
+          summary: `Risk assessment error: ${errMsg}. Preserved existing risks and questionnaire.`
+        });
+      }
     } else {
       logs.push({
         agentName: 'Risk Assessment Agent',
@@ -188,17 +265,27 @@ export class MatterOrchestrator {
     };
     if (shouldRunAction || actionResult.actionPlan.length === 0) {
       const t6 = performance.now();
-      const actionEnvelope = await this.actionPlannerAgent.execute(
-        input,
-        riskResult.risks.map(r => r.id)
-      );
-      actionResult = actionEnvelope.result;
-      logs.push({
-        agentName: 'Action Planner Agent',
-        status: 'completed',
-        executionTimeMs: Math.round(performance.now() - t6),
-        summary: `Formulated ${actionResult.actionPlan.length} phased action steps (0-48h, 14d, Escalation)`
-      });
+      try {
+        const actionEnvelope = await this.actionPlannerAgent.execute(
+          input,
+          riskResult.risks.map(r => r.id)
+        );
+        actionResult = actionEnvelope.result;
+        logs.push({
+          agentName: 'Action Planner Agent',
+          status: 'completed',
+          executionTimeMs: Math.round(performance.now() - t6),
+          summary: `Formulated ${actionResult.actionPlan.length} phased action steps (0-48h, 14d, Escalation)`
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logs.push({
+          agentName: 'Action Planner Agent',
+          status: 'failed',
+          executionTimeMs: Math.round(performance.now() - t6),
+          summary: `Action planner error: ${errMsg}. Preserved prior action plan.`
+        });
+      }
     } else {
       logs.push({
         agentName: 'Action Planner Agent',
@@ -215,18 +302,28 @@ export class MatterOrchestrator {
     };
     if (shouldRunDrafting || draftResult.drafts.length === 0) {
       const t7 = performance.now();
-      const draftEnvelope = await this.draftingAgent.execute(
-        input,
-        intakeResult.extractedParties,
-        timelineResult.timelineEvents
-      );
-      draftResult = draftEnvelope.result;
-      logs.push({
-        agentName: 'Drafting Agent',
-        status: 'completed',
-        executionTimeMs: Math.round(performance.now() - t7),
-        summary: `Generated ${draftResult.drafts.length} drafts (Soft, Formal, Notice) and 1-page advocate brief`
-      });
+      try {
+        const draftEnvelope = await this.draftingAgent.execute(
+          input,
+          intakeResult.extractedParties,
+          timelineResult.timelineEvents
+        );
+        draftResult = draftEnvelope.result;
+        logs.push({
+          agentName: 'Drafting Agent',
+          status: 'completed',
+          executionTimeMs: Math.round(performance.now() - t7),
+          summary: `Generated ${draftResult.drafts.length} drafts (Soft, Formal, Notice) and 1-page advocate brief`
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logs.push({
+          agentName: 'Drafting Agent',
+          status: 'failed',
+          executionTimeMs: Math.round(performance.now() - t7),
+          summary: `Drafting agent error: ${errMsg}. Preserved prior drafts.`
+        });
+      }
     } else {
       logs.push({
         agentName: 'Drafting Agent',
@@ -238,26 +335,44 @@ export class MatterOrchestrator {
 
     // Step 9: Trust & Safety Verification + Revision Review Loop (ALWAYS RUNS LAST)
     const t8 = performance.now();
-    const safetyEnvelope = await this.safetyAgent.execute(
-      input,
-      docResult.extractedFacts,
-      reasoningResult.caseStrengths,
-      reasoningResult.caseWeaknesses,
-      reasoningResult.primaryLegalRemedy,
-      docResult.processedDocuments.map(d => d.id)
-    );
-    const safetyResult = safetyEnvelope.result;
-    const rewrittenCount = safetyResult.auditLog.filter(a => a.wasRewritten).length;
-    if (rewrittenCount > 0) {
-      revisionCyclesRun += 1;
-    }
+    let safetyResult: SafetyVerificationAgentResult;
+    try {
+      const safetyEnvelope = await this.safetyAgent.execute(
+        input,
+        docResult.extractedFacts,
+        reasoningResult.caseStrengths,
+        reasoningResult.caseWeaknesses,
+        reasoningResult.primaryLegalRemedy,
+        docResult.processedDocuments.map(d => d.id)
+      );
+      safetyResult = safetyEnvelope.result;
+      const rewrittenCount = safetyResult.auditLog.filter(a => a.wasRewritten).length;
+      if (rewrittenCount > 0) {
+        revisionCyclesRun += 1;
+      }
 
-    logs.push({
-      agentName: 'Safety Verification Agent',
-      status: 'completed',
-      executionTimeMs: Math.round(performance.now() - t8),
-      summary: `Audited ${safetyResult.auditLog.length} statements (${rewrittenCount} rewritten for non-definitive informational tone)`
-    });
+      logs.push({
+        agentName: 'Safety Verification Agent',
+        status: 'completed',
+        executionTimeMs: Math.round(performance.now() - t8),
+        summary: `Audited ${safetyResult.auditLog.length} statements (${rewrittenCount} rewritten for non-definitive informational tone)`
+      });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      safetyResult = {
+        verifiedFacts: docResult.extractedFacts,
+        trustSafetyItems: [],
+        isSafeForInformationalDisplay: true,
+        mandatoryDisclaimers: ['Legal Action Navigator guidance is informational only and does not constitute formal legal representation.'],
+        auditLog: []
+      };
+      logs.push({
+        agentName: 'Safety Verification Agent',
+        status: 'failed',
+        executionTimeMs: Math.round(performance.now() - t8),
+        summary: `Safety verification error: ${errMsg}. Applied baseline legal safety disclaimers.`
+      });
+    }
 
     // Step 10: Compile Normalized Evidence Graph
     const graph = new EvidenceGraph(input.existingEvidenceGraph);
@@ -504,7 +619,11 @@ export class MatterOrchestrator {
   public async executePipeline(
     matter: Matter,
     options?: { trigger?: ReanalysisTrigger }
-  ): Promise<{ matter: Matter; agentResults: Array<{ agentName: string; status: 'completed' | 'skipped' | 'fallback'; executionTimeMs: number; summary: string }> }> {
+  ): Promise<{
+    matter: Matter;
+    agentResults: Array<{ agentName: string; status: 'completed' | 'skipped' | 'fallback' | 'failed'; executionTimeMs: number; summary: string }>;
+    logs: Array<{ agentName: string; status: 'completed' | 'skipped' | 'fallback' | 'failed'; executionTimeMs: number; summary: string }>;
+  }> {
     const input: AgentInput = {
       matterId: matter.id,
       title: matter.title,
@@ -534,7 +653,8 @@ export class MatterOrchestrator {
     const res = await this.processMatter(input);
     return {
       matter: res.matter,
-      agentResults: res.logs
+      agentResults: res.logs,
+      logs: res.logs
     };
   }
 }
