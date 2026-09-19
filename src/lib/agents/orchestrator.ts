@@ -44,13 +44,41 @@ export class MatterOrchestrator {
 
     // Execution flags based on selective trigger
     const shouldRunDocIntel = trigger === 'full' || trigger === 'doc_uploaded';
-    const shouldRunTimeline = trigger === 'full' || trigger === 'doc_uploaded';
-    const shouldRunRetrieval = trigger === 'full';
-    const shouldRunReasoning = trigger === 'full' || trigger === 'doc_uploaded';
-    const shouldRunRisk = trigger === 'full' || trigger === 'doc_uploaded' || trigger === 'missing_info_answered';
-    const shouldRunAction = trigger === 'full' || trigger === 'doc_uploaded' || trigger === 'missing_info_answered';
-    const shouldRunDrafting = trigger === 'full' || trigger === 'doc_uploaded' || trigger === 'missing_info_answered' || trigger === 'party_updated' || trigger === 'amount_updated';
-    const shouldRunEscalation = trigger === 'full' || trigger === 'party_updated' || trigger === 'amount_updated';
+    const shouldRunTimeline = trigger === 'full' || trigger === 'doc_uploaded' || trigger === 'communication_recorded' || trigger === 'action_completed';
+    const shouldRunRetrieval = trigger === 'full' || trigger === 'external_response_recorded';
+    const shouldRunReasoning = trigger === 'full' || trigger === 'doc_uploaded' || trigger === 'external_response_recorded';
+    const shouldRunRisk =
+      trigger === 'full' ||
+      trigger === 'doc_uploaded' ||
+      trigger === 'missing_info_answered' ||
+      trigger === 'action_completed' ||
+      trigger === 'communication_recorded' ||
+      trigger === 'external_response_recorded' ||
+      trigger === 'payment_recorded' ||
+      trigger === 'deadline_changed';
+    const shouldRunAction =
+      trigger === 'full' ||
+      trigger === 'doc_uploaded' ||
+      trigger === 'missing_info_answered' ||
+      trigger === 'action_completed' ||
+      trigger === 'communication_recorded' ||
+      trigger === 'external_response_recorded' ||
+      trigger === 'payment_recorded' ||
+      trigger === 'resolution_recorded' ||
+      trigger === 'deadline_changed';
+    const shouldRunDrafting =
+      trigger === 'full' ||
+      trigger === 'doc_uploaded' ||
+      trigger === 'missing_info_answered' ||
+      trigger === 'party_updated' ||
+      trigger === 'amount_updated' ||
+      trigger === 'external_response_recorded';
+    const shouldRunEscalation =
+      trigger === 'full' ||
+      trigger === 'party_updated' ||
+      trigger === 'amount_updated' ||
+      trigger === 'action_completed' ||
+      trigger === 'external_response_recorded';
 
     // Step 1: Intake & Entity Normalization
     const t0 = performance.now();

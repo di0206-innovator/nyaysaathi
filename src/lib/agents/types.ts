@@ -41,7 +41,13 @@ export type ReanalysisTrigger =
   | 'missing_info_answered'
   | 'doc_uploaded'
   | 'party_updated'
-  | 'amount_updated';
+  | 'amount_updated'
+  | 'action_completed'
+  | 'communication_recorded'
+  | 'external_response_recorded'
+  | 'deadline_changed'
+  | 'payment_recorded'
+  | 'resolution_recorded';
 
 export interface AgentInput {
   matterId: string;

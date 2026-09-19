@@ -229,15 +229,70 @@ Evidence documents are never stored in public buckets:
 
 ---
 
+## 🔄 Phase 7: Action Execution, Legal Workflow Tracking & Matter Lifecycle
+
+Phase 7 evolves NyaySaathi from a static advisory system into an evolving, interactive legal case workspace:
+
+```
+CAPTURE ──> UNDERSTAND ──> ASSESS ──> ACT ──> ESCALATE ──> TRACK ──> REASSESS
+```
+
+### 1. Action Execution Workspace
+Tasks are no longer static checklists; each step possesses an execution ladder:
+- **Status Lifecycle**: `pending` ➔ `in_progress` ➔ `blocked` (with documented blocking reason) ➔ `completed` (with attached proof: Speed Post receipt, bank statement, screenshot) / `skipped` / `expired`.
+- **Action Detail Modal**: Execution steps, grounded rationale, required evidentiary material, proof of dispatch attachment, and outcome notes (`completed`, `rejected`, `awaiting_response`).
+- **Notice Execution Ladder**: Integrates with `DraftStudio` tracking: Draft Prepared ➔ Safety Audited ➔ Finalized/Copied ➔ Dispatched (RPAD/Speed Post) ➔ Proof Recorded ➔ Awaiting Counterparty Response.
+
+### 2. Dynamic Matter Health State
+Matter status is derived dynamically from chronological activity:
+- `awaiting_user_action`: Outstanding pending tasks or missing critical evidence.
+- `awaiting_other_party`: Formal legal notice or demand dispatched; 15/30-day statutory cure window active.
+- `awaiting_authority`: Escalated to DLSA mediation, e-Daakhil consumer forum, or RERA authority.
+- `resolved`: Formally closed with resolution settlement record and financial recovery details.
+
+### 3. Communication Log & Counterparty Response Tracking
+- Matter-level timeline for all outgoing and incoming communications: Speed Post Legal Notices, WhatsApp demands, emails, calls, and authority filings.
+- Automatic countdown to expected response deadlines with color-coded urgency badges.
+- Recording counterparty responses triggers selective pipeline re-analysis (`external_response_recorded`).
+
+### 4. Consolidated Matter Activity Timeline
+Strictly distinguishes between:
+- 🟢 **Evidence-Derived Events**: Grounded facts reconstructed from uploaded contracts and receipts.
+- 🔵 **User-Recorded Events**: Actions taken by the citizen (e.g. Speed Post dispatched, phone call logged, mediation hearing attended). *User claims are never conflated with verified facts.*
+
+### 5. Deadline Engine 2.0
+- **Statutory Limitation Windows**: Computes legal deadlines (e.g., Section 138 NI Act 30-day notice & 15-day cure window; Consumer Protection Act 2-year limitation) labeled with Trust & Safety grounding tiers.
+- **Action & Response Deadlines**: Derived from checklist actions and communication records.
+- **User-Defined Reminders**: Allows citizens to schedule custom reminders for local visits or document collection.
+
+### 6. Advocate Case Pack (10-Section Case Preparation Brief)
+Generates a comprehensive, printable brief for advocate consultation or DLSA legal aid:
+1. Executive Summary & Dispute Category
+2. Structured Parties Table
+3. Chronology & Milestones (with document references)
+4. Evidence Index & Grounding Status
+5. Applicable Statutory Provisions & Rights
+6. Evidentiary Risks, Uncertainties & Missing Proof
+7. Actions Completed & Dispatched Notices
+8. Outstanding Recommended Actions
+9. Prepared Legal Drafts
+10. Escalation History & Authority Filings
+
+### 7. Formal Resolution Flow
+- Captures resolution outcome: type (`negotiated_settlement`, `full_recovery`, `dlsa_mediated`, `court_order`), recovery amount, settlement document attachment, and date.
+- Locks resolved matters into read-only mode to prevent accidental tampering while supporting audited reopening with documented justification.
+
+---
+
 ### Testing & Verification
 
-NyaySaathi maintains an extensive test suite across Phases 2 through 6:
+NyaySaathi maintains an extensive test suite across Phases 2 through 7:
 
 ```bash
-# Run complete test suite (Phase 2-6)
+# Run complete test suite (Phase 2-7, 45 automated tests)
 npm test
 
-# Run ESLint validation
+# Run ESLint validation (0 errors, 0 warnings)
 npm run lint
 
 # Run optimized production build

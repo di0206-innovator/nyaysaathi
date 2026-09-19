@@ -109,6 +109,127 @@ export class DeadlineEngine {
     deadlines.sort((a, b) => a.daysRemaining - b.daysRemaining);
     return deadlines;
   }
+
+  /**
+   * Deadline Engine 2.0: Generates comprehensive matter-aware deadlines covering:
+   * 1. Statutory limitation deadlines (with Trust & Safety verification tiers)
+   * 2. Action step execution deadlines
+   * 3. Communication response deadlines (e.g. 15-day notice cure window)
+   * 4. Retains any user-defined reminders
+   */
+  public static generateMatterDeadlines(matter: Matter): import('@/types/matter').MatterDeadline[] {
+    const deadlines: import('@/types/matter').MatterDeadline[] = [];
+    const now = new Date();
+    const matterId = matter.id;
+
+    // 1. Existing user-defined or manual deadlines
+    if (matter.deadlines) {
+      for (const d of matter.deadlines) {
+        if (d.isUserDefined) {
+          deadlines.push(d);
+        }
+      }
+    }
+
+    // 2. Communication Response Deadlines (e.g., legal notices awaiting reply)
+    if (matter.communications) {
+      for (const comm of matter.communications) {
+        if (comm.responseExpectedBy && comm.status !== 'responded' && comm.status !== 'resolved') {
+          const isOverdue = new Date(comm.responseExpectedBy).getTime() < now.getTime();
+          deadlines.push({
+            id: `deadline-resp-${comm.id}`,
+            matterId,
+            title: `Response Expected: ${comm.type.replace(/_/g, ' ')} (${comm.counterparty})`,
+            description: `Expected formal response to ${comm.summary}`,
+            dueDate: comm.responseExpectedBy,
+            type: 'response_expected',
+            isStatutory: comm.type === 'legal_notice',
+            isUserDefined: false,
+            confidence: 0.90,
+            trustTier: 'explanation',
+            status: isOverdue ? 'overdue' : 'active',
+            relatedEventId: comm.id
+          });
+        }
+      }
+    }
+
+    // 3. Action Step Deadlines
+    for (const step of matter.actionPlan) {
+      if (step.status === 'completed' || step.status === 'skipped') continue;
+
+      let dueDateStr = step.dueDate;
+      if (!dueDateStr) {
+        let days = 14;
+        if (step.phase === 'immediate_48h') days = 2;
+        else if (step.phase === 'formal_escalation') days = 30;
+        const calcDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+        dueDateStr = calcDate.toISOString().split('T')[0];
+      }
+
+      const isOverdue = new Date(dueDateStr).getTime() < now.getTime();
+
+      deadlines.push({
+        id: `deadline-step-${step.id}`,
+        matterId,
+        title: step.title,
+        description: step.description,
+        dueDate: dueDateStr,
+        type: 'action_step',
+        isStatutory: false,
+        isUserDefined: false,
+        confidence: 0.95,
+        trustTier: 'explanation',
+        relatedActionId: step.id,
+        status: isOverdue ? 'overdue' : 'active'
+      });
+    }
+
+    // 4. Statutory Deadlines (from Limitation Periods & Applicable Statutes)
+    for (const risk of matter.risks) {
+      if (risk.limitationPeriodInfo) {
+        const lim = risk.limitationPeriodInfo;
+        const months = lim.deadlineMonths;
+
+        const baseDate = matter.timelineEvents.length > 0
+          ? new Date(matter.timelineEvents[0].date)
+          : now;
+
+        const expiryDate = new Date(baseDate);
+        expiryDate.setMonth(expiryDate.getMonth() + months);
+        const expiryStr = expiryDate.toISOString().split('T')[0];
+        const isOverdue = expiryDate.getTime() < now.getTime();
+
+        // Trust & Safety tier determination for deadlines:
+        // - 'fact' if verified timeline event anchors the date
+        // - 'explanation' if estimated from story
+        // - 'counsel_required' if statutory rule has high complexity or critical risk
+        const hasVerifiedEvent = matter.timelineEvents.some(e => e.status === 'verified');
+        const trustTier = hasVerifiedEvent
+          ? (risk.severity === 'critical' ? 'counsel_required' : 'fact')
+          : 'explanation';
+
+        deadlines.push({
+          id: `deadline-statute-${risk.id}`,
+          matterId,
+          title: `Statutory Limitation: ${lim.statute}`,
+          description: `Period of limitation expires based on cause of action date. Consequence: Right to remedy extinguished.`,
+          dueDate: expiryStr,
+          type: 'statutory',
+          isStatutory: true,
+          isUserDefined: false,
+          confidence: hasVerifiedEvent ? 0.95 : 0.70,
+          trustTier,
+          statuteReference: lim.statute,
+          status: isOverdue ? 'overdue' : 'active'
+        });
+      }
+    }
+
+    // Sort deadlines by dueDate ascending
+    deadlines.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    return deadlines;
+  }
 }
 
 /**

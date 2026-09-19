@@ -13,9 +13,15 @@ export type MatterStatus =
   | 'intake_draft'
   | 'analyzing'
   | 'action_ready'
+  | 'open'
+  | 'awaiting_user_action'
+  | 'awaiting_other_party'
+  | 'awaiting_authority'
+  | 'in_mediation'
   | 'in_progress'
   | 'escalated'
-  | 'resolved';
+  | 'resolved'
+  | 'closed';
 
 export type TrustSafetyTier =
   | 'fact'
@@ -124,15 +130,35 @@ export interface MissingInformation {
   groundingRefIds?: string[];
 }
 
+export type ActionStatus = 'pending' | 'in_progress' | 'blocked' | 'completed' | 'skipped' | 'expired';
+
+export type ActionResult = 'completed' | 'rejected' | 'no_response' | 'partially_completed' | 'awaiting_response';
+
 export interface ActionStep {
   id: string;
+  matterId?: string;
   title: string;
   phase: 'immediate_48h' | 'short_term_14d' | 'formal_escalation';
   description: string;
   estimatedTurnaround: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  status: ActionStatus;
   priority: 'must_do' | 'recommended' | 'optional';
   associatedDraftType?: LegalDraftType;
+  dueDate?: string;
+  completedAt?: string;
+  evidenceRequired?: boolean;
+  evidenceDocumentIds?: string[];
+  notes?: string;
+  blockingReason?: string;
+  steps?: Array<{ id: string; title: string; isCompleted: boolean }>;
+  completionProof?: {
+    type: 'document' | 'receipt' | 'screenshot' | 'reference_number' | 'note';
+    reference?: string;
+    notes?: string;
+    documentId?: string;
+    recordedAt: string;
+  };
+  result?: ActionResult;
   groundingRefIds?: string[];
   groundingStatus?: GroundingStatus;
 }
@@ -357,6 +383,171 @@ export interface Matter {
 
   // 14. Multilingual & Localization Support (Ready for Indic Languages)
   language?: 'en' | 'hi' | 'hinglish' | 'mr';
+
+  // 15. Phase 7 Action Execution & Lifecycle Workspace
+  activityEvents?: MatterActivityEvent[];
+  communications?: CommunicationRecord[];
+  deadlines?: MatterDeadline[];
+  escalationWorkflows?: EscalationWorkflowItem[];
+  resolution?: MatterResolutionRecord;
+  notifications?: MatterNotification[];
+}
+
+// -------------------------------------------------------------
+// Phase 7: Action Execution & Workflow Tracking Interfaces
+// -------------------------------------------------------------
+
+export type CommunicationType =
+  | 'legal_notice'
+  | 'email'
+  | 'whatsapp'
+  | 'phone_call'
+  | 'service_request'
+  | 'complaint_filed'
+  | 'authority_response'
+  | 'mediation_session'
+  | 'payment_received'
+  | 'document_received'
+  | 'other';
+
+export type CommunicationDirection = 'outgoing' | 'incoming';
+
+export interface CommunicationRecord {
+  id: string;
+  matterId: string;
+  type: CommunicationType;
+  direction: CommunicationDirection;
+  date: string;
+  counterparty: string;
+  summary: string;
+  referenceNumber?: string;
+  documentIds?: string[];
+  responseExpectedBy?: string;
+  status: 'sent' | 'delivered' | 'awaiting_response' | 'responded' | 'overdue' | 'resolved';
+  outcomeNotes?: string;
+  createdAt: string;
+}
+
+export type ActivityEventType =
+  | 'matter_created'
+  | 'document_uploaded'
+  | 'analysis_completed'
+  | 'action_started'
+  | 'action_completed'
+  | 'communication_recorded'
+  | 'draft_finalized'
+  | 'draft_downloaded'
+  | 'escalation_submitted'
+  | 'deadline_created'
+  | 'deadline_changed'
+  | 'matter_resolved'
+  | 'matter_reopened';
+
+export interface MatterActivityEvent {
+  id: string;
+  matterId: string;
+  type: ActivityEventType;
+  source: 'evidence_derived' | 'user_recorded';
+  title: string;
+  date: string;
+  description: string;
+  referenceId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export type DeadlineType = 'statutory' | 'action_step' | 'response_expected' | 'user_defined';
+
+export interface MatterDeadline {
+  id: string;
+  matterId: string;
+  title: string;
+  description?: string;
+  dueDate: string;
+  type: DeadlineType;
+  isStatutory: boolean;
+  isUserDefined: boolean;
+  confidence: number;
+  trustTier: TrustSafetyTier;
+  relatedActionId?: string;
+  relatedEventId?: string;
+  status: 'active' | 'completed' | 'overdue' | 'cancelled';
+  statuteReference?: string;
+  reminderSent?: boolean;
+}
+
+export type EscalationWorkflowStatus =
+  | 'not_started'
+  | 'preparing'
+  | 'submitted'
+  | 'acknowledged'
+  | 'under_review'
+  | 'hearing_scheduled'
+  | 'resolved'
+  | 'rejected'
+  | 'unknown';
+
+export interface EscalationWorkflowItem {
+  id: string;
+  matterId: string;
+  routeId: string;
+  authorityName: string;
+  status: EscalationWorkflowStatus;
+  requirements: string[];
+  documentsRequired: string[];
+  optionalDocuments?: string[];
+  submissionMethod: 'online_portal' | 'physical_filing' | 'speed_post' | 'email' | 'helpline';
+  officialPortal?: string;
+  referenceNumber?: string;
+  submittedAt?: string;
+  acknowledgedAt?: string;
+  nextStep?: string;
+  notes?: string;
+  documentIds?: string[];
+}
+
+export type ResolutionType =
+  | 'full_settlement'
+  | 'partial_settlement'
+  | 'court_order'
+  | 'mediation_agreement'
+  | 'abandoned'
+  | 'complaint_dismissed'
+  | 'other';
+
+export interface MatterResolutionRecord {
+  resolvedAt: string;
+  resolutionType: ResolutionType;
+  outcome: string;
+  amountRecovered?: number;
+  amountDisputed?: number;
+  settlementDocumentId?: string;
+  notes?: string;
+  isReopened?: boolean;
+  reopenedAt?: string;
+  reopenedReason?: string;
+  reopenedBy?: string;
+}
+
+export type NotificationType =
+  | 'deadline_due'
+  | 'deadline_approaching'
+  | 'response_expected'
+  | 'action_blocked'
+  | 'analysis_completed'
+  | 'evidence_required'
+  | 'authority_update';
+
+export interface MatterNotification {
+  id: string;
+  matterId: string;
+  userId?: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  channel: 'in_app' | 'email';
+  isRead: boolean;
+  createdAt: string;
+  metadata?: Record<string, unknown>;
 }
 
 // -------------------------------------------------------------
