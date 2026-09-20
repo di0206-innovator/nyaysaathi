@@ -49,6 +49,14 @@ export function AdvocateCasePackModal({
     };
   }, [matterId, isOpen]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   if (!isOpen) return null;
 
   const handlePrint = () => {
@@ -56,14 +64,19 @@ export function AdvocateCasePackModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-xs">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="case-pack-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-xs"
+    >
       <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Top Bar */}
         <div className="px-6 py-4 bg-stone-900 text-white flex items-center justify-between shrink-0 print:hidden">
           <div className="flex items-center space-x-2.5">
             <Briefcase className="w-5 h-5 text-amber-400" />
             <div>
-              <h2 className="text-sm font-bold tracking-wide">Advocate Case Preparation Pack</h2>
+              <h2 id="case-pack-title" className="text-sm font-bold tracking-wide">Advocate Case Preparation Pack</h2>
               <p className="text-[11px] text-stone-400">Standardized 10-section brief for legal-aid and advocate consultations</p>
             </div>
           </div>
@@ -71,6 +84,7 @@ export function AdvocateCasePackModal({
             <button
               onClick={handlePrint}
               disabled={!pack || loading}
+              aria-label="Print or save as PDF"
               className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg flex items-center space-x-1.5 transition-colors disabled:opacity-50"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -78,6 +92,7 @@ export function AdvocateCasePackModal({
             </button>
             <button
               onClick={onClose}
+              aria-label="Close advocate case pack"
               className="text-stone-400 hover:text-white p-1 rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />

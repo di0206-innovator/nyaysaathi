@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth/auth-service';
 import { getMatterService, getStorageAdapter } from '@/lib/repository';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { MatterNotification, NotificationType } from '@/types/matter';
 
 const VALID_TYPES: NotificationType[] = [
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const adapter = getStorageAdapter();
+  const adapter = getStorageAdapter(user.token);
 
   if (!adapter.notifications) {
     return NextResponse.json({ notifications: [], unreadCount: 0 });
@@ -28,6 +29,15 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const countOnly = searchParams.get('countOnly') === 'true';
   const matterId = searchParams.get('matterId');
+
+  // If matterId is requested, enforce tenant ownership
+  if (matterId) {
+    const matterService = getMatterService(user.token);
+    const matter = await matterService.getMatterById(matterId, user.id);
+    if (!matter) {
+      return NextResponse.json({ error: 'Matter not found or access denied' }, { status: 404 });
+    }
+  }
 
   const unreadCount = await adapter.notifications.getUnreadCount(user.id);
   if (countOnly) {
@@ -50,6 +60,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const rateLimitResponse = await enforceRateLimit(req, 'notifications', 60, 60, user.id);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const body = await req.json();
     const { matterId, type, title, message, channel = 'in_app', metadata } = body;
@@ -70,14 +83,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Invalid notification type. Must be one of: ${VALID_TYPES.join(', ')}` }, { status: 400 });
     }
 
-    const matterService = getMatterService();
+    const matterService = getMatterService(user.token);
     // Authorize that matter belongs to user
     const matter = await matterService.getMatterById(matterId, user.id);
     if (!matter) {
       return NextResponse.json({ error: 'Matter not found or access denied' }, { status: 404 });
     }
 
-    const adapter = getStorageAdapter();
+    const adapter = getStorageAdapter(user.token);
     if (!adapter.notifications) {
       return NextResponse.json({ error: 'Notifications not supported by adapter' }, { status: 500 });
     }
@@ -110,7 +123,7 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const adapter = getStorageAdapter();
+    const adapter = getStorageAdapter(user.token);
 
     if (!adapter.notifications) {
       return NextResponse.json({ success: true });

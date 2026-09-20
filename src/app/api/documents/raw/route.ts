@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/auth/auth-service';
 import { getMatterService } from '@/lib/repository';
 import { getStorageProvider } from '@/lib/storage/storage-provider';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
+import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,6 +11,9 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return new NextResponse('Authentication required to view document', { status: 401 });
     }
+
+    const rateLimitRes = await enforceRateLimit(req, 'raw_document_access', 60, 60, user.id);
+    if (rateLimitRes) return rateLimitRes;
 
     const { searchParams } = new URL(req.url);
     const rawPath = searchParams.get('path');
@@ -21,19 +26,44 @@ export async function GET(req: NextRequest) {
 
     // Path traversal check
     if (decodedPath.includes('..') || decodedPath.startsWith('/') || decodedPath.includes('\\')) {
+      SecurityAuditLogger.log({
+        action: 'unauthorized_access_blocked',
+        userId: user.id,
+        resourceType: 'document',
+        status: 'denied',
+        metadata: { path: decodedPath, reason: 'path_traversal' }
+      });
       return new NextResponse('Invalid document path: path traversal detected', { status: 400 });
     }
 
+    // Check user ownership prefix if path includes user/{userId}
+    const userMatch = decodedPath.match(/^user\/([^/]+)/);
+    if (userMatch && userMatch[1] !== user.id) {
+      SecurityAuditLogger.log({
+        action: 'unauthorized_access_blocked',
+        userId: user.id,
+        resourceType: 'document',
+        status: 'denied',
+        metadata: { path: decodedPath, reason: 'cross_tenant_user_mismatch' }
+      });
+      return new NextResponse('Access denied: Unauthorized cross-tenant document path', { status: 403 });
+    }
+
     // Check matter ownership if path contains matter ID
-    // Supported path formats:
-    // 1. matters/{matterId}/{filename}
-    // 2. user/{userId}/matters/{matterId}/documents/{documentId}/{filename}
     const matterMatch = decodedPath.match(/matters\/([^/]+)/);
     if (matterMatch && matterMatch[1]) {
       const matterId = matterMatch[1];
-      const service = getMatterService();
+      const service = getMatterService(user.token);
       const matter = await service.getMatterById(matterId, user.id);
       if (!matter) {
+        SecurityAuditLogger.log({
+          action: 'unauthorized_access_blocked',
+          userId: user.id,
+          matterId,
+          resourceType: 'document',
+          status: 'denied',
+          metadata: { path: decodedPath }
+        });
         return new NextResponse('Access denied or document not found', { status: 403 });
       }
     }

@@ -127,12 +127,18 @@ export class RiskAgent {
       });
     });
 
+    const criticalCount = risks.filter(r => r.severity === 'critical').length;
+    const highCount = risks.filter(r => r.severity === 'high').length;
+    const confidenceScore = Math.max(0.2, Math.min(0.95, Math.round((0.9 - criticalCount * 0.25 - highCount * 0.1) * 100) / 100));
+    const evidenceState = criticalCount > 0 ? 'counsel_required' : (missingInformation.length > 2 ? 'partially_supported' : 'supported');
+
     return {
       result: {
         risks,
         missingInformation
       },
-      confidenceScore: 0.94,
+      confidenceScore,
+      evidenceState,
       sourceReferences,
       assumptions,
       unresolvedQuestions,

@@ -40,6 +40,15 @@ export function CommunicationLog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (!isModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsModalOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen]);
+
   const handleRecordCommunication = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -191,15 +200,21 @@ export function CommunicationLog({
 
       {/* Record Communication Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-xs">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="comm-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-xs"
+        >
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col">
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-stone-900 flex items-center space-x-2">
+              <h3 id="comm-modal-title" className="text-sm font-bold text-stone-900 flex items-center space-x-2">
                 <MessageSquare className="w-4 h-4 text-indigo-600" />
                 <span>Record Legal Communication</span>
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Close communication modal"
                 className="text-stone-400 hover:text-stone-600 p-1 rounded-lg"
               >
                 <X className="w-4 h-4" />

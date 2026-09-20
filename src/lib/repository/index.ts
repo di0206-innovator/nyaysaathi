@@ -12,14 +12,13 @@ export * from './matter-service';
 let activeAdapter: IStorageAdapter | null = null;
 let activeService: MatterService | null = null;
 
-export function getStorageAdapter(): IStorageAdapter {
+export function getStorageAdapter(userToken?: string): IStorageAdapter {
+  if (isSupabaseConfigured()) {
+    const client = getSupabaseClient(userToken)!;
+    return new SupabaseStorageAdapter(client);
+  }
   if (!activeAdapter) {
-    if (isSupabaseConfigured()) {
-      const client = getSupabaseClient()!;
-      activeAdapter = new SupabaseStorageAdapter(client);
-    } else {
-      activeAdapter = new MemoryStorageAdapter();
-    }
+    activeAdapter = new MemoryStorageAdapter();
   }
   return activeAdapter;
 }
@@ -31,7 +30,10 @@ export function setStorageAdapter(adapter: IStorageAdapter): void {
   }
 }
 
-export function getMatterService(): MatterService {
+export function getMatterService(userToken?: string): MatterService {
+  if (userToken && isSupabaseConfigured()) {
+    return new MatterService(getStorageAdapter(userToken));
+  }
   if (!activeService) {
     activeService = new MatterService(getStorageAdapter());
   }

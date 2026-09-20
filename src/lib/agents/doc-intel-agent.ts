@@ -1,5 +1,6 @@
 import { AgentInput, DocIntelAgentResult, AgentMemoryEnvelope, SourceReference } from './types';
 import { DocumentEvidence, ExtractedFact } from '@/types/matter';
+import { TrustEngine } from '@/lib/ai/trust-engine';
 
 export class DocIntelAgent {
   public async execute(input: AgentInput): Promise<AgentMemoryEnvelope<DocIntelAgentResult>> {
@@ -8,32 +9,40 @@ export class DocIntelAgent {
     const unresolvedQuestions: string[] = [];
 
     const processedDocuments: DocumentEvidence[] = input.documents.map((doc, idx) => {
+      const docId = doc.id || `doc-${idx + 1}`;
       let classification = doc.classification;
       let relevanceSummary = doc.relevanceSummary;
-      const confidenceScore = doc.confidenceScore || 0.94;
-      const docId = doc.id || `doc-${idx + 1}`;
+      const extractionStatus = doc.extractionStatus || (doc.extractedText ? 'verified_extraction' : 'needs_review');
 
+      // Truthful derivation: never guess document content or legal significance from filename
       if (!classification) {
-        if (doc.title.toLowerCase().includes('agreement') || doc.title.toLowerCase().includes('lease')) {
-          classification = 'Registered / Notarized Agreement';
-          relevanceSummary = 'Primary contractual document establishing rights, lock-in period, and terms.';
-        } else if (doc.title.toLowerCase().includes('chat') || doc.title.toLowerCase().includes('whatsapp')) {
-          classification = 'Electronic Evidence / Admissible Communication';
-          relevanceSummary = 'Written record of representations, promises, and refusal timestamps.';
-        } else if (doc.title.toLowerCase().includes('receipt') || doc.title.toLowerCase().includes('bill') || doc.title.toLowerCase().includes('invoice')) {
-          classification = 'Financial Consideration Proof';
-          relevanceSummary = 'Proves monetary payment and establishing transactional consideration.';
+        if (doc.extractedText && doc.extractedText.trim().length > 0) {
+          classification = 'Parsed Text Document';
+          relevanceSummary = `Verified extracted text (${doc.extractedText.length} characters). Contains primary factual content.`;
+        } else if (extractionStatus === 'needs_ocr') {
+          classification = 'Image / Scanned Document (Pending OCR)';
+          relevanceSummary = 'Optical character recognition required. Text content has not been fabricated or inferred.';
         } else {
-          classification = 'Supporting Documentary Evidence';
-          relevanceSummary = 'Provides factual corroboration for user claims.';
+          classification = 'Unparsed Document Attachment';
+          relevanceSummary = 'Document received. Content awaiting extraction; facts will not be inferred from file metadata.';
         }
       }
+
+      // Calculate defensible empirical confidence score based strictly on extraction status
+      const confidenceScore =
+        extractionStatus === 'verified_extraction'
+          ? 0.95
+          : extractionStatus === 'partial_extraction'
+            ? 0.70
+            : extractionStatus === 'needs_ocr'
+              ? 0.30
+              : 0.15;
 
       sourceReferences.push({
         id: docId,
         type: 'doc',
-        label: `${doc.title} (${classification})`,
-        excerpt: doc.relevanceSummary
+        label: `${doc.title} [${classification}]`,
+        excerpt: doc.extractedText ? doc.extractedText.slice(0, 150) : relevanceSummary
       });
 
       return {
@@ -42,50 +51,67 @@ export class DocIntelAgent {
         classification,
         relevanceSummary,
         confidenceScore,
-        status: 'verified' as const
+        extractionStatus,
+        status: (extractionStatus === 'verified_extraction' ? 'verified' : 'unverified') as 'verified' | 'unverified'
       };
     });
 
     if (processedDocuments.length === 0) {
-      assumptions.push('No uploaded physical/digital documents supplied; relying entirely on user narrative.');
-      unresolvedQuestions.push('Can you upload supporting receipts, agreements, or WhatsApp chat screenshots to strengthen your position?');
+      assumptions.push('No uploaded physical or digital documents supplied; relying solely on self-reported user narrative.');
+      unresolvedQuestions.push('Can you upload supporting receipts, agreements, or communication records to substantiate this claim?');
     }
 
-    // Generate grounded extracted facts
+    // Generate grounded extracted facts from narrative and verified documents
     const extractedFacts: ExtractedFact[] = [];
     
-    // Fact 1: Narrative intake verification
+    // Fact 1: User statement of grievance
     const fact1Id = 'fact-intake-claim';
+    const hasClaimAmount = typeof input.claimAmount === 'number' && input.claimAmount > 0;
     extractedFacts.push({
       id: fact1Id,
-      statement: `User initiated grievance regarding ${input.category.replace(/_/g, ' ')} with claimed financial stake of ₹${(input.claimAmount || 0).toLocaleString('en-IN')}.`,
+      statement: hasClaimAmount
+        ? `User reported grievance regarding ${input.category.replace(/_/g, ' ')} with asserted claim of ₹${(input.claimAmount || 0).toLocaleString('en-IN')}.`
+        : `User reported grievance regarding ${input.category.replace(/_/g, ' ')}.`,
       category: 'financial',
       verified: true,
       tier: 'fact',
-      confidence: 0.98,
+      confidence: 0.90, // Grounded in user's direct affirmation
       groundingRefIds: ['narrative-user']
     });
 
-    // Fact 2: Documentary backing
+    // Fact 2: Documentary evidence count and status
     if (processedDocuments.length > 0) {
-      const fact2Id = 'fact-doc-count';
+      const verifiedDocs = processedDocuments.filter(d => d.extractionStatus === 'verified_extraction');
+      const unverifiedDocs = processedDocuments.filter(d => d.extractionStatus !== 'verified_extraction');
+      
       extractedFacts.push({
-        id: fact2Id,
-        statement: `User has provided ${processedDocuments.length} documentary evidence items (${processedDocuments.map(d => d.title).join(', ')}).`,
+        id: 'fact-doc-record',
+        statement: `User supplied ${processedDocuments.length} document(s): ${verifiedDocs.length} verified extract(s), ${unverifiedDocs.length} requiring review/OCR.`,
         category: 'contractual',
-        verified: true,
+        verified: verifiedDocs.length > 0,
         tier: 'fact',
-        confidence: 0.96,
+        confidence: verifiedDocs.length === processedDocuments.length ? 0.95 : 0.65,
         groundingRefIds: processedDocuments.map(d => d.id)
       });
     }
+
+    const verifiedDocCount = processedDocuments.filter(d => d.extractionStatus === 'verified_extraction').length;
+    const evidenceStateResult = TrustEngine.deriveEvidenceState({
+      totalFacts: extractedFacts.length,
+      verifiedFacts: extractedFacts.filter(f => f.verified).length,
+      hasDocuments: processedDocuments.length > 0,
+      verifiedDocuments: verifiedDocCount,
+      hasContradictions: false,
+      safetyCounselRequired: false
+    });
 
     return {
       result: {
         processedDocuments,
         extractedFacts
       },
-      confidenceScore: processedDocuments.length > 0 ? 0.96 : 0.75,
+      confidenceScore: evidenceStateResult.groundingRatio,
+      evidenceState: evidenceStateResult.state,
       sourceReferences,
       assumptions,
       unresolvedQuestions,

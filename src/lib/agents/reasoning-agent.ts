@@ -83,6 +83,10 @@ export class ReasoningAgent {
         break;
     }
 
+    const netStrength = caseStrengths.length / (caseStrengths.length + caseWeaknesses.length || 1);
+    const confidenceScore = Math.min(0.95, Math.max(0.2, Math.round((0.4 + netStrength * 0.5) * 100) / 100));
+    const evidenceState = caseWeaknesses.length > caseStrengths.length ? 'partially_supported' : 'supported';
+
     return {
       result: {
         caseStrengths,
@@ -90,7 +94,8 @@ export class ReasoningAgent {
         primaryLegalRemedy,
         counterPartyProbableDefense
       },
-      confidenceScore: 0.92,
+      confidenceScore,
+      evidenceState,
       sourceReferences,
       assumptions,
       unresolvedQuestions,

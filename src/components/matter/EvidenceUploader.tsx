@@ -23,6 +23,15 @@ export function EvidenceUploader({ documents, onUploadSimulate }: EvidenceUpload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  React.useEffect(() => {
+    if (!showAddModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowAddModal(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showAddModal]);
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle && !selectedFile) return;
@@ -125,12 +134,18 @@ export function EvidenceUploader({ documents, onUploadSimulate }: EvidenceUpload
 
       {/* Add Evidence Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-stone-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="evidence-modal-title"
+          className="fixed inset-0 z-50 bg-stone-950/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-stone-200 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-stone-100">
-              <h3 className="font-bold text-base text-stone-900">Add Supporting Material / Evidence</h3>
+              <h3 id="evidence-modal-title" className="font-bold text-base text-stone-900">Add Supporting Material / Evidence</h3>
               <button
                 onClick={() => setShowAddModal(false)}
+                aria-label="Close upload modal"
                 className="text-stone-400 hover:text-stone-600 text-sm font-bold"
               >
                 ✕

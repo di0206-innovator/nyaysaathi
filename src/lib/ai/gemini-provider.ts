@@ -91,13 +91,16 @@ export class GeminiLLMProvider implements LLMProvider {
         const json = await res.json();
         const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
+        const finishReason = json.candidates?.[0]?.finishReason;
+        const confidenceScore = text.trim().length > 0 ? (finishReason === 'STOP' ? 0.90 : 0.70) : 0.1;
+
         return {
           content: text,
           rawText: text,
           model: 'gemini-2.5-flash',
           provider: 'gemini_production',
           isFallback: false,
-          confidenceScore: 0.96
+          confidenceScore
         };
       } catch (err) {
         clearTimeout(timeoutId);

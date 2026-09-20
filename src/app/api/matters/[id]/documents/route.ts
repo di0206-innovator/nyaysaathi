@@ -4,8 +4,9 @@ import { validateDocumentFile } from '@/lib/api/validation';
 import { apiSuccess, apiError } from '@/lib/api/response';
 import { DocumentEvidence } from '@/types/matter';
 import { AuthService } from '@/lib/auth/auth-service';
-import { RateLimiter } from '@/lib/security/rate-limiter';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
+import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 
 export async function GET(
   req: NextRequest,
@@ -18,7 +19,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const service = getMatterService();
+    const service = getMatterService(user.token);
     const matter = await service.getMatterById(id, user.id);
 
     if (!matter) {
@@ -48,18 +49,11 @@ export async function POST(
       return apiError('Authentication required to upload evidence', 401, 'UNAUTHORIZED');
     }
 
-    const { id: matterId } = await params;
-    const service = getMatterService();
+    const rateLimitRes = await enforceRateLimit(req, 'upload_document', 15, 60, user.id);
+    if (rateLimitRes) return rateLimitRes;
 
-    // Check rate limit: 15 uploads per minute
-    const rateCheck = RateLimiter.check(`upload-${user.id}`, 15, 60);
-    if (!rateCheck.allowed) {
-      return apiError(
-        `Upload rate limit exceeded. Please wait ${rateCheck.resetSeconds} seconds before uploading more documents.`,
-        429,
-        'RATE_LIMIT_EXCEEDED'
-      );
-    }
+    const { id: matterId } = await params;
+    const service = getMatterService(user.token);
 
     const existing = await service.getMatterById(matterId, user.id);
     if (!existing) {
@@ -104,6 +98,16 @@ export async function POST(
       },
       user.id
     );
+
+    SecurityAuditLogger.log({
+      action: 'document_uploaded',
+      userId: user.id,
+      matterId,
+      resourceType: 'document',
+      resourceId: result.document.id,
+      status: 'success',
+      metadata: { title: result.document.title, type: docType, sizeBytes: file.size }
+    });
 
     Logger.info('Document uploaded and analyzed successfully', {
       userId: user.id,

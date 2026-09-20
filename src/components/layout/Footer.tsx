@@ -47,6 +47,11 @@ export function Footer() {
                 <span className="w-4 h-4 rounded-full bg-stone-800 text-amber-400 text-[10px] flex items-center justify-center font-bold">5</span>
                 <span><strong>Escalate:</strong> DLSA, e-Daakhil & Advocates</span>
               </li>
+              <li className="pt-1">
+                <a href="/analytics" className="text-amber-400 hover:text-amber-300 font-semibold flex items-center space-x-1">
+                  <span>→ View Pilot Analytics & Recovery</span>
+                </a>
+              </li>
             </ul>
           </div>
 

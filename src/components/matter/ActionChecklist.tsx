@@ -123,6 +123,7 @@ export function ActionChecklist({ matterId, steps, onNavigateToUpload }: ActionC
                             e.stopPropagation();
                             setSelectedAction(step);
                           }}
+                          aria-label={`Update action step: ${step.title}`}
                           className="mt-0.5 text-stone-400 hover:text-emerald-600 transition-colors shrink-0"
                         >
                           {isDone ? (

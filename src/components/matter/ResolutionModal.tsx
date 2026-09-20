@@ -41,6 +41,15 @@ export function ResolutionModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleResolve = async (e: React.FormEvent) => {
@@ -99,8 +108,14 @@ export function ResolutionModal({
     }
   };
 
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-xs">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="resolution-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-xs"
+    >
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col">
         <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -109,12 +124,13 @@ export function ResolutionModal({
             ) : (
               <CheckCircle className="w-5 h-5 text-emerald-600" />
             )}
-            <h3 className="text-sm font-bold text-stone-900">
+            <h3 id="resolution-modal-title" className="text-sm font-bold text-stone-900">
               {isResolved ? 'Reopen Resolved Matter' : 'Formally Resolve Matter'}
             </h3>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close resolution modal"
             className="text-stone-400 hover:text-stone-600 p-1 rounded-lg"
           >
             <X className="w-5 h-5" />

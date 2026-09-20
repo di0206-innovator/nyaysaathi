@@ -38,14 +38,21 @@ export function ActionDetailModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const handleSave = async () => {
     setSaving(true);
     setError(null);
 
     try {
-      const { data, error, ok } = await apiFetch(`/api/matters/${matterId}/actions`, {
+      const { data, error: apiErr, ok } = await apiFetch(`/api/matters/${matterId}/actions`, {
         method: 'PATCH',
         body: JSON.stringify({
           actionId: action.id,
@@ -61,11 +68,11 @@ export function ActionDetailModal({
         })
       });
 
-      if (!ok || error || !data) {
-        throw new Error(error || 'Failed to update action');
+      if (!ok || apiErr || !data) {
+        throw new Error(apiErr || 'Failed to update action');
       }
 
-      onActionUpdated(data.action);
+      onActionUpdated((data as { action: ActionStep }).action);
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error updating action');
@@ -74,8 +81,15 @@ export function ActionDetailModal({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-xs">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="action-detail-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-xs"
+    >
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
@@ -95,6 +109,7 @@ export function ActionDetailModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close action details"
             className="text-stone-400 hover:text-stone-600 p-1.5 rounded-lg hover:bg-stone-200 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -104,7 +119,7 @@ export function ActionDetailModal({
         {/* Content */}
         <div className="p-6 overflow-y-auto space-y-6">
           <div>
-            <h2 className="text-xl font-bold text-stone-900">{action.title}</h2>
+            <h2 id="action-detail-title" className="text-xl font-bold text-stone-900">{action.title}</h2>
             <p className="text-sm text-stone-600 mt-1">{action.description}</p>
           </div>
 

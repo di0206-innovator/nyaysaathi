@@ -4,6 +4,8 @@ import { apiSuccess, apiError } from '@/lib/api/response';
 import { AuthService } from '@/lib/auth/auth-service';
 import { Logger } from '@/lib/observability/logger';
 import { Matter } from '@/types/matter';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
+import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 
 export async function GET(
   req: NextRequest,
@@ -16,7 +18,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const service = getMatterService();
+    const service = getMatterService(user.token);
     const matter = await service.getMatterById(id, user.id);
 
     if (!matter) {
@@ -25,6 +27,13 @@ export async function GET(
 
     // Strict IDOR ownership check
     if (matter.userId && matter.userId !== user.id) {
+      SecurityAuditLogger.log({
+        action: 'unauthorized_access_blocked',
+        userId: user.id,
+        matterId: id,
+        resourceType: 'matter',
+        status: 'denied'
+      });
       Logger.warn('Unauthorized matter access attempt prevented', {
         userId: user.id,
         matterId: id,
@@ -32,6 +41,14 @@ export async function GET(
       });
       return apiError('Access denied: You do not have permission to view this matter', 403, 'FORBIDDEN');
     }
+
+    SecurityAuditLogger.log({
+      action: 'matter_read',
+      userId: user.id,
+      matterId: id,
+      resourceType: 'matter',
+      status: 'success'
+    });
 
     return apiSuccess(matter);
   } catch (error: unknown) {
@@ -51,6 +68,9 @@ export async function PATCH(
       return apiError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
+    const rateLimitRes = await enforceRateLimit(req, 'modify_matter', 30, 60, user.id);
+    if (rateLimitRes) return rateLimitRes;
+
     const { id } = await params;
     const updates = await req.json();
 
@@ -58,7 +78,7 @@ export async function PATCH(
       return apiError('Updates must be a valid JSON object', 400, 'INVALID_PAYLOAD');
     }
 
-    const service = getMatterService();
+    const service = getMatterService(user.token);
     const existing = await service.getMatterById(id, user.id);
     if (!existing) {
       return apiError('Matter not found or access denied', 404, 'NOT_FOUND');
@@ -135,6 +155,15 @@ export async function PATCH(
       return apiError('Failed to update matter', 500, 'UPDATE_FAILED');
     }
 
+    SecurityAuditLogger.log({
+      action: 'matter_updated',
+      userId: user.id,
+      matterId: id,
+      resourceType: 'matter',
+      status: 'success',
+      metadata: { updatedFields: Object.keys(sanitizedUpdates) }
+    });
+
     Logger.info('Updated legal matter', {
       userId: user.id,
       matterId: id,
@@ -159,8 +188,11 @@ export async function DELETE(
       return apiError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
+    const rateLimitRes = await enforceRateLimit(req, 'delete_matter', 10, 60, user.id);
+    if (rateLimitRes) return rateLimitRes;
+
     const { id } = await params;
-    const service = getMatterService();
+    const service = getMatterService(user.token);
     const existing = await service.getMatterById(id, user.id);
 
     if (!existing) {
@@ -168,6 +200,14 @@ export async function DELETE(
     }
 
     if (existing.userId && existing.userId !== user.id) {
+      SecurityAuditLogger.log({
+        action: 'unauthorized_access_blocked',
+        userId: user.id,
+        matterId: id,
+        resourceType: 'matter',
+        status: 'denied',
+        metadata: { operation: 'delete_matter' }
+      });
       return apiError('Access denied: You cannot delete this matter', 403, 'FORBIDDEN');
     }
 
@@ -175,6 +215,14 @@ export async function DELETE(
     if (!deleted) {
       return apiError('Failed to delete matter', 500, 'DELETE_FAILED');
     }
+
+    SecurityAuditLogger.log({
+      action: 'matter_deleted',
+      userId: user.id,
+      matterId: id,
+      resourceType: 'matter',
+      status: 'success'
+    });
 
     Logger.info('Deleted legal matter', {
       userId: user.id,

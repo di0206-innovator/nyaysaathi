@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/auth/auth-service';
 import { getMatterService } from '@/lib/repository';
-import { RateLimiter } from '@/lib/security/rate-limiter';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
+import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 import { ResolutionType } from '@/types/matter';
 
 export async function GET(
@@ -15,7 +16,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const matterService = getMatterService();
+  const matterService = getMatterService(user.token);
   const matter = await matterService.getMatterById(id, user.id);
 
   if (!matter) {
@@ -38,16 +39,10 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { id } = await params;
+  const rateLimitResponse = await enforceRateLimit(req, 'resolution', 15, 60, user.id);
+  if (rateLimitResponse) return rateLimitResponse;
 
-  // Rate limiting: 15 requests / min
-  const rateLimit = RateLimiter.check(`resolution:${user.id}`, 15, 60);
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded for resolution requests. Please wait.' },
-      { status: 429 }
-    );
-  }
+  const { id } = await params;
 
   let body: {
     resolutionType: ResolutionType;
@@ -71,7 +66,7 @@ export async function POST(
     );
   }
 
-  const matterService = getMatterService();
+  const matterService = getMatterService(user.token);
   const matter = await matterService.getMatterById(id, user.id);
   if (!matter) {
     return NextResponse.json({ error: 'Matter not found or access denied' }, { status: 404 });
@@ -91,6 +86,15 @@ export async function POST(
       },
       user.id
     );
+
+    await SecurityAuditLogger.log({
+      action: 'matter_resolved',
+      userId: user.id,
+      matterId: id,
+      resource: `matter:${id}:resolution`,
+      status: 'SUCCESS',
+      metadata: { resolutionType: body.resolutionType, amountRecovered: body.amountRecovered }
+    });
 
     Logger.info('Matter formally resolved', {
       matterId: id,
@@ -119,6 +123,9 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const rateLimitResponse = await enforceRateLimit(req, 'resolution_reopen', 10, 60, user.id);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const { id } = await params;
 
   let body: { reason: string };
@@ -128,7 +135,7 @@ export async function DELETE(
     body = { reason: 'User requested matter reopening' };
   }
 
-  const matterService = getMatterService();
+  const matterService = getMatterService(user.token);
   const matter = await matterService.getMatterById(id, user.id);
   if (!matter) {
     return NextResponse.json({ error: 'Matter not found or access denied' }, { status: 404 });
@@ -141,6 +148,15 @@ export async function DELETE(
       user.email || user.id,
       user.id
     );
+
+    await SecurityAuditLogger.log({
+      action: 'matter_reopened',
+      userId: user.id,
+      matterId: id,
+      resource: `matter:${id}:reopen`,
+      status: 'SUCCESS',
+      metadata: { reason: body.reason }
+    });
 
     Logger.info('Matter reopened', {
       matterId: id,

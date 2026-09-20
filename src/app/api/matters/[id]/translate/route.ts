@@ -4,6 +4,7 @@ import { getLanguageService } from '@/lib/multilingual/language-service';
 import { apiSuccess, apiError } from '@/lib/api/response';
 import { SupportedLanguage } from '@/lib/ai';
 import { AuthService } from '@/lib/auth/auth-service';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
 
 export async function POST(
@@ -16,6 +17,9 @@ export async function POST(
       return apiError('Authentication required to translate matter', 401, 'UNAUTHORIZED');
     }
 
+    const rateLimitResponse = await enforceRateLimit(req, 'translate', 30, 60, user.id);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { id } = await params;
     const body = await req.json();
 
@@ -23,7 +27,7 @@ export async function POST(
       ? body.language
       : 'en';
 
-    const matterService = getMatterService();
+    const matterService = getMatterService(user.token);
     const matter = await matterService.getMatterById(id, user.id);
 
     if (!matter) {

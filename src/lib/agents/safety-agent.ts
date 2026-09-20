@@ -1,6 +1,7 @@
 import { AgentInput, SafetyVerificationAgentResult, AgentMemoryEnvelope, SourceReference } from './types';
 import { ExtractedFact, TrustSafetyItem } from '@/types/matter';
 import { ClaimSupportChecker } from '@/lib/reasoning/claim-support-checker';
+import { TrustEngine } from '@/lib/ai/trust-engine';
 
 export class SafetyVerificationAgent {
   public async execute(
@@ -95,7 +96,7 @@ export class SafetyVerificationAgent {
       label: 'Advocate Consultation Required',
       text: 'Final representation in court hearings, swearing formal affidavits under oath, or filing vakalatnama requires an enrolled Advocate or authorized legal aid counsel.',
       citation: 'Advocates Act, 1961',
-      confidenceScore: 0.98,
+      confidenceScore: 0.95,
       groundingRefIds: ['statute-advocates-act'],
       groundingStatus: 'grounded'
     });
@@ -106,9 +107,32 @@ export class SafetyVerificationAgent {
       label: 'Evidentiary Gap / Unsupported Claim',
       text: 'Any assertion lacking contemporaneous documentation (e.g., signed joint inspection protocol, original GST repair bills, or postal tracking receipt) is classified as an unverified possibility and cannot be claimed as an established fact.',
       disclaimer: 'Upload verifying documents or answer missing details to substantiate this before formal proceedings.',
-      confidenceScore: 0.3,
+      confidenceScore: 0.25,
       groundingStatus: 'unsupported'
     });
+
+    // Run deterministic safety gates
+    const contradictions = TrustEngine.detectContradictions(verifiedFacts, input.documents);
+    const gateEval = TrustEngine.evaluateSafetyGates({
+      userStory: input.userStory || '',
+      category: input.category,
+      claimAmount: input.claimAmount,
+      hasContradictions: contradictions.length > 0,
+      unresolvedHighStakes: input.documents.length === 0
+    });
+
+    if (contradictions.length > 0) {
+      contradictions.forEach(c => {
+        trustSafetyItems.push({
+          tier: 'counsel_required',
+          label: 'Material Factual Contradiction',
+          text: c.description,
+          disclaimer: 'Discrepancy between stated claim and document extracts requires advocate review.',
+          confidenceScore: 0.35,
+          groundingStatus: 'partially_grounded'
+        });
+      });
+    }
 
     const mandatoryDisclaimers = [
       'NyaySaathi is an informational legal action navigator and preparation platform, not an advocate or law firm.',
@@ -116,21 +140,33 @@ export class SafetyVerificationAgent {
       'For complex litigation, cross-examination, or criminal matters, please consult an enrolled Advocate or access free NALSA legal aid (Toll-free 15100).'
     ];
 
+    const isSafeForInformationalDisplay = !gateEval.safetyFlags.some(f => f.code === 'CRIMINAL_OR_SAFETY_GATE');
+
     const result: SafetyVerificationAgentResult = {
       verifiedFacts,
       trustSafetyItems,
-      isSafeForInformationalDisplay: true,
+      isSafeForInformationalDisplay,
       mandatoryDisclaimers,
       auditLog
     };
 
+    const groundedItemCount = trustSafetyItems.filter(i => i.tier === 'fact' || i.groundingStatus === 'grounded').length;
+    const confidenceScore = trustSafetyItems.length > 0
+      ? Math.min(0.95, Math.max(0.2, Math.round((groundedItemCount / trustSafetyItems.length) * 100) / 100))
+      : 0.5;
+
+    const evidenceState = gateEval.counselRequired
+      ? 'counsel_required'
+      : (contradictions.length > 0 ? 'conflicting' : (verifiedFacts.some(f => f.verified) ? 'verified' : 'supported'));
+
     return {
       result,
-      confidenceScore: 0.98,
+      confidenceScore,
+      evidenceState,
       sourceReferences,
       assumptions,
       unresolvedQuestions,
-      safetyFlags: []
+      safetyFlags: gateEval.safetyFlags
     };
   }
 }

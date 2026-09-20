@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/auth/auth-service';
 import { getMatterService } from '@/lib/repository';
-import { RateLimiter } from '@/lib/security/rate-limiter';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
 import { ActionStep, ActionStatus, ActionResult } from '@/types/matter';
+import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 
 export async function GET(
   req: NextRequest,
@@ -15,7 +16,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const matterService = getMatterService();
+  const matterService = getMatterService(user.token);
   const matter = await matterService.getMatterById(id, user.id);
 
   if (!matter) {
@@ -37,16 +38,10 @@ export async function PATCH(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { id } = await params;
+  const rateLimitRes = await enforceRateLimit(req, 'update_action', 45, 60, user.id);
+  if (rateLimitRes) return rateLimitRes;
 
-  // Rate limiting: 45 requests / min
-  const rateLimit = RateLimiter.check(`actions:${user.id}`, 45, 60);
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded for action updates. Please wait.' },
-      { status: 429 }
-    );
-  }
+  const { id } = await params;
 
   let body: {
     actionId: string;
@@ -69,7 +64,7 @@ export async function PATCH(
   }
 
   try {
-    const matterService = getMatterService();
+    const matterService = getMatterService(user.token);
     const updatedMatter = await matterService.updateActionStep(
       id,
       body.actionId,
@@ -85,6 +80,16 @@ export async function PATCH(
     );
 
     const updatedAction = updatedMatter.actionPlan.find((a: ActionStep) => a.id === body.actionId);
+
+    SecurityAuditLogger.log({
+      action: 'action_updated',
+      userId: user.id,
+      matterId: id,
+      resourceType: 'action',
+      resourceId: body.actionId,
+      status: 'success',
+      metadata: { status: body.status }
+    });
 
     Logger.info('Action step updated', {
       matterId: id,

@@ -177,6 +177,65 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* 2.5 Primary Launch Wedge: Tenant-Landlord Security Deposit Dispute Navigator */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-6">
+        <div className="bg-gradient-to-br from-amber-900 via-stone-900 to-stone-950 text-white rounded-3xl p-6 sm:p-10 shadow-2xl border border-amber-500/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="max-w-3xl space-y-4 relative z-10">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold uppercase tracking-wider">
+              <Home className="w-3.5 h-3.5 text-amber-400" />
+              <span>Primary Launch Wedge • Urban India</span>
+            </div>
+
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              Withheld Security Deposit? Arbitrary Deductions?<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">
+                Execute a Grounded Recovery Roadmap.
+              </span>
+            </h2>
+
+            <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
+              In Bengaluru, Delhi-NCR, Mumbai, and Hyderabad, over ₹2,400 Crore in tenant deposits remain arbitrarily withheld annually under fake &quot;painting charges&quot; or delayed beyond the 30-day statutory window. NyaySaathi transforms unorganized WhatsApp chats and move-out photos into an airtight legal dossier.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+              <div className="p-4 rounded-xl bg-stone-850/80 border border-stone-700/80 space-y-1">
+                <span className="text-xs font-bold text-amber-400">1. Evidence Lock</span>
+                <p className="text-[11px] text-stone-300">Rental agreement terms, UPI transaction slips, and handover video proofs.</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-stone-850/80 border border-stone-700/80 space-y-1">
+                <span className="text-xs font-bold text-amber-400">2. Statutory Grounding</span>
+                <p className="text-[11px] text-stone-300">Model Tenancy Act §13 & Indian Contract Act §73 governing ordinary wear and tear.</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-stone-850/80 border border-stone-700/80 space-y-1">
+                <span className="text-xs font-bold text-amber-400">3. 3-Tier Notice Suite</span>
+                <p className="text-[11px] text-stone-300">Amicable reconciliation letter, registered Speed Post demand, or e-Daakhil filing.</p>
+              </div>
+            </div>
+
+            <div className="pt-4 flex flex-wrap items-center gap-3">
+              <Link
+                href="/matters/new?category=tenancy_housing"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-stone-950 font-bold text-xs sm:text-sm shadow-md transition-all flex items-center space-x-2"
+              >
+                <span>Start Tenancy Deposit Matter</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+
+              <Link
+                href="/analytics"
+                className="px-5 py-2.5 rounded-xl bg-stone-800/80 hover:bg-stone-750 text-stone-300 font-semibold text-xs sm:text-sm border border-stone-700 transition-all flex items-center space-x-2"
+              >
+                <span>View Live Pilot Analytics</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* 3. Pre-loaded Sample Matters Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">

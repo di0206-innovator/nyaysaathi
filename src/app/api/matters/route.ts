@@ -5,6 +5,8 @@ import { apiSuccess, apiError } from '@/lib/api/response';
 import { MatterCategory, MatterStatus } from '@/types/matter';
 import { AuthService } from '@/lib/auth/auth-service';
 import { Logger } from '@/lib/observability/logger';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
+import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +15,7 @@ export async function GET(req: NextRequest) {
       return apiError('Authentication required to access matters', 401, 'UNAUTHORIZED');
     }
 
-    const service = getMatterService();
+    const service = getMatterService(user.token);
     const { searchParams } = new URL(req.url);
     const category = searchParams.get('category') || undefined;
     const status = searchParams.get('status') || undefined;
@@ -47,6 +49,9 @@ export async function POST(req: NextRequest) {
       return apiError('Authentication required to create a matter', 401, 'UNAUTHORIZED');
     }
 
+    const rateLimitRes = await enforceRateLimit(req, 'create_matter', 20, 60, user.id);
+    if (rateLimitRes) return rateLimitRes;
+
     const body = await req.json();
     const validation = validateCreateMatter(body);
 
@@ -59,10 +64,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const service = getMatterService();
+    const service = getMatterService(user.token);
     const created = await service.createMatter({
       ...validation.data,
       userId: user.id
+    });
+
+    SecurityAuditLogger.log({
+      action: 'matter_created',
+      userId: user.id,
+      matterId: created.id,
+      resourceType: 'matter',
+      status: 'success'
     });
 
     Logger.info('Created new legal matter', {

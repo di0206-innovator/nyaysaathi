@@ -57,6 +57,10 @@ export class RateLimiter {
     };
   }
 
+  public static clear(): void {
+    this.store.clear();
+  }
+
   /**
    * Distributed rate limit checking using Supabase / Postgres RPC.
    * Seamlessly falls back to local in-memory sliding window when offline or in tests.
@@ -102,4 +106,42 @@ export class RateLimiter {
   public static reset(): void {
     this.store.clear();
   }
+}
+
+/**
+ * Route-level rate limit enforcer.
+ * Returns a 429 NextResponse with Retry-After headers if limit exceeded, or null if allowed.
+ */
+export async function enforceRateLimit(
+  req: Request,
+  actionName: string,
+  maxRequests: number = 30,
+  windowSeconds: number = 60,
+  userId?: string
+) {
+  const { NextResponse } = await import('next/server');
+  const clientIp =
+    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+    req.headers.get('x-real-ip') ||
+    '127.0.0.1';
+  const key = userId ? `user:${userId}:${actionName}` : `ip:${clientIp}:${actionName}`;
+  const result = await RateLimiter.checkAsync(key, maxRequests, windowSeconds);
+
+  if (!result.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Rate limit exceeded for ${actionName}. Please retry after ${result.resetSeconds} seconds.`,
+        code: 'RATE_LIMIT_EXCEEDED'
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(result.resetSeconds),
+          'X-RateLimit-Remaining': '0'
+        }
+      }
+    );
+  }
+  return null;
 }

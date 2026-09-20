@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/auth/auth-service';
 import { getMatterService } from '@/lib/repository';
-import { RateLimiter } from '@/lib/security/rate-limiter';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
+import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 
 export async function GET(
   req: NextRequest,
@@ -13,18 +14,12 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const rateLimitResponse = await enforceRateLimit(req, 'advocate_pack', 20, 60, user.id);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const { id } = await params;
 
-  // Rate limiting: 20 requests / min
-  const rateLimit = RateLimiter.check(`advocate_pack:${user.id}`, 20, 60);
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded for generating Advocate Case Pack. Please wait.' },
-      { status: 429 }
-    );
-  }
-
-  const matterService = getMatterService();
+  const matterService = getMatterService(user.token);
   const matter = await matterService.getMatterById(id, user.id);
 
   if (!matter) {
@@ -33,6 +28,15 @@ export async function GET(
 
   try {
     const advocatePack = await matterService.generateAdvocateCasePack(id, user.id);
+
+    await SecurityAuditLogger.log({
+      action: 'advocate_pack_generated',
+      userId: user.id,
+      matterId: id,
+      resource: `matter:${id}:advocate_pack`,
+      status: 'SUCCESS',
+      metadata: { sectionsCount: 10 }
+    });
 
     Logger.info('Advocate Case Pack generated', {
       matterId: id,

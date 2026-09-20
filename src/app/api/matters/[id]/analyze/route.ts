@@ -3,8 +3,9 @@ import { getMatterService } from '@/lib/repository';
 import { validateAnalyzeTrigger } from '@/lib/api/validation';
 import { apiSuccess, apiError } from '@/lib/api/response';
 import { AuthService } from '@/lib/auth/auth-service';
-import { RateLimiter } from '@/lib/security/rate-limiter';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
+import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 
 export async function POST(
   req: NextRequest,
@@ -16,19 +17,11 @@ export async function POST(
       return apiError('Authentication required to run matter analysis', 401, 'UNAUTHORIZED');
     }
 
+    const rateLimitRes = await enforceRateLimit(req, 'analyze_matter', 15, 60, user.id);
+    if (rateLimitRes) return rateLimitRes;
+
     const { id } = await params;
-
-    // Rate limit: 15 re-analyses per minute per user
-    const rateCheck = RateLimiter.check(`analyze-${user.id}`, 15, 60);
-    if (!rateCheck.allowed) {
-      return apiError(
-        `Analysis rate limit reached. Please wait ${rateCheck.resetSeconds} seconds before requesting further agent analysis.`,
-        429,
-        'RATE_LIMIT_EXCEEDED'
-      );
-    }
-
-    const service = getMatterService();
+    const service = getMatterService(user.token);
     const existing = await service.getMatterById(id, user.id);
     if (!existing) {
       return apiError('Matter not found or access denied', 404, 'NOT_FOUND');
@@ -58,6 +51,15 @@ export async function POST(
     if (!reanalyzed) {
       return apiError('Failed to re-analyze matter', 500, 'REANALYZE_FAILED');
     }
+
+    SecurityAuditLogger.log({
+      action: 'matter_updated',
+      userId: user.id,
+      matterId: id,
+      resourceType: 'analysis',
+      status: 'success',
+      metadata: { trigger: validation.trigger }
+    });
 
     Logger.info('Matter re-analyzed successfully', {
       userId: user.id,

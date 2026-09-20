@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/auth/auth-service';
 import { getMatterService } from '@/lib/repository';
-import { RateLimiter } from '@/lib/security/rate-limiter';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
 import { CommunicationType, CommunicationDirection } from '@/types/matter';
+import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 
 export async function GET(
   req: NextRequest,
@@ -15,7 +16,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const matterService = getMatterService();
+  const matterService = getMatterService(user.token);
   const matter = await matterService.getMatterById(id, user.id);
 
   if (!matter) {
@@ -37,16 +38,10 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { id } = await params;
+  const rateLimitRes = await enforceRateLimit(req, 'record_communication', 30, 60, user.id);
+  if (rateLimitRes) return rateLimitRes;
 
-  // Rate limiting: 30 requests / min
-  const rateLimit = RateLimiter.check(`comms:${user.id}`, 30, 60);
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded for recording communications. Please wait.' },
-      { status: 429 }
-    );
-  }
+  const { id } = await params;
 
   let body: {
     type: CommunicationType;
@@ -74,7 +69,7 @@ export async function POST(
     );
   }
 
-  const matterService = getMatterService();
+  const matterService = getMatterService(user.token);
   const matter = await matterService.getMatterById(id, user.id);
   if (!matter) {
     return NextResponse.json({ error: 'Matter not found or access denied' }, { status: 404 });
@@ -98,6 +93,15 @@ export async function POST(
       },
       user.id
     );
+
+    SecurityAuditLogger.log({
+      action: 'communication_recorded',
+      userId: user.id,
+      matterId: id,
+      resourceType: 'communication',
+      status: 'success',
+      metadata: { type: body.type, direction: body.direction }
+    });
 
     Logger.info('Communication recorded', {
       matterId: id,

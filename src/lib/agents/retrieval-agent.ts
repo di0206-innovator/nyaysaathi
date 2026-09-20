@@ -93,11 +93,24 @@ export class LegalRetrievalAgent {
       return s;
     });
 
+    const totalStatutes = applicableStatutes.length;
+    const topScore = ragResults.length > 0 ? (ragResults[0].relevanceScore || 0.75) : (totalStatutes > 0 ? 0.70 : 0.1);
+    const confidenceScore = totalStatutes === 0
+      ? 0.1
+      : Math.min(0.95, Math.max(0.2, Math.round(topScore * 100) / 100));
+
+    const evidenceState = totalStatutes === 0
+      ? 'unsupported'
+      : (tierEvaluation.tier === 'counsel_required'
+          ? 'counsel_required'
+          : (ragResults.length > 0 && ragResults[0].isStrongMatch ? 'verified' : 'supported'));
+
     return {
       result: {
         applicableStatutes
       },
-      confidenceScore: ragResults.length > 0 && ragResults[0].isStrongMatch ? 0.96 : 0.85,
+      confidenceScore,
+      evidenceState,
       sourceReferences,
       assumptions,
       unresolvedQuestions,

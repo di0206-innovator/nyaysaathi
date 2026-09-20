@@ -3,6 +3,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AuthProvider } from "@/lib/auth/AuthContext";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "NyaySaathi — Matter-Based Legal Action Navigator for India",
@@ -21,9 +22,11 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-[#FAF9F5] text-stone-900">
         <AuthProvider>
-          <Navbar />
-          <div className="flex-1">{children}</div>
-          <Footer />
+          <ToastProvider>
+            <Navbar />
+            <div className="flex-1">{children}</div>
+            <Footer />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

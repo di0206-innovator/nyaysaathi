@@ -119,12 +119,7 @@ export default function MatterDetailPage({
   const handleReanalyze = async (trigger: string = 'full') => {
     setAnalyzing(true);
     setErrorMessage(null);
-
-    // Stepped honest progress states
-    setAnalysisStep('Querying applicable statutes & precedents...');
-    const stepTimer1 = setTimeout(() => setAnalysisStep('Reconstructing chronological timeline & milestone dates...'), 400);
-    const stepTimer2 = setTimeout(() => setAnalysisStep('Assessing risk vectors & limitation windows...'), 800);
-    const stepTimer3 = setTimeout(() => setAnalysisStep('Running mandatory trust & safety verification audit...'), 1200);
+    setAnalysisStep('Executing multi-agent verification and analysis pipeline...');
 
     try {
       const res = await fetch(`/api/matters/${id}/analyze`, {
@@ -143,11 +138,8 @@ export default function MatterDetailPage({
       }
     } catch (err) {
       console.error('Failed to re-analyze', err);
-      setErrorMessage('Failed to connect to analysis service');
+      setErrorMessage('Failed to connect to analysis service. Please check network connection.');
     } finally {
-      clearTimeout(stepTimer1);
-      clearTimeout(stepTimer2);
-      clearTimeout(stepTimer3);
       setAnalyzing(false);
       setAnalysisStep('');
     }

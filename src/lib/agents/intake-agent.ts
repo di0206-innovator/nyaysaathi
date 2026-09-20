@@ -98,9 +98,20 @@ export class IntakeAgent {
       legalNature
     };
 
+    const completenessRatio = Math.min(
+      1.0,
+      Math.round(
+        ((parties.length >= 2 ? 0.4 : 0.2) +
+          (extractedAmount !== undefined && extractedAmount > 0 ? 0.3 : 0.1) +
+          (input.userStory && input.userStory.length > 50 ? 0.3 : 0.1)) *
+          100
+      ) / 100
+    );
+
     return {
       result,
-      confidenceScore: 0.94,
+      confidenceScore: completenessRatio,
+      evidenceState: parties.length >= 2 ? 'supported' : 'partially_supported',
       sourceReferences,
       assumptions,
       unresolvedQuestions,

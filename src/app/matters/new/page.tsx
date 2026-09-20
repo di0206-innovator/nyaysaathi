@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { useToast } from '@/components/ui/Toast';
 
 export default function NewMatterPage() {
   return (
@@ -33,6 +34,7 @@ function NewMatterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { token } = useAuth();
+  const { showToast } = useToast();
   const initialCat = (searchParams.get('category') as MatterCategory) || 'tenancy_housing';
 
   const [step, setStep] = useState<number>(1);
@@ -129,7 +131,7 @@ function NewMatterContent() {
       if (data.success && data.data?.id) {
         router.push(`/matters/${data.data.id}`);
       } else {
-        alert('Failed to initialize matter. Please try again.');
+        showToast('error', 'Matter Initialization Failed', 'Could not create matter. Please verify your connection and try again.');
         setIsProcessing(false);
       }
     } catch (err) {
@@ -357,7 +359,7 @@ function NewMatterContent() {
               <button
                 onClick={() => {
                   if (!userStory.trim()) {
-                    alert('Please provide a brief explanation of what happened.');
+                    showToast('warning', 'Narrative Required', 'Please provide a brief explanation of what happened.');
                     return;
                   }
                   setStep(3);

@@ -17,6 +17,7 @@ import { SafetyVerificationAgent } from './safety-agent';
 import { Matter } from '@/types/matter';
 import { EvidenceGraph } from '@/lib/graph/evidence-graph';
 import { EscalationMatcher } from '@/lib/legal/escalation-matcher';
+import { Metrics } from '@/lib/observability/metrics';
 
 export class MatterOrchestrator {
   private intakeAgent = new IntakeAgent();
@@ -100,7 +101,7 @@ export class MatterOrchestrator {
         detectedSubCategory: 'General Legal Dispute',
         extractedParties: input.parties,
         claimAmount: input.claimAmount,
-        plainLanguageSummary: input.userStory.slice(0, 200),
+        plainLanguageSummary: (input.userStory || input.title || '').slice(0, 200),
         keyConflict: 'Dispute identified from initial story narrative',
         legalNature: 'Civil / Statutory grievance under evaluation'
       };
@@ -421,7 +422,7 @@ export class MatterOrchestrator {
         type: 'doc',
         label: doc.title,
         content: doc.relevanceSummary || doc.title,
-        confidence: doc.confidenceScore || 0.95
+        confidence: doc.confidenceScore ?? (doc.extractionStatus === 'verified_extraction' ? 0.95 : 0.35)
       });
       graph.addEdge(doc.id, 'claim-user-narrative', 'supports');
     });
@@ -433,7 +434,7 @@ export class MatterOrchestrator {
         type: 'fact',
         label: fact.category.toUpperCase(),
         content: fact.statement,
-        confidence: fact.confidence
+        confidence: fact.confidence ?? (fact.verified ? 0.9 : 0.5)
       });
       if (fact.sourceDocId) {
         graph.addEdge(fact.id, fact.sourceDocId, 'evidenced_by');
@@ -443,23 +444,26 @@ export class MatterOrchestrator {
     // Add Statute nodes
     retrievalResult.applicableStatutes.forEach((stat, idx) => {
       const sId = `statute-node-${idx + 1}`;
+      const rawScore = (stat as { matchScore?: number }).matchScore;
+      const statScore = typeof rawScore === 'number' ? Math.min(0.95, rawScore) : 0.8;
       graph.addNode({
         id: sId,
         type: 'statute',
         label: `${stat.statute} (${stat.section})`,
         content: stat.applicabilityNote,
-        confidence: 0.98
+        confidence: statScore
       });
     });
 
     // Add Risk nodes & edges
     riskResult.risks.forEach(risk => {
+      const riskConf = risk.severity === 'critical' ? 0.9 : (risk.severity === 'high' ? 0.8 : 0.65);
       graph.addNode({
         id: risk.id,
         type: 'risk',
         label: risk.title,
         content: risk.description,
-        confidence: 0.9
+        confidence: riskConf
       });
       graph.addEdge(risk.id, 'claim-user-narrative', 'derives_from');
       if (docResult.processedDocuments.length > 0) {
@@ -469,12 +473,13 @@ export class MatterOrchestrator {
 
     // Add Action nodes & edges
     actionResult.actionPlan.forEach(act => {
+      const actConf = act.priority === 'must_do' ? 0.9 : 0.75;
       graph.addNode({
         id: act.id,
         type: 'action',
         label: act.title,
         content: act.description,
-        confidence: 0.92
+        confidence: actConf
       });
       if (riskResult.risks.length > 0) {
         graph.addEdge(act.id, riskResult.risks[0].id, 'mitigates');
@@ -483,12 +488,13 @@ export class MatterOrchestrator {
 
     // Add Draft nodes & edges
     draftResult.drafts.forEach(draft => {
+      const draftConf = draft.groundingStatus === 'grounded' ? 0.9 : 0.65;
       graph.addNode({
         id: draft.id,
         type: 'draft',
         label: `${draft.title} (${draft.communicationTier})`,
         content: draft.subject,
-        confidence: 0.95
+        confidence: draftConf
       });
     });
 
@@ -668,6 +674,13 @@ export class MatterOrchestrator {
       notifications: baseMatter?.notifications || []
     };
 
+    // Telemetry & Observability: Record duration and outcome for executed agents
+    for (const log of logs) {
+      if (log.status !== 'skipped') {
+        Metrics.recordAgentLatency(log.agentName, log.executionTimeMs, log.status === 'completed');
+      }
+    }
+
     return {
       matter: updatedMatter,
       logs,
@@ -690,7 +703,7 @@ export class MatterOrchestrator {
       matterId: matter.id,
       title: matter.title,
       category: matter.category,
-      userStory: matter.userStory,
+      userStory: matter.userStory || (Array.isArray(matter.facts) ? matter.facts.map(f => f.statement).join('. ') : '') || '',
       parties: matter.parties,
       documents: matter.documents,
       locationCity: matter.locationCity,

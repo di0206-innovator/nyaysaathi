@@ -362,12 +362,20 @@ Complainant in Person`,
       });
     });
 
+    const totalDrafts = auditedDrafts.length;
+    const hasUnfilledPlaceholders = auditedDrafts.some(d => d.content.includes('[') && d.content.includes(']'));
+    const confidenceScore = totalDrafts === 0
+      ? 0.2
+      : (hasUnfilledPlaceholders ? 0.75 : 0.90);
+    const evidenceState = hasUnfilledPlaceholders ? 'partially_supported' : 'supported';
+
     return {
       result: {
         drafts: auditedDrafts,
         lawyerBrief
       },
-      confidenceScore: 0.95,
+      confidenceScore,
+      evidenceState,
       sourceReferences,
       assumptions,
       unresolvedQuestions,

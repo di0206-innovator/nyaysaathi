@@ -6,13 +6,13 @@ export interface AuthenticatedUser {
   email: string;
   name?: string;
   role?: string;
+  token?: string;
 }
 
 export class AuthService {
   /**
    * Extracts and validates the authenticated user from a NextRequest.
-   * Checks Authorization header (Bearer token), Supabase session cookies,
-   * and authorized test headers for development/testing environments.
+   * Checks Authorization header (Bearer token) or Supabase session cookies.
    */
   public static async getAuthenticatedUser(req: NextRequest): Promise<AuthenticatedUser | null> {
     // 1. Check Bearer Token in Authorization header
@@ -43,7 +43,7 @@ export class AuthService {
     }
 
     // 4. Test / Explicit Demo Auth Fallback
-    // Permitted in local unit tests or explicit demo mode
+    // Permitted ONLY in local unit tests or explicit demo mode via Bearer mock-user-*
     const isExplicitDemoOrTest =
       process.env.NODE_ENV === 'test' ||
       !process.env.NODE_ENV ||
@@ -56,7 +56,8 @@ export class AuthService {
         id,
         email: `${id}@test.nyaysaathi.in`,
         name: `Test User ${id}`,
-        role: id.includes('advocate') ? 'advocate' : 'authenticated'
+        role: id.includes('advocate') ? 'advocate' : 'authenticated',
+        token
       };
     }
 
@@ -74,28 +75,16 @@ export class AuthService {
               id: data.user.id,
               email: data.user.email || '',
               name: data.user.user_metadata?.full_name,
-              role: data.user.role
+              role: data.user.role,
+              token
             };
           }
         }
       } catch (err) {
         console.error('Supabase token verification error:', err);
       }
-      // When Supabase is configured, NEVER fall back to unverified mock headers
+      // When Supabase is configured, NEVER fall back to unverified mock identities
       return null;
-    }
-
-    // 6. In test/dev mode without Supabase, x-user-id fallback for dev tooling
-    if (isExplicitDemoOrTest && process.env.NODE_ENV !== 'production') {
-      const testUserId = req.headers.get('x-user-id');
-      if (testUserId) {
-        return {
-          id: testUserId,
-          email: `${testUserId}@nyaysaathi.internal`,
-          name: `User ${testUserId}`,
-          role: 'authenticated'
-        };
-      }
     }
 
     return null;

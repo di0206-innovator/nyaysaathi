@@ -4,8 +4,9 @@ import { getMatterQAService } from '@/lib/qa/qa-service';
 import { apiSuccess, apiError } from '@/lib/api/response';
 import { SupportedLanguage } from '@/lib/ai';
 import { AuthService } from '@/lib/auth/auth-service';
-import { RateLimiter } from '@/lib/security/rate-limiter';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
+import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 
 export async function POST(
   req: NextRequest,
@@ -17,17 +18,10 @@ export async function POST(
       return apiError('Authentication required to ask matter questions', 401, 'UNAUTHORIZED');
     }
 
-    const { id } = await params;
+    const rateLimitResponse = await enforceRateLimit(req, 'legal_qa', 25, 60, user.id);
+    if (rateLimitResponse) return rateLimitResponse;
 
-    // Rate limit: 25 Q&A requests per minute
-    const rateCheck = RateLimiter.check(`qa-${user.id}`, 25, 60);
-    if (!rateCheck.allowed) {
-      return apiError(
-        `Legal Q&A rate limit exceeded. Please wait ${rateCheck.resetSeconds} seconds.`,
-        429,
-        'RATE_LIMIT_EXCEEDED'
-      );
-    }
+    const { id } = await params;
 
     const body = await req.json();
 
@@ -44,7 +38,7 @@ export async function POST(
       ? body.language
       : 'en';
 
-    const matterService = getMatterService();
+    const matterService = getMatterService(user.token);
     const matter = await matterService.getMatterById(id, user.id);
 
     if (!matter) {
@@ -57,6 +51,15 @@ export async function POST(
 
     const qaService = getMatterQAService();
     const result = await qaService.answerQuestion(matter, query, language);
+
+    await SecurityAuditLogger.log({
+      action: 'legal_qa_asked',
+      userId: user.id,
+      matterId: id,
+      resource: `matter:${id}:qa`,
+      status: 'SUCCESS',
+      metadata: { isFullyGrounded: result.isFullyGrounded, citationsCount: result.citations.length }
+    });
 
     Logger.info('Matter question answered with evidence grounding', {
       userId: user.id,

@@ -184,11 +184,18 @@ export class ActionPlannerAgent {
       });
     });
 
+    const groundedActionCount = actionPlan.filter(a => a.groundingRefIds && a.groundingRefIds.length > 0).length;
+    const groundingRatio = actionPlan.length > 0 ? groundedActionCount / actionPlan.length : 0;
+    const confidenceScore = actionPlan.length === 0
+      ? 0.1
+      : Math.min(0.95, Math.max(0.3, Math.round((0.5 + groundingRatio * 0.4) * 100) / 100));
+
     return {
       result: {
         actionPlan
       },
-      confidenceScore: 0.94,
+      confidenceScore,
+      evidenceState: input.documents.length > 0 ? 'supported' : 'partially_supported',
       sourceReferences,
       assumptions,
       unresolvedQuestions,

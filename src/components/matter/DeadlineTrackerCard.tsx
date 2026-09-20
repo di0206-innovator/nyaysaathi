@@ -3,12 +3,15 @@
 import React from 'react';
 import { Clock, AlertTriangle, CheckCircle2, Bell } from 'lucide-react';
 import { CalculatedDeadline } from '@/lib/deadlines/deadline-engine';
+import { useToast } from '@/components/ui/Toast';
 
 interface DeadlineTrackerCardProps {
   deadlines: CalculatedDeadline[];
 }
 
 export function DeadlineTrackerCard({ deadlines }: DeadlineTrackerCardProps) {
+  const { showToast } = useToast();
+
   if (deadlines.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-stone-500 text-xs">
@@ -100,8 +103,8 @@ export function DeadlineTrackerCard({ deadlines }: DeadlineTrackerCardProps) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => alert(`Reminder set for: ${item.title}`)}
-                  className="px-2 py-1 rounded-md bg-white border border-stone-300 hover:bg-stone-100 text-stone-700 font-semibold shrink-0 flex items-center space-x-1 shadow-2xs"
+                  onClick={() => showToast('info', 'Procedural Reminder Set', `Reminder active for: ${item.title}`)}
+                  className="px-2 py-1 rounded-md bg-white border border-stone-300 hover:bg-stone-100 text-stone-700 font-semibold shrink-0 flex items-center space-x-1 shadow-2xs focus:outline-none focus:ring-2 focus:ring-amber-500"
                 >
                   <Bell className="w-3 h-3 text-amber-600" />
                   <span>Remind</span>

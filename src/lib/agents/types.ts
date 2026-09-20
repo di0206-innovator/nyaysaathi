@@ -30,6 +30,14 @@ export interface SafetyFlag {
 export interface AgentMemoryEnvelope<T> {
   result: T;
   confidenceScore: number;
+  evidenceState?:
+    | 'verified'
+    | 'supported'
+    | 'partially_supported'
+    | 'unresolved'
+    | 'conflicting'
+    | 'unsupported'
+    | 'counsel_required';
   sourceReferences: SourceReference[];
   assumptions: string[];
   unresolvedQuestions: string[];

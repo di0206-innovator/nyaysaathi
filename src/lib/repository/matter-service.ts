@@ -228,7 +228,10 @@ export class MatterService {
    * Update an existing matter record.
    */
   public async updateMatter(id: string, updates: Partial<Matter>, userId?: string): Promise<Matter | null> {
-    return this.adapter.matters.update(id, updates, userId);
+    // Mass-assignment protection: immutable system and ownership fields
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { userId: _uid, id: _id, createdAt: _ca, ...safeUpdates } = updates as Partial<Matter> & { userId?: string; id?: string; createdAt?: string };
+    return this.adapter.matters.update(id, safeUpdates, userId);
   }
 
   /**

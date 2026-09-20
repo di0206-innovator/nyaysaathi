@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Scale, PlusCircle, FolderLock, PhoneCall } from 'lucide-react';
+import { Scale, PlusCircle, FolderLock, PhoneCall, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 export function Navbar() {
@@ -54,6 +54,17 @@ export function Navbar() {
             >
               <FolderLock className="w-4 h-4" />
               <span>My Matters</span>
+            </Link>
+            <Link
+              href="/analytics"
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1.5 ${
+                pathname === '/analytics'
+                  ? 'bg-stone-800 text-white'
+                  : 'text-stone-300 hover:bg-stone-800/60 hover:text-white'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Analytics</span>
             </Link>
           </nav>
 

@@ -137,12 +137,21 @@ export class TimelineAgent {
       });
     });
 
+    const totalEvents = timelineEvents.length;
+    const verifiedEvents = timelineEvents.filter(e => e.status === 'verified').length;
+    const eventRatio = totalEvents > 0 ? verifiedEvents / totalEvents : 0;
+    const gapDeduction = Math.min(0.2, identifiedGaps.length * 0.05);
+    const confidenceScore = totalEvents === 0
+      ? 0.15
+      : Math.min(1.0, Math.max(0.2, Math.round((0.5 + eventRatio * 0.4 - gapDeduction) * 100) / 100));
+
     return {
       result: {
         timelineEvents,
         identifiedGaps
       },
-      confidenceScore: 0.92,
+      confidenceScore,
+      evidenceState: totalEvents === 0 ? 'unresolved' : (verifiedEvents > 0 ? 'supported' : 'partially_supported'),
       sourceReferences,
       assumptions,
       unresolvedQuestions,
