@@ -127,6 +127,7 @@ export class MatterService {
       locationCity: input.locationCity,
       locationState: input.locationState,
       claimAmount: input.claimAmount,
+      acquisitionSource: input.acquisitionSource,
       userStory: input.userStory,
       summary: {
         plainLanguage: 'Analyzing legal context...',
@@ -169,6 +170,7 @@ export class MatterService {
       ...pipelineResult.matter,
       id: matterId,
       userId: input.userId,
+      acquisitionSource: input.acquisitionSource,
       status: 'awaiting_user_action',
       activityEvents: [
         {
@@ -874,5 +876,115 @@ export class MatterService {
     updatedMatter.status = this.deriveMatterHealthStatus(updatedMatter);
 
     return this.adapter.matters.update(id, updatedMatter, userId);
+  }
+
+  /**
+   * Persist structured pilot evaluation feedback.
+   */
+  public async submitPilotFeedback(feedback: import('./types').PilotFeedback): Promise<import('./types').PilotFeedback> {
+    if (!this.adapter.pilotFeedback) {
+      throw new Error('Pilot feedback repository is not configured on storage adapter');
+    }
+    return this.adapter.pilotFeedback.create(feedback);
+  }
+
+  /**
+   * Retrieve empirical feedback metrics with true sample size.
+   */
+  public async getPilotFeedbackMetrics(): Promise<import('./types').FeedbackSummaryMetrics> {
+    if (!this.adapter.pilotFeedback) {
+      return {
+        totalSubmissions: 0,
+        averageRating: 0,
+        sampleSize: 0,
+        measurementPeriod: 'No evaluations recorded',
+        categoryBreakdown: {},
+        correctionBreakdown: {},
+        advocateConsultedCount: 0
+      };
+    }
+    return this.adapter.pilotFeedback.getMetrics();
+  }
+
+  /**
+   * Record timestamp of first useful action taken by citizen.
+   */
+  public async recordFirstUsefulAction(matterId: string, userId?: string): Promise<Matter | null> {
+    const matter = await this.adapter.matters.findById(matterId, userId);
+    if (!matter) return null;
+    if (!matter.firstUsefulActionAt) {
+      return this.adapter.matters.update(matterId, { firstUsefulActionAt: new Date().toISOString() }, userId);
+    }
+    return matter;
+  }
+
+  /**
+   * Calculate real funnel metrics and Time-to-First-Useful-Action across matters.
+   */
+  public async calculateFunnelMetrics(userId?: string): Promise<{
+    totalMatters: number;
+    withDocuments: number;
+    analyzed: number;
+    withCompletedAction: number;
+    noticesDispatched: number;
+    resolved: number;
+    timeToFirstUsefulActionMinutes: {
+      median: number;
+      p75: number;
+      p95: number;
+      sampleSize: number;
+    };
+  }> {
+    const matters = await this.adapter.matters.list(userId ? { userId } : undefined);
+    const total = matters.length;
+    const withDocs = matters.filter(m => m.documents && m.documents.length > 0).length;
+    const analyzed = matters.filter(m => m.actionPlan && m.actionPlan.length > 0).length;
+    const withCompletedAction = matters.filter(m => m.actionPlan?.some(a => a.status === 'completed')).length;
+    const noticesDispatched = matters.filter(m => m.communications?.some(c => c.type === 'legal_notice')).length;
+    const resolved = matters.filter(m => m.status === 'resolved' || m.resolution).length;
+
+    // Time to First Useful Action durations (in minutes)
+    const durations: number[] = [];
+    for (const m of matters) {
+      let firstActionTimestamp: number | null = null;
+      if (m.firstUsefulActionAt) {
+        firstActionTimestamp = new Date(m.firstUsefulActionAt).getTime();
+      } else {
+        const completedAction = m.actionPlan?.find(a => a.status === 'completed' && a.completedAt);
+        if (completedAction?.completedAt) {
+          firstActionTimestamp = new Date(completedAction.completedAt).getTime();
+        } else if (m.communications && m.communications.length > 0) {
+          firstActionTimestamp = new Date(m.communications[0].date).getTime();
+        }
+      }
+
+      if (firstActionTimestamp && m.createdAt) {
+        const createdMs = new Date(m.createdAt).getTime();
+        const diffMinutes = Math.max(0, Math.round((firstActionTimestamp - createdMs) / 60000));
+        durations.push(diffMinutes);
+      }
+    }
+
+    durations.sort((a, b) => a - b);
+    const n = durations.length;
+
+    const median = n > 0 ? durations[Math.floor(n * 0.5)] : 0;
+    const p75 = n > 0 ? durations[Math.floor(n * 0.75)] : 0;
+    const p95 = n > 0 ? durations[Math.floor(n * 0.95)] : 0;
+
+    return {
+      totalMatters: total,
+      withDocuments: withDocs,
+      analyzed,
+      withCompletedAction,
+      noticesDispatched,
+      resolved,
+      timeToFirstUsefulActionMinutes: {
+        median,
+        p75,
+        p95,
+        sampleSize: n
+      }
+    };
   }
 }

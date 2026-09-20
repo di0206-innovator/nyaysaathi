@@ -40,6 +40,7 @@ export async function apiFetch<T = any>(
 
   try {
     const res = await fetch(url, {
+      credentials: 'include',
       ...options,
       headers
     });

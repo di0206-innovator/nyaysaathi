@@ -18,7 +18,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'logout') {
-      return apiSuccess({ message: 'Logged out successfully' });
+      const response = apiSuccess({ message: 'Logged out successfully' });
+      response.cookies.delete('sb-access-token');
+      response.cookies.delete('supabase-auth-token');
+      return response;
     }
 
     const { email, password, fullName } = body;
@@ -57,10 +60,19 @@ export async function POST(req: NextRequest) {
           status: 'success',
           metadata: { email, action: 'signup' }
         });
-        return apiSuccess({
-          user: data.user ? { id: data.user.id, email: data.user.email, name: fullName } : null,
-          session: data.session
+        const response = apiSuccess({
+          user: data.user ? { id: data.user.id, email: data.user.email, name: fullName } : null
         }, 201);
+        if (data.session?.access_token) {
+          response.cookies.set('sb-access-token', data.session.access_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7
+          });
+        }
+        return response;
       }
 
       if (action === 'login') {
@@ -84,10 +96,19 @@ export async function POST(req: NextRequest) {
           status: 'success',
           metadata: { email, action: 'login' }
         });
-        return apiSuccess({
-          user: data.user ? { id: data.user.id, email: data.user.email } : null,
-          session: data.session
+        const response = apiSuccess({
+          user: data.user ? { id: data.user.id, email: data.user.email } : null
         });
+        if (data.session?.access_token) {
+          response.cookies.set('sb-access-token', data.session.access_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7
+          });
+        }
+        return response;
       }
     }
 
@@ -98,16 +119,25 @@ export async function POST(req: NextRequest) {
 
     // Local / Demo Mock Auth Fallback (development and test only)
     const mockId = `user_${Buffer.from(email).toString('hex').slice(0, 8)}`;
-    return apiSuccess({
+    const mockToken = `mock-user-${mockId}`;
+    const response = apiSuccess({
       user: {
         id: mockId,
         email,
         name: fullName || email.split('@')[0],
         role: 'authenticated'
       },
-      token: `mock-user-${mockId}`,
+      token: mockToken,
       isDemo: true
     });
+    response.cookies.set('sb-access-token', mockToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7
+    });
+    return response;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Authentication operation failed';
     return apiError(message, 500, 'AUTH_ERROR');

@@ -18,6 +18,7 @@ import { Matter } from '@/types/matter';
 import { EvidenceGraph } from '@/lib/graph/evidence-graph';
 import { EscalationMatcher } from '@/lib/legal/escalation-matcher';
 import { Metrics } from '@/lib/observability/metrics';
+import { matterBudget } from './cost-budget';
 
 export class MatterOrchestrator {
   private intakeAgent = new IntakeAgent();
@@ -31,14 +32,34 @@ export class MatterOrchestrator {
   private safetyAgent = new SafetyVerificationAgent();
 
   /**
-   * Executes the NyaySaathi loop with selective layer re-analysis and Evidence Graph Enforcement:
-   * - doc_uploaded: Rerun DocIntel -> Timeline -> Risk -> Action -> Drafting -> Safety
-   * - missing_info_answered: Rerun Risk -> Action -> Drafting -> Safety
-   * - party_updated / amount_updated: Rerun Drafting -> Escalation -> Safety
-   * - full: Rerun all layers
-   * Safety ALWAYS runs last.
+   * Executes the NyaySaathi pipeline as an explicit Directed Acyclic Graph (DAG):
+   *
+   * LEVEL 1 (Independent Ingestion):
+   *   IntakeAgent || DocIntelAgent
+   *
+   * LEVEL 2 (Context & Law):
+   *   TimelineAgent (needs DocIntel) || LegalRetrievalAgent (needs Input)
+   *
+   * LEVEL 3 (Merits & Risk):
+   *   ReasoningAgent (needs Facts + Law) || RiskAgent (needs Facts)
+   *
+   * LEVEL 4 (Strategy):
+   *   ActionPlannerAgent (needs Risks)
+   *
+   * LEVEL 5 (Resolution Generation):
+   *   DraftingAgent (needs Parties + Timeline) || EscalationMatcher (needs Category + Claim)
+   *
+   * LEVEL 6 (Verification & Guardrails - ALWAYS RUNS LAST):
+   *   SafetyVerificationAgent (audits all outputs)
    */
   public async processMatter(input: AgentInput): Promise<PipelineExecutionResult> {
+    const matterId = input.matterId || input.existingMatter?.id || 'ephemeral-matter';
+    const budgetCheck = matterBudget.checkBudget(matterId, 'requests', 1);
+    if (!budgetCheck.allowed) {
+      throw new Error(`BudgetExceeded: ${budgetCheck.reason}`);
+    }
+    matterBudget.recordUsage(matterId, 'requests', 1);
+
     const logs: PipelineExecutionResult['logs'] = [];
     let revisionCyclesRun = 0;
     const trigger = input.trigger || 'full';
@@ -81,147 +102,243 @@ export class MatterOrchestrator {
       trigger === 'action_completed' ||
       trigger === 'external_response_recorded';
 
-    // Step 1: Intake & Entity Normalization
-    const t0 = performance.now();
+    // -------------------------------------------------------------
+    // DAG LEVEL 1: Independent Ingestion (Intake || DocIntel)
+    // -------------------------------------------------------------
     let intakeResult: IntakeAgentResult;
-    try {
-      const intakeEnvelope = await this.intakeAgent.execute(input);
-      intakeResult = intakeEnvelope.result;
-      logs.push({
-        agentName: 'Intake Agent',
-        status: 'completed',
-        executionTimeMs: Math.round(performance.now() - t0),
-        summary: `Normalized ${intakeResult.extractedParties.length} parties, category: ${intakeResult.detectedCategory} (Confidence: ${intakeEnvelope.confidenceScore}, Trigger: ${trigger})`
-      });
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      intakeResult = {
-        refinedTitle: input.title,
-        detectedCategory: input.category,
-        detectedSubCategory: 'General Legal Dispute',
-        extractedParties: input.parties,
-        claimAmount: input.claimAmount,
-        plainLanguageSummary: (input.userStory || input.title || '').slice(0, 200),
-        keyConflict: 'Dispute identified from initial story narrative',
-        legalNature: 'Civil / Statutory grievance under evaluation'
-      };
-      logs.push({
-        agentName: 'Intake Agent',
-        status: 'failed',
-        executionTimeMs: Math.round(performance.now() - t0),
-        summary: `Intake Agent failed: ${errMsg}. Retained raw narrative.`
-      });
-    }
-
-    // Step 2: Document Intelligence
     let docResult = {
       processedDocuments: input.documents,
       extractedFacts: input.existingFacts || []
     };
-    if (shouldRunDocIntel) {
+
+    const intakePromise = (async () => {
+      const t0 = performance.now();
+      try {
+        const intakeEnvelope = await this.intakeAgent.execute(input);
+        return {
+          ok: true as const,
+          data: intakeEnvelope.result,
+          timeMs: Math.round(performance.now() - t0),
+          summary: `Normalized ${intakeEnvelope.result.extractedParties.length} parties, category: ${intakeEnvelope.result.detectedCategory} (Confidence: ${intakeEnvelope.confidenceScore}, Trigger: ${trigger})`
+        };
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        return {
+          ok: false as const,
+          error: errMsg,
+          timeMs: Math.round(performance.now() - t0),
+          fallback: {
+            refinedTitle: input.title,
+            detectedCategory: input.category,
+            detectedSubCategory: 'General Legal Dispute',
+            extractedParties: input.parties,
+            claimAmount: input.claimAmount,
+            plainLanguageSummary: (input.userStory || input.title || '').slice(0, 200),
+            keyConflict: 'Dispute identified from initial story narrative',
+            legalNature: 'Civil / Statutory grievance under evaluation'
+          }
+        };
+      }
+    })();
+
+    const docIntelPromise = (async () => {
+      if (!shouldRunDocIntel) {
+        return { skipped: true as const, timeMs: 0 };
+      }
       const t1 = performance.now();
       try {
         const docEnvelope = await this.docIntelAgent.execute(input);
-        docResult = docEnvelope.result;
-        logs.push({
-          agentName: 'Document Intelligence Agent',
-          status: 'completed',
-          executionTimeMs: Math.round(performance.now() - t1),
-          summary: `Processed ${docResult.processedDocuments.length} evidence items and extracted ${docResult.extractedFacts.length} grounded facts`
-        });
+        return {
+          skipped: false as const,
+          ok: true as const,
+          data: docEnvelope.result,
+          timeMs: Math.round(performance.now() - t1),
+          summary: `Processed ${docEnvelope.result.processedDocuments.length} evidence items and extracted ${docEnvelope.result.extractedFacts.length} grounded facts`
+        };
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        logs.push({
-          agentName: 'Document Intelligence Agent',
-          status: 'failed',
-          executionTimeMs: Math.round(performance.now() - t1),
-          summary: `Document Intelligence error: ${errMsg}. Retained ${docResult.extractedFacts.length} existing facts.`
-        });
+        return {
+          skipped: false as const,
+          ok: false as const,
+          error: errMsg,
+          timeMs: Math.round(performance.now() - t1)
+        };
       }
+    })();
+
+    const [intakeExec, docExec] = await Promise.all([intakePromise, docIntelPromise]);
+
+    if (intakeExec.ok) {
+      intakeResult = intakeExec.data;
+      logs.push({
+        agentName: 'Intake Agent',
+        status: 'completed',
+        executionTimeMs: intakeExec.timeMs,
+        summary: intakeExec.summary
+      });
     } else {
+      intakeResult = intakeExec.fallback;
+      logs.push({
+        agentName: 'Intake Agent',
+        status: 'failed',
+        executionTimeMs: intakeExec.timeMs,
+        summary: `Intake Agent failed: ${intakeExec.error}. Retained raw narrative.`
+      });
+    }
+
+    if (docExec.skipped) {
       logs.push({
         agentName: 'Document Intelligence Agent',
         status: 'skipped',
         executionTimeMs: 0,
         summary: `Skipped re-parsing ${docResult.processedDocuments.length} documents (Trigger: ${trigger})`
       });
+    } else if (docExec.ok) {
+      docResult = docExec.data;
+      logs.push({
+        agentName: 'Document Intelligence Agent',
+        status: 'completed',
+        executionTimeMs: docExec.timeMs,
+        summary: docExec.summary
+      });
+    } else {
+      logs.push({
+        agentName: 'Document Intelligence Agent',
+        status: 'failed',
+        executionTimeMs: docExec.timeMs,
+        summary: `Document Intelligence error: ${docExec.error}. Retained ${docResult.extractedFacts.length} existing facts.`
+      });
     }
 
-    // Step 3: Chronology & Timeline
+    // -------------------------------------------------------------
+    // DAG LEVEL 2: Context & Law (Timeline || Retrieval)
+    // -------------------------------------------------------------
     let timelineResult = {
       timelineEvents: input.existingTimelineEvents || [],
       identifiedGaps: [] as string[]
     };
-    if (shouldRunTimeline) {
+    let retrievalResult = {
+      applicableStatutes: input.existingStatutes || []
+    };
+
+    const timelinePromise = (async () => {
+      if (!shouldRunTimeline) {
+        return { skipped: true as const, timeMs: 0 };
+      }
       const t2 = performance.now();
       try {
         const timelineEnvelope = await this.timelineAgent.execute(input, docResult);
-        timelineResult = timelineEnvelope.result;
-        logs.push({
-          agentName: 'Context & Timeline Agent',
-          status: 'completed',
-          executionTimeMs: Math.round(performance.now() - t2),
-          summary: `Constructed ${timelineResult.timelineEvents.length} chronological milestones, identified ${timelineResult.identifiedGaps.length} gaps`
-        });
+        return {
+          skipped: false as const,
+          ok: true as const,
+          data: timelineEnvelope.result,
+          timeMs: Math.round(performance.now() - t2),
+          summary: `Constructed ${timelineEnvelope.result.timelineEvents.length} chronological milestones, identified ${timelineEnvelope.result.identifiedGaps.length} gaps`
+        };
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        logs.push({
-          agentName: 'Context & Timeline Agent',
-          status: 'failed',
-          executionTimeMs: Math.round(performance.now() - t2),
-          summary: `Timeline reconstruction error: ${errMsg}. Retained existing timeline events.`
-        });
+        return {
+          skipped: false as const,
+          ok: false as const,
+          error: errMsg,
+          timeMs: Math.round(performance.now() - t2)
+        };
       }
-    } else {
+    })();
+
+    const retrievalPromise = (async () => {
+      if (!shouldRunRetrieval) {
+        return { skipped: true as const, timeMs: 0 };
+      }
+      const t3 = performance.now();
+      try {
+        const retrievalEnvelope = await this.retrievalAgent.execute(input);
+        return {
+          skipped: false as const,
+          ok: true as const,
+          data: retrievalEnvelope.result,
+          timeMs: Math.round(performance.now() - t3),
+          summary: `Matched ${retrievalEnvelope.result.applicableStatutes.length} statutory provisions under Indian law`
+        };
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        return {
+          skipped: false as const,
+          ok: false as const,
+          error: errMsg,
+          timeMs: Math.round(performance.now() - t3)
+        };
+      }
+    })();
+
+    const [timelineExec, retrievalExec] = await Promise.all([timelinePromise, retrievalPromise]);
+
+    if (timelineExec.skipped) {
       logs.push({
         agentName: 'Context & Timeline Agent',
         status: 'skipped',
         executionTimeMs: 0,
         summary: `Preserved existing ${timelineResult.timelineEvents.length} milestones (Trigger: ${trigger})`
       });
+    } else if (timelineExec.ok) {
+      timelineResult = timelineExec.data;
+      logs.push({
+        agentName: 'Context & Timeline Agent',
+        status: 'completed',
+        executionTimeMs: timelineExec.timeMs,
+        summary: timelineExec.summary
+      });
+    } else {
+      logs.push({
+        agentName: 'Context & Timeline Agent',
+        status: 'failed',
+        executionTimeMs: timelineExec.timeMs,
+        summary: `Timeline reconstruction error: ${timelineExec.error}. Retained existing timeline events.`
+      });
     }
 
-    // Step 4: Statutory Retrieval (Multi-factor)
-    let retrievalResult = {
-      applicableStatutes: input.existingStatutes || []
-    };
-    if (shouldRunRetrieval) {
-      const t3 = performance.now();
-      try {
-        const retrievalEnvelope = await this.retrievalAgent.execute(input);
-        retrievalResult = retrievalEnvelope.result;
-        logs.push({
-          agentName: 'Legal Retrieval Agent',
-          status: 'completed',
-          executionTimeMs: Math.round(performance.now() - t3),
-          summary: `Matched ${retrievalResult.applicableStatutes.length} statutory provisions under Indian law`
-        });
-      } catch (err: unknown) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        logs.push({
-          agentName: 'Legal Retrieval Agent',
-          status: 'failed',
-          executionTimeMs: Math.round(performance.now() - t3),
-          summary: `Statutory retrieval error: ${errMsg}. Retained cached statutory provisions.`
-        });
-      }
-    } else {
+    if (retrievalExec.skipped) {
       logs.push({
         agentName: 'Legal Retrieval Agent',
         status: 'skipped',
         executionTimeMs: 0,
         summary: `Cached ${retrievalResult.applicableStatutes.length} statutes (Trigger: ${trigger})`
       });
+    } else if (retrievalExec.ok) {
+      retrievalResult = retrievalExec.data;
+      logs.push({
+        agentName: 'Legal Retrieval Agent',
+        status: 'completed',
+        executionTimeMs: retrievalExec.timeMs,
+        summary: retrievalExec.summary
+      });
+    } else {
+      logs.push({
+        agentName: 'Legal Retrieval Agent',
+        status: 'failed',
+        executionTimeMs: retrievalExec.timeMs,
+        summary: `Statutory retrieval error: ${retrievalExec.error}. Retained cached statutory provisions.`
+      });
     }
 
-    // Step 5: Reasoning & Merits Evaluation
+    // -------------------------------------------------------------
+    // DAG LEVEL 3: Merits & Risk (Reasoning || Risk Assessment)
+    // -------------------------------------------------------------
     let reasoningResult = {
       caseStrengths: [] as string[],
       caseWeaknesses: [] as string[],
       primaryLegalRemedy: 'Seek formal settlement followed by appropriate statutory forum filing.',
       counterPartyProbableDefense: 'Opposing party may contest liability or assert lack of documentation.'
     };
-    if (shouldRunReasoning || reasoningResult.caseStrengths.length === 0) {
+    let riskResult = {
+      risks: input.existingRisks || [],
+      missingInformation: input.existingMissingInformation || []
+    };
+
+    const reasoningPromise = (async () => {
+      if (!shouldRunReasoning && reasoningResult.caseStrengths.length > 0) {
+        return { skipped: true as const, timeMs: 0 };
+      }
       const t4 = performance.now();
       try {
         const reasoningEnvelope = await this.reasoningAgent.execute(
@@ -229,66 +346,102 @@ export class MatterOrchestrator {
           docResult.extractedFacts,
           retrievalResult.applicableStatutes
         );
-        reasoningResult = reasoningEnvelope.result;
-        logs.push({
-          agentName: 'Reasoning Agent',
-          status: 'completed',
-          executionTimeMs: Math.round(performance.now() - t4),
-          summary: `Identified ${reasoningResult.caseStrengths.length} strengths and ${reasoningResult.caseWeaknesses.length} potential counter-arguments`
-        });
+        return {
+          skipped: false as const,
+          ok: true as const,
+          data: reasoningEnvelope.result,
+          timeMs: Math.round(performance.now() - t4),
+          summary: `Identified ${reasoningEnvelope.result.caseStrengths.length} strengths and ${reasoningEnvelope.result.caseWeaknesses.length} potential counter-arguments`
+        };
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        logs.push({
-          agentName: 'Reasoning Agent',
-          status: 'failed',
-          executionTimeMs: Math.round(performance.now() - t4),
-          summary: `Reasoning agent error: ${errMsg}. Defaulted to cautious evaluation.`
-        });
+        return {
+          skipped: false as const,
+          ok: false as const,
+          error: errMsg,
+          timeMs: Math.round(performance.now() - t4)
+        };
       }
-    } else {
+    })();
+
+    const riskPromise = (async () => {
+      if (!shouldRunRisk && riskResult.risks.length > 0) {
+        return { skipped: true as const, timeMs: 0 };
+      }
+      const t5 = performance.now();
+      try {
+        const riskEnvelope = await this.riskAgent.execute(input, docResult.extractedFacts);
+        return {
+          skipped: false as const,
+          ok: true as const,
+          data: riskEnvelope.result,
+          timeMs: Math.round(performance.now() - t5),
+          summary: `Calculated ${riskEnvelope.result.risks.length} risk vectors and ${riskEnvelope.result.missingInformation.length} missing evidence items`
+        };
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        return {
+          skipped: false as const,
+          ok: false as const,
+          error: errMsg,
+          timeMs: Math.round(performance.now() - t5)
+        };
+      }
+    })();
+
+    const [reasoningExec, riskExec] = await Promise.all([reasoningPromise, riskPromise]);
+
+    if (reasoningExec.skipped) {
       logs.push({
         agentName: 'Reasoning Agent',
         status: 'skipped',
         executionTimeMs: 0,
         summary: `Preserved merits evaluation (Trigger: ${trigger})`
       });
+    } else if (reasoningExec.ok) {
+      reasoningResult = reasoningExec.data;
+      logs.push({
+        agentName: 'Reasoning Agent',
+        status: 'completed',
+        executionTimeMs: reasoningExec.timeMs,
+        summary: reasoningExec.summary
+      });
+    } else {
+      logs.push({
+        agentName: 'Reasoning Agent',
+        status: 'failed',
+        executionTimeMs: reasoningExec.timeMs,
+        summary: `Reasoning agent error: ${reasoningExec.error}. Defaulted to cautious evaluation.`
+      });
     }
 
-    // Step 6: Risk Assessment
-    let riskResult = {
-      risks: input.existingRisks || [],
-      missingInformation: input.existingMissingInformation || []
-    };
-    if (shouldRunRisk || riskResult.risks.length === 0) {
-      const t5 = performance.now();
-      try {
-        const riskEnvelope = await this.riskAgent.execute(input, docResult.extractedFacts);
-        riskResult = riskEnvelope.result;
-        logs.push({
-          agentName: 'Risk Assessment Agent',
-          status: 'completed',
-          executionTimeMs: Math.round(performance.now() - t5),
-          summary: `Calculated ${riskResult.risks.length} risk vectors and ${riskResult.missingInformation.length} missing evidence items`
-        });
-      } catch (err: unknown) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        logs.push({
-          agentName: 'Risk Assessment Agent',
-          status: 'failed',
-          executionTimeMs: Math.round(performance.now() - t5),
-          summary: `Risk assessment error: ${errMsg}. Preserved existing risks and questionnaire.`
-        });
-      }
-    } else {
+    if (riskExec.skipped) {
       logs.push({
         agentName: 'Risk Assessment Agent',
         status: 'skipped',
         executionTimeMs: 0,
         summary: `Preserved existing risk matrix (Trigger: ${trigger})`
       });
+    } else if (riskExec.ok) {
+      riskResult = riskExec.data;
+      logs.push({
+        agentName: 'Risk Assessment Agent',
+        status: 'completed',
+        executionTimeMs: riskExec.timeMs,
+        summary: riskExec.summary
+      });
+    } else {
+      logs.push({
+        agentName: 'Risk Assessment Agent',
+        status: 'failed',
+        executionTimeMs: riskExec.timeMs,
+        summary: `Risk assessment error: ${riskExec.error}. Preserved existing risks and questionnaire.`
+      });
     }
 
-    // Step 7: Action Planning
+    // -------------------------------------------------------------
+    // DAG LEVEL 4: Action Planning (ActionPlannerAgent)
+    // -------------------------------------------------------------
     let actionResult = {
       actionPlan: input.existingActionPlan || []
     };
@@ -324,7 +477,9 @@ export class MatterOrchestrator {
       });
     }
 
-    // Step 8: Drafting & Advocate Briefing (3-tier drafting)
+    // -------------------------------------------------------------
+    // DAG LEVEL 5: Drafting & Advocate Briefing (DraftingAgent)
+    // -------------------------------------------------------------
     let draftResult = {
       drafts: input.existingDrafts || [],
       lawyerBrief: undefined as Matter['lawyerBrief']

@@ -21,14 +21,14 @@ export const INDIAN_STATUTES: StatutoryReference[] = [
     standardRemedy: 'Full refund + Compensation for harassment and litigation costs'
   },
   {
-    statute: 'Model Tenancy Act & State Rent Acts',
-    section: 'Section 10 & Security Deposit Rules',
-    title: 'Refund of Security Deposit upon Tenancy Vacate',
+    statute: 'Indian Contract Act, 1872 & State Tenancy Laws',
+    section: 'Section 73 (Breach of Contract) & Transfer of Property Act §108(m)',
+    title: 'Recovery of Withheld Security Deposit & Wear-and-Tear Covenants',
     category: 'tenancy_housing',
-    plainSummary: 'Landlords are legally obligated to return tenant security deposit within 30 days of handing over peaceful possession, minus verified itemized damage bills. Unilateral retention is unlawful.',
-    limitationMonths: 36, // 3 years under Indian Limitation Act for money recovery
-    forumOrAuthority: 'Rent Court / Rent Tribunal / Civil Court (Small Causes)',
-    standardRemedy: 'Full refund of security deposit with 6-12% annual interest'
+    plainSummary: 'Landlords are contractually and legally bound to refund the security deposit upon peaceful surrender of premises, subject only to verified contractual terms. Unilateral deductions for ordinary wear and tear or painting without itemized invoices violate contract law and property jurisprudence.',
+    limitationMonths: 36, // 3 years under Indian Limitation Act (Article 113) for contractual money recovery
+    forumOrAuthority: 'Civil Court (Summary Suit under Order XXXVII CPC) / Small Causes Court / State Rent Authority (where enacted)',
+    standardRemedy: 'Full refund of wrongfully withheld deposit plus interest for unlawful detention'
   },
   {
     statute: 'Real Estate (Regulation and Development) Act, 2016 (RERA)',

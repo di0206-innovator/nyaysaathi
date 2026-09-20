@@ -29,6 +29,8 @@ import {
   IEscalationRepository,
   IResolutionRepository,
   INotificationRepository,
+  IPilotFeedbackRepository,
+  PilotFeedback,
   MatterFilter
 } from '../types';
 
@@ -1605,6 +1607,102 @@ export class SupabaseStorageAdapter implements IStorageAdapter {
         .eq('user_id', userId)
         .eq('is_read', false);
       return count || 0;
+    }
+  };
+
+  public pilotFeedback: import('../types').IPilotFeedbackRepository = {
+    create: async (feedback: import('../types').PilotFeedback) => {
+      const row = {
+        id: feedback.id || undefined,
+        user_id: feedback.userId || null,
+        matter_id: feedback.matterId || null,
+        rating: feedback.rating,
+        category: feedback.category,
+        feedback_text: feedback.feedbackText || null,
+        correction_text: feedback.correctionText || null,
+        correction_category: feedback.correctionCategory || null,
+        advocate_consulted: feedback.advocateConsulted || false,
+        source: feedback.source || 'direct',
+        status: feedback.status || 'pending_review',
+        created_at: feedback.createdAt || new Date().toISOString()
+      };
+      const { data, error } = await this.client.from('pilot_feedback').insert(row).select().single();
+      if (error) throw new Error(`Supabase insert pilot_feedback failed: ${error.message}`);
+      return {
+        id: data.id,
+        userId: data.user_id,
+        matterId: data.matter_id,
+        rating: data.rating,
+        category: data.category,
+        feedbackText: data.feedback_text,
+        correctionText: data.correction_text,
+        correctionCategory: data.correction_category,
+        advocateConsulted: data.advocate_consulted,
+        source: data.source,
+        status: data.status,
+        createdAt: data.created_at
+      };
+    },
+    list: async (filter) => {
+      let query = this.client.from('pilot_feedback').select('*');
+      if (filter?.matterId) query = query.eq('matter_id', filter.matterId);
+      if (filter?.userId) query = query.eq('user_id', filter.userId);
+      if (filter?.category) query = query.eq('category', filter.category);
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error || !data) return [];
+      return data.map((d: Record<string, unknown>) => ({
+        id: String(d.id),
+        userId: d.user_id ? String(d.user_id) : undefined,
+        matterId: d.matter_id ? String(d.matter_id) : undefined,
+        rating: Number(d.rating),
+        utility: (d.utility as 'yes' | 'partially' | 'no') || undefined,
+        category: String(d.category),
+        feedbackText: d.feedback_text ? String(d.feedback_text) : undefined,
+        correctionText: d.correction_text ? String(d.correction_text) : undefined,
+        correctionCategory: d.correction_category as PilotFeedback['correctionCategory'],
+        advocateConsulted: Boolean(d.advocate_consulted),
+        source: String(d.source),
+        status: (d.status as PilotFeedback['status']) || 'pending_review',
+        createdAt: String(d.created_at)
+      }));
+    },
+    getMetrics: async () => {
+      const { data, error } = await this.client.from('pilot_feedback').select('*');
+      if (error || !data || data.length === 0) {
+        return {
+          totalSubmissions: 0,
+          averageRating: 0,
+          sampleSize: 0,
+          measurementPeriod: 'No evaluations recorded',
+          categoryBreakdown: {},
+          correctionBreakdown: {},
+          advocateConsultedCount: 0
+        };
+      }
+      const total = data.length;
+      const sum = data.reduce((acc: number, f: Record<string, unknown>) => acc + (Number(f.rating) || 0), 0);
+      const avg = Math.round((sum / total) * 10) / 10;
+      const catCounts: Record<string, number> = {};
+      const corrCounts: Record<string, number> = {};
+      let advCount = 0;
+      for (const f of data as Array<Record<string, unknown>>) {
+        const cat = f.category ? String(f.category) : '';
+        const corr = f.correction_category ? String(f.correction_category) : '';
+        if (cat) catCounts[cat] = (catCounts[cat] || 0) + 1;
+        if (corr) {
+          corrCounts[corr] = (corrCounts[corr] || 0) + 1;
+        }
+        if (f.advocate_consulted) advCount++;
+      }
+      return {
+        totalSubmissions: total,
+        averageRating: avg,
+        sampleSize: total,
+        measurementPeriod: `All-time (${total} evaluations)`,
+        categoryBreakdown: catCounts,
+        correctionBreakdown: corrCounts,
+        advocateConsultedCount: advCount
+      };
     }
   };
 }

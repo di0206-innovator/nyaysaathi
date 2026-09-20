@@ -85,9 +85,17 @@ export class MemoryStorageAdapter implements IStorageAdapter {
         return null;
       }
 
+      const safeUpdates = deepClone(updates);
+      delete (safeUpdates as Record<string, unknown>).id;
+      delete (safeUpdates as Record<string, unknown>).userId;
+      delete (safeUpdates as Record<string, unknown>).createdAt;
+
       const updated: Matter = {
         ...existing,
-        ...deepClone(updates),
+        ...safeUpdates,
+        id: existing.id,
+        userId: existing.userId,
+        createdAt: existing.createdAt,
         updatedAt: new Date().toISOString()
       };
 
@@ -402,6 +410,60 @@ export class MemoryStorageAdapter implements IStorageAdapter {
     },
     getUnreadCount: async (userId: string) => {
       return this.notificationsStore.filter(n => n.userId === userId && !n.isRead).length;
+    }
+  };
+
+  private feedbackStore: import('../types').PilotFeedback[] = [];
+
+  public pilotFeedback: import('../types').IPilotFeedbackRepository = {
+    create: async (feedback: import('../types').PilotFeedback) => {
+      const cloned = deepClone(feedback);
+      if (!cloned.id) cloned.id = `fb-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      if (!cloned.createdAt) cloned.createdAt = new Date().toISOString();
+      this.feedbackStore.unshift(cloned);
+      return deepClone(cloned);
+    },
+    list: async (filter) => {
+      let res = this.feedbackStore;
+      if (filter?.matterId) res = res.filter(f => f.matterId === filter.matterId);
+      if (filter?.userId) res = res.filter(f => f.userId === filter.userId);
+      if (filter?.category) res = res.filter(f => f.category === filter.category);
+      return res.map(deepClone);
+    },
+    getMetrics: async () => {
+      const total = this.feedbackStore.length;
+      if (total === 0) {
+        return {
+          totalSubmissions: 0,
+          averageRating: 0,
+          sampleSize: 0,
+          measurementPeriod: 'No evaluations recorded',
+          categoryBreakdown: {},
+          correctionBreakdown: {},
+          advocateConsultedCount: 0
+        };
+      }
+      const sum = this.feedbackStore.reduce((acc, f) => acc + f.rating, 0);
+      const avg = Math.round((sum / total) * 10) / 10;
+      const catCounts: Record<string, number> = {};
+      const corrCounts: Record<string, number> = {};
+      let advCount = 0;
+      for (const f of this.feedbackStore) {
+        catCounts[f.category] = (catCounts[f.category] || 0) + 1;
+        if (f.correctionCategory) {
+          corrCounts[f.correctionCategory] = (corrCounts[f.correctionCategory] || 0) + 1;
+        }
+        if (f.advocateConsulted) advCount++;
+      }
+      return {
+        totalSubmissions: total,
+        averageRating: avg,
+        sampleSize: total,
+        measurementPeriod: `All-time (${total} evaluations)`,
+        categoryBreakdown: catCounts,
+        correctionBreakdown: corrCounts,
+        advocateConsultedCount: advCount
+      };
     }
   };
 }

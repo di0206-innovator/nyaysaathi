@@ -12,7 +12,13 @@ export class DocIntelAgent {
       const docId = doc.id || `doc-${idx + 1}`;
       let classification = doc.classification;
       let relevanceSummary = doc.relevanceSummary;
-      const extractionStatus = doc.extractionStatus || (doc.extractedText ? 'verified_extraction' : 'needs_review');
+      const isImage = (doc.mimeType && doc.mimeType.startsWith('image/')) || /\.(jpg|jpeg|png|webp|tiff|bmp)$/i.test(doc.title);
+      let extractionStatus = doc.extractionStatus;
+      if (isImage && (!doc.extractedText || doc.extractedText.trim().length === 0)) {
+        extractionStatus = 'needs_ocr';
+      } else if (!extractionStatus || extractionStatus === 'raw_uploaded') {
+        extractionStatus = doc.extractedText && doc.extractedText.trim().length > 0 ? 'verified_extraction' : 'needs_review';
+      }
 
       // Truthful derivation: never guess document content or legal significance from filename
       if (!classification) {

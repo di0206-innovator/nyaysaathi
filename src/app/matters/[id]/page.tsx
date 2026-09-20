@@ -24,6 +24,7 @@ import { CommunicationLog } from '@/components/matter/CommunicationLog';
 import { ActivityTimeline } from '@/components/matter/ActivityTimeline';
 import { AdvocateCasePackModal } from '@/components/matter/AdvocateCasePackModal';
 import { ResolutionModal } from '@/components/matter/ResolutionModal';
+import { PilotFeedbackWidget } from '@/components/matter/PilotFeedbackWidget';
 import {
   Scale,
   Sparkles,
@@ -584,6 +585,11 @@ export default function MatterDetailPage({
             language={currentLanguage}
           />
         )}
+
+        {/* Real Pilot Feedback & Grounding Evaluation */}
+        <div className="pt-6 border-t border-stone-200">
+          <PilotFeedbackWidget matterId={matter.id} category={matter.category} />
+        </div>
       </main>
 
       {/* Advocate Case Pack Modal */}

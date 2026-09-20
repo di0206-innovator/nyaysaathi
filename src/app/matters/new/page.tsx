@@ -94,22 +94,10 @@ function NewMatterContent() {
     setIsProcessing(true);
     setProcessingStage(1);
 
-    const stages = [
-      'Normalizing narrative and parties with Intake Agent...',
-      'Extracting document clauses and OCR text...',
-      'Reconstructing chronological event milestones...',
-      'Consulting Indian statutory frameworks (BNS, CPA 2019, RERA)...',
-      'Calculating limitation time-bars and risk vectors...',
-      'Formulating 3-phase action roadmap...',
-      'Generating legal demand notices and 1-page lawyer brief...',
-      'Auditing outputs with Trust & Safety 4-Tier Verification...'
-    ];
-
-    // Simulate animated pipeline stages
-    for (let i = 1; i <= stages.length; i++) {
-      setProcessingStage(i);
-      await new Promise(r => setTimeout(r, 450));
-    }
+    const acquisitionSource =
+      searchParams.get('source') ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('nyaysaathi_acquisition_source') : null) ||
+      'direct';
 
     try {
       const res = await apiFetch('/api/matters', {
@@ -123,7 +111,8 @@ function NewMatterContent() {
           locationCity,
           locationState,
           parties: parties.filter(p => p.name.trim() !== ''),
-          documents
+          documents,
+          acquisitionSource
         })
       });
 

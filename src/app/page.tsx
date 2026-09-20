@@ -196,23 +196,23 @@ export default function HomePage() {
             </h2>
 
             <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
-              In Bengaluru, Delhi-NCR, Mumbai, and Hyderabad, over ₹2,400 Crore in tenant deposits remain arbitrarily withheld annually under fake &quot;painting charges&quot; or delayed beyond the 30-day statutory window. NyaySaathi transforms unorganized WhatsApp chats and move-out photos into an airtight legal dossier.
+              In Bengaluru, Delhi-NCR, Mumbai, and Hyderabad, tenant security deposits are frequently withheld under unsubstantiated painting deductions or delayed beyond agreed timelines. Legal remedies depend on your jurisdiction, agreement terms, move-out condition, and documented proof. NyaySaathi structures your tenancy evidence into an actionable legal recovery dossier.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
               <div className="p-4 rounded-xl bg-stone-850/80 border border-stone-700/80 space-y-1">
                 <span className="text-xs font-bold text-amber-400">1. Evidence Lock</span>
-                <p className="text-[11px] text-stone-300">Rental agreement terms, UPI transaction slips, and handover video proofs.</p>
+                <p className="text-[11px] text-stone-300">Rental agreement terms, UPI deposit slips, and dated handover proofs.</p>
               </div>
 
               <div className="p-4 rounded-xl bg-stone-850/80 border border-stone-700/80 space-y-1">
-                <span className="text-xs font-bold text-amber-400">2. Statutory Grounding</span>
-                <p className="text-[11px] text-stone-300">Model Tenancy Act §13 & Indian Contract Act §73 governing ordinary wear and tear.</p>
+                <span className="text-xs font-bold text-amber-400">2. Jurisdiction Grounding</span>
+                <p className="text-[11px] text-stone-300">State Rent Acts, Leave &amp; License clauses, Model Tenancy Act (where adopted), &amp; Indian Contract Act §73 wear-and-tear standards.</p>
               </div>
 
               <div className="p-4 rounded-xl bg-stone-850/80 border border-stone-700/80 space-y-1">
-                <span className="text-xs font-bold text-amber-400">3. 3-Tier Notice Suite</span>
-                <p className="text-[11px] text-stone-300">Amicable reconciliation letter, registered Speed Post demand, or e-Daakhil filing.</p>
+                <span className="text-xs font-bold text-amber-400">3. Phased Notice Suite</span>
+                <p className="text-[11px] text-stone-300">Amicable itemized dispute letter, Speed Post legal notice, and advocate brief.</p>
               </div>
             </div>
 

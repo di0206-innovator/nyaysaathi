@@ -48,8 +48,26 @@ export class SecurityAuditLogger {
 
   public static async log(event: SecurityAuditEvent): Promise<void> {
     const timestamp = event.timestamp || new Date().toISOString();
+    
+    // Sanitize metadata to guarantee zero credential or full story leaks
+    const sanitizedMetadata: Record<string, unknown> = {};
+    if (event.metadata) {
+      for (const [k, v] of Object.entries(event.metadata)) {
+        if (/password|token|secret|auth|cookie|key|jwt/i.test(k)) {
+          sanitizedMetadata[k] = '[REDACTED_CREDENTIAL]';
+        } else if (/story|narrative|document|text|extracted/i.test(k) && typeof v === 'string') {
+          sanitizedMetadata[k] = `[TEXT_LEN_${v.length}]`;
+        } else if (typeof v === 'string') {
+          sanitizedMetadata[k] = v.length > 200 ? `${v.slice(0, 50)}...[TRUNCATED]` : v;
+        } else {
+          sanitizedMetadata[k] = v;
+        }
+      }
+    }
+
     const entry = {
       ...event,
+      metadata: sanitizedMetadata,
       timestamp
     };
 

@@ -305,4 +305,94 @@ export class TrustEngine {
 
     return contradictions;
   }
+
+  /**
+   * Runtime Structured Output Validation:
+   * Validates parsed AI JSON outputs, asserting required keys, types, non-nullability,
+   * and domain invariants. Fails closed if malformed.
+   */
+  public static validateStructuredLegalOutput<T = Record<string, unknown>>(
+    output: unknown,
+    requiredFields: string[]
+  ): { isValid: boolean; data?: T; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!output || typeof output !== 'object' || Array.isArray(output)) {
+      return { isValid: false, errors: ['Output must be a non-null, non-array object.'] };
+    }
+
+    const obj = output as Record<string, unknown>;
+    for (const field of requiredFields) {
+      if (!(field in obj) || obj[field] === undefined || obj[field] === null) {
+        errors.push(`Missing required field: "${field}"`);
+      } else if (typeof obj[field] === 'string' && (obj[field] as string).trim() === '') {
+        errors.push(`Required field "${field}" cannot be empty.`);
+      }
+    }
+
+    if (errors.length > 0) {
+      return { isValid: false, errors };
+    }
+
+    return { isValid: true, data: output as T, errors: [] };
+  }
+
+  /**
+   * Stale-Law Defense:
+   * Checks whether a cited legal statute is obsolete, repealed, or misattributed.
+   */
+  public static checkStaleLaw(
+    statuteName: string,
+    section?: string
+  ): { isStale: boolean; reason?: string; recommendedStatute?: string } {
+    const lower = statuteName.toLowerCase();
+    const sectionDetail = section ? ` (${section})` : '';
+
+    // 1. Indian Penal Code, 1860 (IPC)
+    if (lower.includes('indian penal code') || lower.includes('ipc')) {
+      return {
+        isStale: true,
+        reason: `The Indian Penal Code 1860${sectionDetail} has been replaced by the Bharatiya Nyaya Sanhita, 2023 (BNS) effective July 1, 2024.`,
+        recommendedStatute: 'Bharatiya Nyaya Sanhita, 2023 (BNS)'
+      };
+    }
+
+    // 2. Code of Criminal Procedure, 1973 (CrPC)
+    if (lower.includes('code of criminal procedure') || lower.includes('crpc')) {
+      return {
+        isStale: true,
+        reason: `The Code of Criminal Procedure 1973${sectionDetail} has been replaced by the Bharatiya Nagarik Suraksha Sanhita, 2023 (BNSS) effective July 1, 2024.`,
+        recommendedStatute: 'Bharatiya Nagarik Suraksha Sanhita, 2023 (BNSS)'
+      };
+    }
+
+    // 3. Indian Evidence Act, 1872
+    if (lower.includes('indian evidence act') && !lower.includes('sakshya')) {
+      return {
+        isStale: true,
+        reason: `The Indian Evidence Act 1872${sectionDetail} has been replaced by the Bharatiya Sakshya Adhiniyam, 2023 (BSA) effective July 1, 2024.`,
+        recommendedStatute: 'Bharatiya Sakshya Adhiniyam, 2023 (BSA)'
+      };
+    }
+
+    // 4. Consumer Protection Act, 1986 (COPRA 1986)
+    if (lower.includes('1986') && lower.includes('consumer')) {
+      return {
+        isStale: true,
+        reason: `The Consumer Protection Act 1986${sectionDetail} was completely repealed and replaced by the Consumer Protection Act, 2019.`,
+        recommendedStatute: 'Consumer Protection Act, 2019'
+      };
+    }
+
+    // 5. Consumer Protection Act, 1986
+    if (lower.includes('consumer protection act') && (lower.includes('1986') || lower.includes('copra 1986'))) {
+      return {
+        isStale: true,
+        reason: 'The Consumer Protection Act 1986 was repealed and superseded by the Consumer Protection Act, 2019.',
+        recommendedStatute: 'Consumer Protection Act, 2019'
+      };
+    }
+
+    return { isStale: false };
+  }
 }

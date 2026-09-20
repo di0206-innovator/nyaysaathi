@@ -47,17 +47,17 @@ graph TD
 
 ## 🤖 9 Internal Modular AI Agents
 
-All AI logic is partitioned into modular, testable internal agents coordinated by a master orchestrator (`src/lib/agents/orchestrator.ts`):
+All AI logic is partitioned into modular, testable internal agents coordinated by a master orchestrator (`src/lib/agents/orchestrator.ts`) executing as an explicit Directed Acyclic Graph (DAG) with concurrency and matter cost budgets:
 
 1. **Intake Agent** (`intake-agent.ts`): Parses freeform narratives, normalizes party details, and identifies legal conflict classification.
-2. **Document Intelligence Agent** (`doc-intel-agent.ts`): Simulates OCR text extraction, classifies lease agreements, invoices, and WhatsApp chats, and tags key clauses.
+2. **Document Intelligence Agent** (`doc-intel-agent.ts`): Truthful text extraction; classifies agreements and receipts, flags images without OCR as `needs_ocr`, and guarantees zero hallucinated text.
 3. **Context & Timeline Agent** (`timeline-agent.ts`): Reconstructs a strict chronological milestone trail and spots missing documentary dates.
-4. **Legal Retrieval Agent** (`retrieval-agent.ts`): Maps disputes to Indian statutory anchors (Bharatiya Nyaya Sanhita - BNS, Consumer Protection Act 2019, RERA Section 18, Model Tenancy Act, NI Act 138, Payment of Wages Act).
+4. **Legal Retrieval Agent** (`retrieval-agent.ts`): Maps disputes to Indian statutory anchors (Bharatiya Nyaya Sanhita - BNS, Consumer Protection Act 2019, RERA Section 18, State Rent Control Acts / Model Tenancy Act where adopted, NI Act 138, Payment of Wages Act).
 5. **Reasoning Agent** (`reasoning-agent.ts`): Synthesizes case strengths, evidentiary vulnerabilities, and anticipated counter-arguments.
 6. **Risk Assessment Agent** (`risk-agent.ts`): Computes statutory limitation windows under the Indian Limitation Act 1963 and flags evidence gaps.
 7. **Action Planner Agent** (`action-planner-agent.ts`): Structures a 3-phase checklist (*Immediate 0-48h*, *Short-Term 1-14d*, *Formal Escalation*).
 8. **Drafting Agent** (`drafting-agent.ts`): Generates ready-to-send formal Indian Legal Demand Notices, e-Daakhil consumer complaint plaints, and 1-page Advocate Briefs.
-9. **Safety Verification Agent** (`safety-agent.ts`): Enforces 4-tier output separation and injects statutory disclaimers.
+9. **Safety Verification Agent** (`safety-agent.ts`): Enforces 4-tier output separation, validates structured outputs, and injects statutory disclaimers. Runs strictly last.
 
 ---
 

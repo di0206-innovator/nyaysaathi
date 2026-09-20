@@ -44,6 +44,7 @@ export interface CreateMatterInput {
   parties?: Party[];
   documents?: DocumentEvidence[];
   userId?: string;
+  acquisitionSource?: string;
 }
 
 export function validateCreateMatter(body: unknown): {
@@ -101,7 +102,8 @@ export function validateCreateMatter(body: unknown): {
       locationState: b.locationState ? String(b.locationState).trim() : undefined,
       parties: Array.isArray(b.parties) ? (b.parties as Party[]) : [],
       documents: Array.isArray(b.documents) ? (b.documents as DocumentEvidence[]) : [],
-      userId: b.userId ? String(b.userId).trim() : undefined
+      userId: b.userId ? String(b.userId).trim() : undefined,
+      acquisitionSource: b.acquisitionSource ? String(b.acquisitionSource).trim() : 'direct'
     }
   };
 }

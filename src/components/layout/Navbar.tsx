@@ -56,6 +56,16 @@ export function Navbar() {
               <span>My Matters</span>
             </Link>
             <Link
+              href="/pilot"
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1.5 ${
+                pathname === '/pilot'
+                  ? 'bg-stone-800 text-white'
+                  : 'text-amber-300 hover:bg-stone-800/60 hover:text-amber-200'
+              }`}
+            >
+              <span>Pilot Intake</span>
+            </Link>
+            <Link
               href="/analytics"
               className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1.5 ${
                 pathname === '/analytics'

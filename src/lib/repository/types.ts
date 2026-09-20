@@ -105,6 +105,46 @@ export interface INotificationRepository {
   getUnreadCount(userId: string): Promise<number>;
 }
 
+export interface PilotFeedback {
+  id?: string;
+  userId?: string;
+  matterId?: string;
+  rating: number; // 1 to 5
+  utility?: 'yes' | 'partially' | 'no';
+  category: string;
+  feedbackText?: string;
+  correctionText?: string;
+  correctionCategory?:
+    | 'incorrect_fact'
+    | 'incorrect_legal_explanation'
+    | 'missing_evidence'
+    | 'wrong_action'
+    | 'wrong_deadline'
+    | 'wrong_escalation'
+    | 'unclear_draft'
+    | 'other';
+  advocateConsulted: boolean;
+  source: string; // direct, referral, college, housing_community, legal_clinic, ngo, employer, consumer_org, partner, other
+  status?: 'pending_review' | 'verified' | 'addressed';
+  createdAt?: string;
+}
+
+export interface FeedbackSummaryMetrics {
+  totalSubmissions: number;
+  averageRating: number;
+  sampleSize: number;
+  measurementPeriod: string;
+  categoryBreakdown: Record<string, number>;
+  correctionBreakdown: Record<string, number>;
+  advocateConsultedCount: number;
+}
+
+export interface IPilotFeedbackRepository {
+  create(feedback: PilotFeedback): Promise<PilotFeedback>;
+  list(filter?: { matterId?: string; userId?: string; category?: string }): Promise<PilotFeedback[]>;
+  getMetrics(): Promise<FeedbackSummaryMetrics>;
+}
+
 export interface IStorageAdapter {
   matters: IMatterRepository;
   documents: IDocumentRepository;
@@ -119,4 +159,5 @@ export interface IStorageAdapter {
   escalations?: IEscalationRepository;
   resolutions?: IResolutionRepository;
   notifications?: INotificationRepository;
+  pilotFeedback?: IPilotFeedbackRepository;
 }

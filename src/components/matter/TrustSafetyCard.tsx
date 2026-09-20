@@ -210,8 +210,22 @@ export function TrustSafetyCard({ items, auditLog = [] }: TrustSafetyCardProps) 
                     {tierLabel}
                   </span>
                   {item.confidenceScore !== undefined && (
-                    <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                      {Math.round(item.confidenceScore * 100)}% Confidence
+                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded border ${
+                      item.confidenceScore >= 0.8
+                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                        : item.confidenceScore >= 0.6
+                        ? 'text-blue-700 bg-blue-50 border-blue-200'
+                        : item.confidenceScore >= 0.4
+                        ? 'text-amber-700 bg-amber-50 border-amber-200'
+                        : 'text-stone-700 bg-stone-100 border-stone-200'
+                    }`}>
+                      {item.confidenceScore >= 0.8
+                        ? 'Verified Support'
+                        : item.confidenceScore >= 0.6
+                        ? 'Supported'
+                        : item.confidenceScore >= 0.4
+                        ? 'Partially Supported'
+                        : 'Unresolved'}
                     </span>
                   )}
                   {item.citation && (

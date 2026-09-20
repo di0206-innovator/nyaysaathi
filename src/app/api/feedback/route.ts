@@ -2,18 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
+import { getMatterService } from '@/lib/repository';
+import { AuthService } from '@/lib/auth/auth-service';
+import { PilotFeedback } from '@/lib/repository/types';
 
 export interface PilotFeedbackPayload {
   matterId?: string;
   rating: number; // 1 to 5
-  category: 'draft_quality' | 'statute_accuracy' | 'timeline_accuracy' | 'action_utility' | 'general';
+  category: string;
   feedbackText: string;
-  suggestedCorrection?: string;
+  correctionText?: string;
+  correctionCategory?:
+    | 'incorrect_fact'
+    | 'incorrect_legal_explanation'
+    | 'missing_evidence'
+    | 'wrong_action'
+    | 'wrong_deadline'
+    | 'wrong_escalation'
+    | 'unclear_draft'
+    | 'other';
   advocateConsulted?: boolean;
+  source?: string;
 }
-
-// In-memory persistent pilot feedback collection for development/analytics
-const pilotFeedbackStore: Array<PilotFeedbackPayload & { id: string; timestamp: string; ip: string }> = [];
 
 export async function POST(req: NextRequest) {
   const rateLimitResponse = await enforceRateLimit(req, 'pilot_feedback', 25, 60);
@@ -22,6 +32,7 @@ export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
 
   try {
+    const user = await AuthService.getAuthenticatedUser(req);
     const body = (await req.json()) as PilotFeedbackPayload;
 
     if (!body || typeof body.rating !== 'number' || body.rating < 1 || body.rating > 5) {
@@ -38,26 +49,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const feedbackEntry = {
+    const matterService = getMatterService();
+    const feedbackEntry: PilotFeedback = {
       id: `fb-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      userId: user?.id,
       matterId: body.matterId,
       rating: body.rating,
       category: body.category,
-      feedbackText: body.feedbackText.slice(0, 2000), // Enforce length limits
-      suggestedCorrection: body.suggestedCorrection?.slice(0, 2000),
+      feedbackText: body.feedbackText.slice(0, 2000),
+      correctionText: body.correctionText ? body.correctionText.slice(0, 2000) : undefined,
+      correctionCategory: body.correctionCategory,
       advocateConsulted: Boolean(body.advocateConsulted),
-      timestamp: new Date().toISOString(),
-      ip
+      source: body.source || 'direct',
+      status: 'pending_review',
+      createdAt: new Date().toISOString()
     };
 
-    pilotFeedbackStore.push(feedbackEntry);
+    const saved = await matterService.submitPilotFeedback(feedbackEntry);
 
     // Audit log feedback receipt without leaking PII
     SecurityAuditLogger.log({
       action: 'matter_analyzed',
-      userId: 'pilot_user',
+      userId: user?.id || 'pilot_user',
       matterId: body.matterId,
-      resource: `feedback:${feedbackEntry.id}`,
+      resource: `feedback:${saved.id}`,
       status: 'success',
       ipAddress: ip
     });
@@ -71,7 +86,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Thank you. Your feedback helps calibrate NyaySaathi legal precision.',
-      feedbackId: feedbackEntry.id
+      feedbackId: saved.id
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Invalid feedback payload';
@@ -80,27 +95,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  // Aggregate feedback summary for pilot analytics (sanitized, no PII)
-  const total = pilotFeedbackStore.length;
-  const avgRating = total > 0
-    ? Math.round((pilotFeedbackStore.reduce((acc, f) => acc + f.rating, 0) / total) * 10) / 10
-    : 5.0;
+  const matterService = getMatterService();
+  const metrics = await matterService.getPilotFeedbackMetrics();
 
-  const categoriesCount: Record<string, number> = {};
-  for (const f of pilotFeedbackStore) {
-    categoriesCount[f.category] = (categoriesCount[f.category] || 0) + 1;
-  }
-
-  return NextResponse.json({
-    totalSubmissions: total,
-    averageRating: avgRating,
-    categoryBreakdown: categoriesCount,
-    recentEntries: pilotFeedbackStore.slice(-10).map(f => ({
-      id: f.id,
-      category: f.category,
-      rating: f.rating,
-      feedbackText: f.feedbackText,
-      timestamp: f.timestamp
-    }))
-  });
+  return NextResponse.json(metrics);
 }

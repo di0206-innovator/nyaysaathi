@@ -63,11 +63,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [loading, setLoading] = useState<boolean>(false);
 
+  React.useEffect(() => {
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/auth', { credentials: 'include' });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data?.user) {
+            setUser(json.data.user);
+          }
+        }
+      } catch {
+        // Unauthenticated session
+      }
+    }
+    checkSession();
+  }, []);
+
   const login = async (email: string, password?: string): Promise<boolean> => {
     setLoading(true);
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', email, password: password || 'demo-pass' })
       });
@@ -77,8 +95,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const t = data.data.token || (data.data.session?.access_token) || `mock-user-${u.id}`;
         setUser(u);
         setToken(t);
-        localStorage.setItem('nyaysaathi_user', JSON.stringify(u));
-        localStorage.setItem('nyaysaathi_token', t);
         return true;
       }
       return false;
@@ -94,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'signup', email, password: password || 'demo-pass', fullName })
       });
@@ -103,8 +120,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const t = data.data.token || (data.data.session?.access_token) || `mock-user-${u.id}`;
         setUser(u);
         setToken(t);
-        localStorage.setItem('nyaysaathi_user', JSON.stringify(u));
-        localStorage.setItem('nyaysaathi_token', t);
         return true;
       }
       return false;
@@ -115,11 +130,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('nyaysaathi_user');
-    localStorage.removeItem('nyaysaathi_token');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('nyaysaathi_user');
+      localStorage.removeItem('nyaysaathi_token');
+    }
+    try {
+      await fetch('/api/auth', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' })
+      });
+    } catch {
+      // Ignored
+    }
   };
 
   const setDemoUser = (id: string, name?: string) => {

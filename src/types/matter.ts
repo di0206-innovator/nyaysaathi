@@ -75,7 +75,8 @@ export interface DocumentEvidence {
   keyQuotes?: string[];
   status: 'processing' | 'verified' | 'unverified';
   storagePath?: string;
-  extractionStatus?: 'verified_extraction' | 'partial_extraction' | 'needs_review' | 'needs_ocr' | 'extraction_failed';
+  mimeType?: string;
+  extractionStatus?: 'verified_extraction' | 'partial_extraction' | 'needs_review' | 'needs_ocr' | 'extraction_failed' | 'raw_uploaded';
 }
 
 export interface ExtractedFact {
@@ -325,6 +326,8 @@ export interface Matter {
   locationCity?: string;
   locationState?: string;
   claimAmount?: number;
+  acquisitionSource?: string;
+  firstUsefulActionAt?: string;
   
   // 1. User Story & Core Narrative
   userStory: string;
