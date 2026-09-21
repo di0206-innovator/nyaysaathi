@@ -86,21 +86,40 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 4: Statutory Legal Disclaimer */}
+          {/* Col 4: Legal & Statutory Disclaimer */}
           <div className="space-y-2.5">
             <h4 className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center space-x-1.5">
               <HeartHandshake className="w-4 h-4" />
               <span>Important Disclaimer</span>
             </h4>
             <p className="text-[11px] text-stone-400 leading-relaxed bg-stone-800/60 p-3 rounded-lg border border-stone-700/60">
-              NyaySaathi is an informational navigation and case preparation system designed to assist citizens in structuring facts and understanding their options. It does not provide definitive legal advice, practice law, or create an advocate-client relationship. Please consult an enrolled Advocate or visit a DLSA center for court representation.
+              NyaySaathi is an informational navigation and case preparation system under the Advocates Act 1961. It does not provide legal representation or practice law. Consult an enrolled Advocate or DLSA for court representation.
             </p>
+            <div className="pt-2 text-[11px] text-stone-400 space-y-1">
+              <p className="text-stone-300 font-medium">NyaySaathi Legal Tech Initiatives</p>
+              <p>#42, 4th Cross, 80 Feet Rd, 4th Block, Koramangala, Bengaluru, KA 560034</p>
+              <p>Email: <a href="mailto:support@nyaysaathi.in" className="text-amber-400 hover:underline">support@nyaysaathi.in</a></p>
+            </div>
           </div>
         </div>
 
-        <div className="border-t border-stone-800 pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500">
-          <p>© {new Date().getFullYear()} NyaySaathi India. All rights reserved.</p>
-          <p className="mt-2 sm:mt-0">Designed for Indian Jurisdiction & Statutory Frameworks</p>
+        <div className="border-t border-stone-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-400">
+          <div className="flex flex-wrap items-center gap-4 text-stone-400">
+            <p>© {new Date().getFullYear()} NyaySaathi India. All rights reserved.</p>
+            <span>•</span>
+            <a href="/privacy" className="hover:text-amber-400 transition-colors underline-offset-2 hover:underline">
+              Privacy Policy (DPDPA 2023)
+            </a>
+            <span>•</span>
+            <a href="/terms" className="hover:text-amber-400 transition-colors underline-offset-2 hover:underline">
+              Terms of Service
+            </a>
+            <span>•</span>
+            <a href="/pilot" className="hover:text-amber-400 transition-colors underline-offset-2 hover:underline">
+              Pilot Program
+            </a>
+          </div>
+          <p className="text-stone-400">Designed for Indian Jurisdiction & Statutory Frameworks</p>
         </div>
       </div>
     </footer>

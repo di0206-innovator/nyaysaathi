@@ -61,6 +61,10 @@ function NewMatterContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState(0);
 
+  // Anti-spam & Validation
+  const [honeypot, setHoneypot] = useState('');
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+
   const categories = [
     { id: 'tenancy_housing', label: 'Tenancy & Housing (Security Deposit, Rent, Eviction)', icon: <Home className="w-4 h-4" /> },
     { id: 'consumer_dispute', label: 'Consumer & Warranty Dispute (Defective Product, Service)', icon: <ShoppingBag className="w-4 h-4" /> },
@@ -91,6 +95,13 @@ function NewMatterContent() {
   };
 
   const handleCreateMatter = async () => {
+    // Anti-spam honeypot defense
+    if (honeypot) {
+      console.warn('Spam submission dropped by honeypot.');
+      router.push('/matters');
+      return;
+    }
+
     setIsProcessing(true);
     setProcessingStage(1);
 
@@ -282,14 +293,48 @@ function NewMatterContent() {
                 ))}
               </div>
 
+              {/* Hidden Anti-Spam Honeypot Field */}
+              <div style={{ display: 'none' }} aria-hidden="true">
+                <label htmlFor="company_site_hp">Leave this empty</label>
+                <input
+                  id="company_site_hp"
+                  type="text"
+                  name="company_site_hp"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
+
               <textarea
                 rows={7}
                 required
+                aria-invalid={!!formErrors.userStory}
+                aria-describedby={formErrors.userStory ? 'userStory-error' : undefined}
                 placeholder="Explain the background, dates of transaction, what was promised, how much is owed, and what the other party did..."
                 value={userStory}
-                onChange={(e) => setUserStory(e.target.value)}
-                className="w-full text-xs p-3.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 leading-relaxed font-sans"
+                onChange={(e) => {
+                  setUserStory(e.target.value);
+                  if (formErrors.userStory) {
+                    setFormErrors((prev) => {
+                      const copy = { ...prev };
+                      delete copy.userStory;
+                      return copy;
+                    });
+                  }
+                }}
+                className={`w-full text-xs p-3.5 rounded-lg border leading-relaxed font-sans focus:outline-none focus:ring-2 ${
+                  formErrors.userStory
+                    ? 'border-red-500 focus:ring-red-400 bg-red-50/20'
+                    : 'border-stone-300 focus:ring-amber-500'
+                }`}
               />
+              {formErrors.userStory && (
+                <p id="userStory-error" role="alert" className="mt-1 text-xs text-red-600 font-medium">
+                  {formErrors.userStory}
+                </p>
+              )}
             </div>
 
             {/* Financial Stake & Location */}
@@ -347,8 +392,9 @@ function NewMatterContent() {
 
               <button
                 onClick={() => {
-                  if (!userStory.trim()) {
-                    showToast('warning', 'Narrative Required', 'Please provide a brief explanation of what happened.');
+                  if (!userStory.trim() || userStory.trim().length < 15) {
+                    setFormErrors({ userStory: 'Please provide at least 15 characters explaining what happened.' });
+                    showToast('warning', 'Narrative Required', 'Please provide a brief explanation of what happened (at least 15 characters).');
                     return;
                   }
                   setStep(3);

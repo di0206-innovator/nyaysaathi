@@ -41,3 +41,13 @@ export async function GET() {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    // Non-blocking telemetry ingestion
+    return NextResponse.json({ success: true, recorded: Boolean(body) });
+  } catch {
+    return NextResponse.json({ success: false }, { status: 400 });
+  }
+}

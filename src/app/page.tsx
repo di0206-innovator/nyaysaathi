@@ -404,6 +404,21 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Sticky Mobile Action Bar (Responsive Mobile Breakpoint) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-stone-900/95 backdrop-blur-md border-t border-stone-800 z-40 flex items-center justify-between gap-3 shadow-xl">
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-bold text-stone-100 truncate">Deposit Withheld or Dispute?</span>
+          <span className="text-[10px] text-amber-400">Verified Legal Action Dossier</span>
+        </div>
+        <Link
+          href="/matters/new"
+          className="flex-shrink-0 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-xs shadow-md transition-colors flex items-center gap-1.5 active:scale-95"
+        >
+          <span>Start Matter</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
     </div>
   );
 }

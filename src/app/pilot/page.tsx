@@ -10,8 +10,15 @@ export default function PilotOnboardingPage() {
   const [acquisitionSource, setAcquisitionSource] = useState('direct');
   const [consentGiven, setConsentGiven] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState('');
 
   function handleStart(category: string) {
+    if (honeypot) {
+      console.warn('Spam submission dropped.');
+      router.push('/');
+      return;
+    }
+
     if (!consentGiven) {
       setError('Please review and confirm pilot program participation consent.');
       return;
@@ -125,8 +132,22 @@ export default function PilotOnboardingPage() {
             </div>
           </div>
 
+          {/* Hidden Anti-Spam Honeypot Field */}
+          <div style={{ display: 'none' }} aria-hidden="true">
+            <label htmlFor="pilot_referral_hp">Leave this empty</label>
+            <input
+              id="pilot_referral_hp"
+              type="text"
+              name="pilot_referral_hp"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+            />
+          </div>
+
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+            <div role="alert" aria-live="polite" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
               {error}
             </div>
           )}

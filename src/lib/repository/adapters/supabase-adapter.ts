@@ -1610,8 +1610,8 @@ export class SupabaseStorageAdapter implements IStorageAdapter {
     }
   };
 
-  public pilotFeedback: import('../types').IPilotFeedbackRepository = {
-    create: async (feedback: import('../types').PilotFeedback) => {
+  public pilotFeedback: IPilotFeedbackRepository = {
+    create: async (feedback: PilotFeedback) => {
       const row = {
         id: feedback.id || undefined,
         user_id: feedback.userId || null,
