@@ -284,23 +284,19 @@ export default function MatterDetailPage({
       <MatterHeader matter={matter} onReanalyze={() => handleReanalyze('full')} />
 
       {/* Dynamic Matter Health Status & Quick Action Toolbar */}
-      <div className="bg-stone-900 text-white px-4 py-3 border-b border-stone-800">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-black text-white px-4 py-3.5 border-b border-black">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-mono text-xs">
           <div className="flex items-center space-x-3">
-            <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md border ${
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${
               matter.status === 'resolved'
-                ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                ? 'bg-stone-900 text-white border-white'
                 : matter.status === 'awaiting_other_party'
-                ? 'bg-blue-950 text-blue-300 border-blue-700'
-                : matter.status === 'in_mediation'
-                ? 'bg-purple-950 text-purple-300 border-purple-700'
-                : matter.status === 'awaiting_authority'
-                ? 'bg-amber-950 text-amber-300 border-amber-700'
-                : 'bg-stone-800 text-stone-200 border-stone-700'
+                ? 'bg-rose-600 text-white border-rose-600'
+                : 'bg-stone-900 text-stone-300 border-stone-700'
             }`}>
-              {matter.status.replace(/_/g, ' ')}
+              STATUS: {matter.status.replace(/_/g, ' ')}
             </span>
-            <span className="text-xs text-stone-300">
+            <span className="text-xs text-stone-300 font-sans">
               {matter.status === 'resolved'
                 ? `Case closed: ${matter.resolution?.outcome || 'Resolved'} (Recovered ₹${matter.resolution?.amountRecovered || 0})`
                 : matter.status === 'awaiting_other_party'
@@ -316,28 +312,28 @@ export default function MatterDetailPage({
           <div className="flex items-center space-x-2 shrink-0">
             <button
               onClick={() => setIsAdvocatePackOpen(true)}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1.5 transition-colors"
+              className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-2 transition-colors border border-rose-600"
             >
-              <Briefcase className="w-3.5 h-3.5" />
-              <span>Advocate Case Pack</span>
+              <Briefcase className="w-3.5 h-3.5 text-white" />
+              <span>ADVOCATE CASE PACK</span>
             </button>
             <button
               onClick={() => setIsResolutionOpen(true)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1.5 transition-colors ${
+              className={`px-3.5 py-2 text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-2 transition-colors border ${
                 matter.status === 'resolved'
-                  ? 'bg-stone-800 hover:bg-stone-700 text-amber-400 border border-stone-700'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  ? 'bg-stone-900 hover:bg-stone-800 text-white border-stone-700'
+                  : 'bg-white hover:bg-stone-100 text-black border-white'
               }`}
             >
               {matter.status === 'resolved' ? (
                 <>
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reopen Case</span>
+                  <span>REOPEN DOCKET</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Mark Resolved</span>
+                  <span>MARK RESOLVED</span>
                 </>
               )}
             </button>
@@ -347,55 +343,55 @@ export default function MatterDetailPage({
 
       {/* Stepped Honest Analysis Progress Banner */}
       {analyzing && (
-        <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-orange-500 text-stone-950 px-4 py-2.5 text-xs font-semibold flex items-center justify-between shadow-md">
+        <div className="bg-rose-600 text-white px-4 py-2.5 text-xs font-mono font-bold flex items-center justify-between border-b border-black">
           <div className="flex items-center space-x-2.5">
-            <Scale className="w-4 h-4 animate-spin text-stone-950" />
-            <span className="font-bold tracking-tight">AI Reasoning Engine:</span>
+            <Scale className="w-4 h-4 animate-spin text-white" />
+            <span className="tracking-widest uppercase">GROUNDING ENGINE ACTIVE:</span>
             <span>{analysisStep || 'Ingesting document evidence and calculating grounding graph...'}</span>
           </div>
-          <span className="text-[10px] uppercase font-mono bg-stone-950/20 px-2 py-0.5 rounded">Grounding Active</span>
+          <span className="text-[10px] uppercase font-mono bg-black text-white px-2 py-0.5">GROUNDING VERIFIED</span>
         </div>
       )}
 
       {/* Error Callout Banner */}
       {errorMessage && (
-        <div className="bg-red-50 border-b border-red-200 text-red-800 px-4 py-3 text-xs flex items-center justify-between">
+        <div className="bg-rose-50 border-b border-rose-600 text-rose-950 px-4 py-3 text-xs font-mono flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
-            <span>{errorMessage}</span>
+            <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>ERROR: {errorMessage}</span>
           </div>
           <button
             onClick={() => handleReanalyze('full')}
-            className="px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-900 rounded font-semibold text-[11px] transition-colors"
+            className="px-3 py-1 bg-black text-white font-mono text-[11px] uppercase font-bold tracking-wider hover:bg-rose-600 transition-colors"
           >
-            Retry Analysis
+            RETRY ANALYSIS
           </button>
         </div>
       )}
 
       {/* 2. Responsive Navigation Sub-Bar & Multilingual Selector */}
-      <div className="sticky top-16 z-40 bg-white border-b border-stone-200 shadow-2xs">
+      <div className="sticky top-16 z-40 bg-white border-b border-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 gap-2">
-            <div className="flex items-center space-x-1 overflow-x-auto py-1 no-scrollbar">
+            <div className="flex items-center space-x-1 overflow-x-auto py-1 no-scrollbar font-mono">
               {navTabs.map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                    className={`inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold uppercase whitespace-nowrap transition-colors border ${
                       isActive
-                        ? 'bg-stone-900 text-white shadow-xs'
-                        : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
+                        ? 'bg-black text-white border-black'
+                        : 'text-stone-600 border-transparent hover:border-black hover:text-black'
                     }`}
                   >
-                    <span className={isActive ? 'text-amber-400' : 'text-stone-400'}>{tab.icon}</span>
+                    <span className={isActive ? 'text-rose-500' : 'text-stone-400'}>{tab.icon}</span>
                     <span>{tab.label}</span>
                     {tab.count !== undefined && (
                       <span
-                        className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                          isActive ? 'bg-stone-800 text-amber-300' : 'bg-stone-100 text-stone-600'
+                        className={`px-1.5 py-0.2 text-[10px] font-bold ${
+                          isActive ? 'bg-stone-800 text-white' : 'bg-stone-200 text-stone-700'
                         }`}
                       >
                         {tab.count}

@@ -6,7 +6,7 @@ import { Matter } from '@/types/matter';
 import { formatCurrencyINR, formatDateIndian } from '@/lib/utils';
 import {
   FolderLock,
-  PlusCircle,
+  Plus,
   Search,
   Filter,
   ArrowRight,
@@ -82,16 +82,13 @@ export default function MattersListingPage() {
   );
 
   const filteredMatters = matters.filter(m => {
-    // 1. Search Query
     const matchesSearch =
       m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       m.userStory.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.locationCity && m.locationCity.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    // 2. Category Filter
     const matchesCat = selectedCategory === 'all' || m.category === selectedCategory;
 
-    // 3. Dashboard Quick Filter
     let matchesDashboard = true;
     if (dashboardFilter === 'all_active') {
       matchesDashboard = m.status !== 'resolved' && m.status !== 'closed';
@@ -109,158 +106,155 @@ export default function MattersListingPage() {
   });
 
   return (
-    <div className="min-h-screen bg-stone-50/60 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#FBFBF9] py-10 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-200">
+        {/* Top Header - Swiss Gazette Masthead */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b-2 border-[#0A0A0A]">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 flex items-center space-x-2.5">
-              <FolderLock className="w-7 h-7 text-amber-600" />
-              <span>Personal Legal Dashboard</span>
+            <div className="flex items-center space-x-2 text-rose-600 font-mono text-xs font-bold uppercase tracking-widest mb-1">
+              <FolderLock className="w-4 h-4 text-rose-600" />
+              <span>JUDICIAL ACTION WORKSPACE // DOCKET REGISTER</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-[#0A0A0A]">
+              Personal Legal Matters
             </h1>
-            <p className="text-xs sm:text-sm text-stone-500 mt-1">
-              Active matter dossiers, action tracking, statutory limitation windows, and resolution monitoring.
+            <p className="text-xs sm:text-sm text-stone-600 font-mono mt-1 uppercase">
+              Active case dossiers, limitation countdowns, and pre-litigation document generation.
             </p>
           </div>
 
           <Link
             href="/matters/new"
-            className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-xs sm:text-sm transition-all shadow-md shadow-amber-900/20 active:scale-98 self-start sm:self-auto"
+            className="inline-flex items-center space-x-2 px-5 py-3 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors border border-black shadow-none self-start sm:self-auto"
           >
-            <PlusCircle className="w-4 h-4 text-stone-950" />
-            <span>Start New Matter</span>
+            <Plus className="w-4 h-4 text-white" />
+            <span>Initialize Matter</span>
           </Link>
         </div>
 
-        {/* Actionable Metrics Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {/* 5-Column Metric Steppers - Swiss Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 border border-[#0A0A0A] divide-x divide-y sm:divide-y-0 divide-[#0A0A0A] bg-white">
           <button
             onClick={() => setDashboardFilter('all_active')}
-            className={`p-4 rounded-xl border text-left transition-all ${
+            className={`p-4 text-left transition-colors font-mono ${
               dashboardFilter === 'all_active'
-                ? 'bg-stone-900 text-white border-stone-900 shadow-md'
-                : 'bg-white text-stone-900 border-stone-200 hover:border-stone-400'
+                ? 'bg-[#0A0A0A] text-white'
+                : 'bg-white text-stone-900 hover:bg-stone-50'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold opacity-70">Active Matters</span>
-              <Scale className="w-4 h-4 text-amber-400" />
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+              <span>01 // Active</span>
+              <Scale className="w-3.5 h-3.5" />
             </div>
-            <p className="text-2xl font-black mt-2">{activeMatters.length}</p>
+            <p className="text-3xl font-black mt-3">{activeMatters.length}</p>
           </button>
 
           <button
             onClick={() => setDashboardFilter('needs_attention')}
-            className={`p-4 rounded-xl border text-left transition-all ${
+            className={`p-4 text-left transition-colors font-mono ${
               dashboardFilter === 'needs_attention'
-                ? 'bg-rose-900 text-white border-rose-900 shadow-md'
-                : 'bg-white text-stone-900 border-stone-200 hover:border-rose-300'
+                ? 'bg-rose-600 text-white'
+                : 'bg-white text-stone-900 hover:bg-stone-50'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold opacity-80">Needs Attention</span>
-              <AlertTriangle className="w-4 h-4 text-rose-500" />
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+              <span>02 // Action Due</span>
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
             </div>
-            <p className="text-2xl font-black mt-2 text-rose-600 group-hover:text-rose-700">
+            <p className="text-3xl font-black mt-3 text-rose-600 group-hover:text-white">
               {needsAttention.length}
             </p>
           </button>
 
           <button
             onClick={() => setDashboardFilter('waiting_for')}
-            className={`p-4 rounded-xl border text-left transition-all ${
+            className={`p-4 text-left transition-colors font-mono ${
               dashboardFilter === 'waiting_for'
-                ? 'bg-blue-950 text-white border-blue-900 shadow-md'
-                : 'bg-white text-stone-900 border-stone-200 hover:border-blue-300'
+                ? 'bg-[#0A0A0A] text-white'
+                : 'bg-white text-stone-900 hover:bg-stone-50'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold opacity-80">Waiting For Reply</span>
-              <Send className="w-4 h-4 text-blue-400" />
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+              <span>03 // Waiting</span>
+              <Send className="w-3.5 h-3.5" />
             </div>
-            <p className="text-2xl font-black mt-2 text-blue-600">
-              {waitingFor.length}
-            </p>
+            <p className="text-3xl font-black mt-3">{waitingFor.length}</p>
           </button>
 
           <button
             onClick={() => setDashboardFilter('upcoming_deadlines')}
-            className={`p-4 rounded-xl border text-left transition-all ${
+            className={`p-4 text-left transition-colors font-mono ${
               dashboardFilter === 'upcoming_deadlines'
-                ? 'bg-amber-900 text-white border-amber-900 shadow-md'
-                : 'bg-white text-stone-900 border-stone-200 hover:border-amber-300'
+                ? 'bg-amber-600 text-white'
+                : 'bg-white text-stone-900 hover:bg-stone-50'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold opacity-80">Upcoming Deadlines</span>
-              <Clock className="w-4 h-4 text-amber-400" />
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+              <span>04 // Deadlines</span>
+              <Clock className="w-3.5 h-3.5 text-amber-500" />
             </div>
-            <p className="text-2xl font-black mt-2 text-amber-600">
-              {upcomingDeadlinesMatters.length}
-            </p>
+            <p className="text-3xl font-black mt-3">{upcomingDeadlinesMatters.length}</p>
           </button>
 
           <button
             onClick={() => setDashboardFilter('resolved')}
-            className={`p-4 rounded-xl border text-left transition-all col-span-2 sm:col-span-1 ${
+            className={`p-4 text-left transition-colors font-mono col-span-2 sm:col-span-1 ${
               dashboardFilter === 'resolved'
-                ? 'bg-emerald-950 text-white border-emerald-900 shadow-md'
-                : 'bg-white text-stone-900 border-stone-200 hover:border-emerald-300'
+                ? 'bg-emerald-700 text-white'
+                : 'bg-white text-stone-900 hover:bg-stone-50'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold opacity-80">Resolved Cases</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+              <span>05 // Resolved</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
             </div>
-            <p className="text-2xl font-black mt-2 text-emerald-600">
-              {resolvedMatters.length}
-            </p>
+            <p className="text-3xl font-black mt-3">{resolvedMatters.length}</p>
           </button>
         </div>
 
-        {/* Search & Filter Bar */}
-        <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-col md:flex-row items-center gap-3">
+        {/* Search & Filter Bar - Swiss Design */}
+        <div className="bg-white p-3 border border-[#0A0A0A] flex flex-col md:flex-row items-center gap-3 font-mono text-xs">
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by keyword, city, or title..."
+              placeholder="SEARCH DOCKET BY KEYWORD, CITATION, OR CITY..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs pl-9 pr-4 py-2 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-stone-50/50"
+              className="w-full pl-9 pr-4 py-2 border border-stone-300 focus:outline-none focus:ring-2 focus:ring-black bg-[#FBFBF9] uppercase text-xs"
             />
           </div>
 
           <div className="flex items-center space-x-2 w-full md:w-auto">
-            <Filter className="w-4 h-4 text-stone-400" />
+            <Filter className="w-4 h-4 text-stone-500" />
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="text-xs px-3 py-2 rounded-lg border border-stone-300 bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-amber-500 w-full md:w-auto"
+              className="text-xs px-3 py-2 border border-stone-300 bg-[#FBFBF9] focus:outline-none focus:ring-2 focus:ring-black w-full md:w-auto font-mono uppercase"
             >
-              <option value="all">All Legal Categories</option>
-              <option value="tenancy_housing">Tenancy & Rental Housing</option>
-              <option value="consumer_dispute">Consumer Grievance / Defective Goods</option>
-              <option value="employment_wages">Salary Withholding & Labour</option>
-              <option value="builder_rera">RERA & Real Estate Delayed Possession</option>
-              <option value="cheque_bounce">Cheque Bounce (Sec 138 NI Act)</option>
-              <option value="financial_fraud">UPI / Banking Cyber Fraud</option>
+              <option value="all">ALL LEGAL CATEGORIES</option>
+              <option value="tenancy_housing">TENANCY &amp; HOUSING</option>
+              <option value="consumer_dispute">CONSUMER DEFICIENCY</option>
+              <option value="employment_wages">SALARY &amp; WORKPLACE</option>
+              <option value="builder_rera">RERA FLAT POSSESSION</option>
+              <option value="cheque_bounce">CHEQUE DISHONOR (SEC 138)</option>
+              <option value="financial_fraud">CYBER / FINANCIAL FRAUD</option>
             </select>
           </div>
         </div>
 
         {/* Matters Grid */}
         {loading ? (
-          <div className="py-20 text-center space-y-3">
-            <Scale className="w-8 h-8 text-amber-600 animate-spin mx-auto" />
-            <p className="text-xs text-stone-500 font-semibold">Loading case dossiers...</p>
+          <div className="py-20 text-center space-y-3 font-mono">
+            <Scale className="w-8 h-8 text-rose-600 animate-spin mx-auto" />
+            <p className="text-xs text-stone-600 uppercase tracking-wider">RETRIEVING CASE DOSSIERS...</p>
           </div>
         ) : filteredMatters.length === 0 ? (
-          <div className="p-12 text-center bg-white rounded-2xl border border-stone-200 space-y-3">
+          <div className="p-12 text-center bg-white border border-[#0A0A0A] space-y-3 font-mono">
             <Scale className="w-8 h-8 text-stone-400 mx-auto" />
-            <h3 className="text-sm font-bold text-stone-800">No matters matching filter</h3>
-            <p className="text-xs text-stone-500 max-w-sm mx-auto">
-              No cases found for the selected dashboard view.
+            <h3 className="text-sm font-bold uppercase text-stone-900">No matching dockets found</h3>
+            <p className="text-xs text-stone-500 max-w-sm mx-auto uppercase">
+              No cases correspond to the active filter configuration.
             </p>
             <button
               onClick={() => {
@@ -268,14 +262,14 @@ export default function MattersListingPage() {
                 setSelectedCategory('all');
                 setSearchQuery('');
               }}
-              className="text-xs text-amber-600 font-bold hover:underline"
+              className="text-xs text-rose-600 font-bold hover:underline uppercase"
             >
-              Reset Filters
+              [Reset Filters]
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMatters.map((matter) => {
+            {filteredMatters.map((matter, idx) => {
               const completedActions = matter.actionPlan?.filter(a => a.status === 'completed').length || 0;
               const totalActions = matter.actionPlan?.length || 0;
 
@@ -283,37 +277,37 @@ export default function MattersListingPage() {
                 <Link
                   key={matter.id}
                   href={`/matters/${matter.id}`}
-                  className="group bg-white rounded-2xl border border-stone-200/90 p-5 hover:border-amber-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                  className="group bg-white border border-[#0A0A0A] hover:border-rose-600 p-5 transition-all flex flex-col justify-between space-y-4 hover:shadow-lg"
                 >
                   <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                        {matter.category.replace(/_/g, ' ')}
+                    <div className="flex items-start justify-between gap-2 border-b border-stone-200 pb-2.5 font-mono text-[10px]">
+                      <span className="font-bold text-rose-600 uppercase tracking-wider">
+                        DOCKET #{idx + 1} {'//'} {matter.category.replace(/_/g, ' ')}
                       </span>
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                      <span className={`font-bold uppercase tracking-wider px-1.5 py-0.5 border ${
                         matter.status === 'resolved'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                           : matter.status === 'awaiting_other_party'
-                          ? 'bg-blue-50 text-blue-800 border-blue-200'
+                          ? 'bg-sky-50 text-sky-800 border-sky-300'
                           : matter.status === 'awaiting_user_action'
-                          ? 'bg-amber-50 text-amber-800 border-amber-200'
-                          : 'bg-stone-100 text-stone-600 border-stone-200'
+                          ? 'bg-rose-50 text-rose-800 border-rose-300'
+                          : 'bg-stone-100 text-stone-700 border-stone-300'
                       }`}>
-                        {matter.status.replace(/_/g, ' ')}
+                        [{matter.status.replace(/_/g, ' ')}]
                       </span>
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-bold text-stone-900 group-hover:text-amber-700 transition-colors line-clamp-1">
+                      <h3 className="text-base font-bold text-[#0A0A0A] group-hover:text-rose-600 transition-colors line-clamp-1 uppercase">
                         {matter.title}
                       </h3>
-                      <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-stone-600 mt-1 line-clamp-2 leading-relaxed font-sans">
                         {matter.summary?.plainLanguage || matter.userStory}
                       </p>
                     </div>
 
                     {/* Metadata Chips */}
-                    <div className="flex flex-wrap gap-2 text-[11px] text-stone-500 pt-1">
+                    <div className="flex flex-wrap gap-2 text-[11px] text-stone-600 font-mono pt-1">
                       {matter.locationCity && (
                         <span className="flex items-center space-x-1">
                           <MapPin className="w-3 h-3 text-stone-400" />
@@ -321,7 +315,7 @@ export default function MattersListingPage() {
                         </span>
                       )}
                       {matter.claimAmount && (
-                        <span className="flex items-center space-x-1 font-semibold text-stone-800">
+                        <span className="flex items-center space-x-1 font-bold text-stone-900 bg-amber-50 px-1 border border-amber-200">
                           <IndianRupee className="w-3 h-3 text-stone-400" />
                           <span>{formatCurrencyINR(matter.claimAmount)}</span>
                         </span>
@@ -334,13 +328,13 @@ export default function MattersListingPage() {
                   </div>
 
                   {/* Footer Stats */}
-                  <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-[11px]">
-                    <span className="text-stone-500 flex items-center space-x-1 font-medium">
+                  <div className="pt-3 border-t border-stone-200 flex items-center justify-between font-mono text-[11px]">
+                    <span className="text-stone-600 flex items-center space-x-1">
                       <ListTodo className="w-3.5 h-3.5 text-stone-400" />
-                      <span>{completedActions}/{totalActions} Actions Done</span>
+                      <span>{completedActions}/{totalActions} ACTIONS COMPLETED</span>
                     </span>
-                    <span className="text-amber-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center space-x-1">
-                      <span>Open Workspace</span>
+                    <span className="text-rose-600 font-bold group-hover:translate-x-1 transition-transform flex items-center space-x-1 uppercase">
+                      <span>OPEN DOSSIER</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </span>
                   </div>

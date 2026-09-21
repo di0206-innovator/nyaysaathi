@@ -1,7 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
 import {
-  Scale,
   ArrowRight,
   ShieldCheck,
   FolderLock,
@@ -10,7 +9,8 @@ import {
   ShoppingBag,
   Briefcase,
   Coins,
-  Home
+  Home,
+  FileText
 } from 'lucide-react';
 import { SEED_MATTERS } from '@/lib/db/seed-data';
 import { formatCurrencyINR } from '@/lib/utils';
@@ -19,284 +19,340 @@ export default function HomePage() {
   const sampleCategories = [
     {
       id: 'tenancy_housing',
-      title: 'Tenant Security Deposit',
-      desc: 'Withholding of deposit, arbitrary painting deductions, eviction threats.',
-      icon: <Home className="w-5 h-5 text-amber-600" />,
-      color: 'bg-amber-50 border-amber-200'
+      num: '01',
+      title: 'Tenant Security Deposit Recovery',
+      desc: 'Withholding of deposit, arbitrary painting deductions, eviction threats under state rent acts.',
+      icon: <Home className="w-4 h-4 text-rose-600" />
     },
     {
       id: 'consumer_dispute',
-      title: 'Consumer & Warranty Disputes',
-      desc: 'Defective products, service deficiency, denied warranty repair, e-Daakhil filing.',
-      icon: <ShoppingBag className="w-5 h-5 text-blue-600" />,
-      color: 'bg-blue-50 border-blue-200'
+      num: '02',
+      title: 'Consumer & Warranty Deficiency',
+      desc: 'Defective products, service deficiency, denied warranty repair, e-Daakhil filing roadmap.',
+      icon: <ShoppingBag className="w-4 h-4 text-stone-900" />
     },
     {
       id: 'workplace_employment',
+      num: '03',
       title: 'Unpaid Wages & Settlement',
-      desc: 'Withheld salary, full & final delays, unpaid gratuity, PF issues.',
-      icon: <Briefcase className="w-5 h-5 text-emerald-600" />,
-      color: 'bg-emerald-50 border-emerald-200'
+      desc: 'Withheld salary, full & final settlement delays, unpaid gratuity, PF compliance.',
+      icon: <Briefcase className="w-4 h-4 text-stone-900" />
     },
     {
       id: 'financial_cheque_bounce',
-      title: 'Cheque Bounce (Sec 138)',
-      desc: 'Dishonored cheques, 15-day statutory demand notice, recovery roadmap.',
-      icon: <Coins className="w-5 h-5 text-purple-600" />,
-      color: 'bg-purple-50 border-purple-200'
+      num: '04',
+      title: 'Cheque Dishonor (Sec 138 NI Act)',
+      desc: 'Dishonored cheques, mandatory 15-day statutory demand notice, recovery roadmap.',
+      icon: <Coins className="w-4 h-4 text-stone-900" />
     },
     {
       id: 'property_rera',
-      title: 'RERA Flat Possession Delay',
-      desc: 'Delayed handover by builder, monthly delay interest claims, Form M petitions.',
-      icon: <Building2 className="w-5 h-5 text-orange-600" />,
-      color: 'bg-orange-50 border-orange-200'
+      num: '05',
+      title: 'Real Estate & RERA Possession',
+      desc: 'Delayed handover by builder, monthly delay interest claims under Section 18 of RERA.',
+      icon: <Building2 className="w-4 h-4 text-stone-900" />
+    },
+    {
+      id: 'other',
+      num: '06',
+      title: 'General Civil Grievance',
+      desc: 'Contract breach, unfulfilled service agreements, formal notice preparation.',
+      icon: <FileText className="w-4 h-4 text-stone-900" />
     }
   ];
 
   return (
-    <div className="min-h-screen bg-stone-50/60 text-stone-900 selection:bg-amber-200">
-      {/* 1. Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-stone-900 via-stone-900 to-stone-850 text-white pt-16 pb-20 px-4 sm:px-6 lg:px-8 border-b border-stone-800">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="max-w-5xl mx-auto text-center space-y-6 relative z-10">
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold">
-            <Scale className="w-3.5 h-3.5 text-amber-400" />
-            <span>Not a generic AI chatbot. A matter-based Legal Action Navigator.</span>
+    <div className="min-h-screen bg-[#FBFBF9] text-[#0A0A0A] selection:bg-rose-600 selection:text-white font-sans">
+      {/* 1. Swiss Poster Hero Section */}
+      <section className="bg-[#0A0A0A] text-white border-b-2 border-stone-800 pt-16 pb-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Header Monospace Metadata */}
+          <div className="flex flex-wrap items-center justify-between border-b border-stone-800 pb-4 text-xs font-mono">
+            <div className="flex items-center space-x-2 text-stone-400">
+              <span className="w-2 h-2 bg-rose-600 inline-block" />
+              <span className="text-white font-bold tracking-widest uppercase">
+                § 00 // SYSTEM DIRECTIVE
+              </span>
+              <span className="text-stone-400">• MATTER-BASED LEGAL ACTION ARCHITECTURE</span>
+            </div>
+            <div className="text-rose-400 tracking-wider uppercase font-bold text-[11px] pt-1 sm:pt-0">
+              [NOT A CHATBOT // ADMISSIBLE EVIDENCE GROUNDED]
+            </div>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
-            Clear your confusion.<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-amber-200">
-              Organize your matter. Know your options.
-            </span>
-          </h1>
+          {/* Bold Display Headline (International Typographic Style) */}
+          <div className="space-y-4 max-w-5xl">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-none">
+              CLEAR CONFUSION.<br />
+              <span className="text-rose-500">ORGANIZE EVIDENCE.</span><br />
+              EXECUTE ACTION.
+            </h1>
+            <p className="text-sm sm:text-base text-stone-300 max-w-2xl font-mono leading-relaxed uppercase">
+              Transform unstructured disputes into disciplined pre-litigation matters under Indian law. Verifiable timelines, limitation time-bars, statutory legal notices, and advocate case dossiers.
+            </p>
+          </div>
 
-          <p className="text-sm sm:text-lg text-stone-300 max-w-3xl mx-auto leading-relaxed">
-            Explain what happened, add your supporting documents, and receive a structured chronological dossier: verified facts, risk vectors, limitation countdowns, ready-to-send legal notices, and free legal aid pathways.
-          </p>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+          {/* Action Triggers */}
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <Link
               href="/matters/new"
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-stone-950 font-bold text-sm sm:text-base shadow-lg shadow-orange-950/40 transition-all flex items-center justify-center space-x-2 active:scale-98"
+              className="px-8 py-4 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-2 border border-black active:translate-y-px"
             >
               <span>Start New Matter</span>
-              <ArrowRight className="w-4 h-4 text-stone-950" />
+              <ArrowRight className="w-4 h-4" />
             </Link>
 
             <Link
               href="/matters"
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-semibold text-sm sm:text-base border border-stone-700 transition-all flex items-center justify-center space-x-2"
+              className="px-8 py-4 bg-stone-900 hover:bg-stone-800 text-stone-200 font-mono text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-2 border border-stone-700"
             >
-              <FolderLock className="w-4 h-4 text-amber-400" />
+              <FolderLock className="w-4 h-4 text-stone-400" />
               <span>Explore Existing Matters</span>
+            </Link>
+
+            <Link
+              href="/pilot"
+              className="px-6 py-4 bg-transparent hover:bg-stone-900 text-rose-400 font-mono text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-1.5 border border-rose-900/60"
+            >
+              <span>Pilot Intake</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
-          {/* Quick Helpline Pill */}
-          <div className="pt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-stone-400">
-            <span className="flex items-center space-x-1.5">
+          {/* Technical Metadata Bar */}
+          <div className="border-t border-stone-800 pt-4 flex flex-wrap items-center justify-between gap-4 font-mono text-[11px] text-stone-400">
+            <div className="flex items-center space-x-2">
               <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
-              <span>National Legal Aid Helpline: <strong>15100</strong></span>
-            </span>
-            <span className="hidden sm:inline text-stone-600">•</span>
-            <span className="flex items-center space-x-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-              <span>e-Daakhil Online Consumer Filing</span>
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. The 5-Stage Action Loop */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-20">
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-xl p-6 sm:p-8">
-          <div className="text-center max-w-2xl mx-auto mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-3 py-1 rounded-full inline-block mb-2">
-              The NyaySaathi Loop
-            </h2>
-            <h3 className="text-xl sm:text-2xl font-bold text-stone-900">
-              Engineered around Matters, not transient chat messages
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 font-bold flex items-center justify-center text-xs">
-                1
-              </div>
-              <h4 className="text-xs font-bold text-stone-900">CAPTURE</h4>
-              <p className="text-[11px] text-stone-600 leading-relaxed">
-                Explain what happened, upload lease agreements, invoices, or paste WhatsApp chat exports.
-              </p>
+              <span>NALSA LEGAL AID HELPLINE: <strong className="text-white">15100</strong></span>
             </div>
-
-            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 font-bold flex items-center justify-center text-xs">
-                2
-              </div>
-              <h4 className="text-xs font-bold text-stone-900">UNDERSTAND</h4>
-              <p className="text-[11px] text-stone-600 leading-relaxed">
-                OCR extracts evidence, organizes a chronological timeline, and verifies contractual facts.
-              </p>
+            <div className="flex items-center space-x-2">
+              <ShieldCheck className="w-3.5 h-3.5 text-rose-500" />
+              <span>LIMITATION ACT 1963 TIME-BAR ENGINE</span>
             </div>
-
-            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-800 font-bold flex items-center justify-center text-xs">
-                3
-              </div>
-              <h4 className="text-xs font-bold text-stone-900">ASSESS</h4>
-              <p className="text-[11px] text-stone-600 leading-relaxed">
-                Calculates statutory limitation periods, spots missing proof, and highlights risk vectors.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">
-                4
-              </div>
-              <h4 className="text-xs font-bold text-stone-900">ACT</h4>
-              <p className="text-[11px] text-stone-600 leading-relaxed">
-                Generates formal Indian legal notices, consumer court complaints, and 3-phase action roadmaps.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-800 font-bold flex items-center justify-center text-xs">
-                5
-              </div>
-              <h4 className="text-xs font-bold text-stone-900">ESCALATE</h4>
-              <p className="text-[11px] text-stone-600 leading-relaxed">
-                Prepares a 1-page Advocate Brief for DLSA Legal Aid, Lok Adalat, or private advocates.
-              </p>
+            <div className="flex items-center space-x-2">
+              <span>STATUTORY COMPLIANCE: ADVOCATES ACT 1961</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2.5 Primary Launch Wedge: Tenant-Landlord Security Deposit Dispute Navigator */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-6">
-        <div className="bg-gradient-to-br from-amber-900 via-stone-900 to-stone-950 text-white rounded-3xl p-6 sm:p-10 shadow-2xl border border-amber-500/20 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="max-w-3xl space-y-4 relative z-10">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold uppercase tracking-wider">
-              <Home className="w-3.5 h-3.5 text-amber-400" />
-              <span>Primary Launch Wedge • Urban India</span>
-            </div>
-
-            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-              Withheld Security Deposit? Arbitrary Deductions?<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">
-                Execute a Grounded Recovery Roadmap.
+      {/* 2. The 5-Stage Modular Grid */}
+      <section className="border-b-2 border-[#0A0A0A] bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="border-b-2 border-[#0A0A0A] pb-4 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+            <div>
+              <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600">
+                § 01 // ARCHITECTURAL LOOP
               </span>
-            </h2>
+              <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#0A0A0A]">
+                The 5-Stage Legal Action Pipeline
+              </h2>
+            </div>
+            <span className="font-mono text-xs text-stone-500 uppercase">
+              STRUCTURED DOSSIER // NOT TRANSIENT CHAT
+            </span>
+          </div>
 
-            <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
-              In Bengaluru, Delhi-NCR, Mumbai, and Hyderabad, tenant security deposits are frequently withheld under unsubstantiated painting deductions or delayed beyond agreed timelines. Legal remedies depend on your jurisdiction, agreement terms, move-out condition, and documented proof. NyaySaathi structures your tenancy evidence into an actionable legal recovery dossier.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-              <div className="p-4 rounded-xl bg-stone-850/80 border border-stone-700/80 space-y-1">
-                <span className="text-xs font-bold text-amber-400">1. Evidence Lock</span>
-                <p className="text-[11px] text-stone-300">Rental agreement terms, UPI deposit slips, and dated handover proofs.</p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-stone-850/80 border border-stone-700/80 space-y-1">
-                <span className="text-xs font-bold text-amber-400">2. Jurisdiction Grounding</span>
-                <p className="text-[11px] text-stone-300">State Rent Acts, Leave &amp; License clauses, Model Tenancy Act (where adopted), &amp; Indian Contract Act §73 wear-and-tear standards.</p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-stone-850/80 border border-stone-700/80 space-y-1">
-                <span className="text-xs font-bold text-amber-400">3. Phased Notice Suite</span>
-                <p className="text-[11px] text-stone-300">Amicable itemized dispute letter, Speed Post legal notice, and advocate brief.</p>
+          {/* 5-Column Grid with Hairline Dividers */}
+          <div className="grid grid-cols-1 md:grid-cols-5 border border-[#0A0A0A]">
+            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-[#FBFBF9]">
+              <div className="font-mono text-xs font-black text-rose-600">01.</div>
+              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">CAPTURE</h3>
+              <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                Narrative intake, lease agreements, UPI transaction receipts, and chat exports.
+              </p>
+              <div className="font-mono text-[10px] text-stone-400 uppercase tracking-widest pt-2 border-t border-stone-200">
+                STAGE: INGESTION
               </div>
             </div>
 
-            <div className="pt-4 flex flex-wrap items-center gap-3">
-              <Link
-                href="/matters/new?category=tenancy_housing"
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-stone-950 font-bold text-xs sm:text-sm shadow-md transition-all flex items-center space-x-2"
-              >
-                <span>Start Tenancy Deposit Matter</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-[#FBFBF9]">
+              <div className="font-mono text-xs font-black text-stone-900">02.</div>
+              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">MAP</h3>
+              <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                Truthful OCR extracts clauses, creates chronological timelines, and locks contract terms.
+              </p>
+              <div className="font-mono text-[10px] text-stone-400 uppercase tracking-widest pt-2 border-t border-stone-200">
+                STAGE: PROVENANCE
+              </div>
+            </div>
 
-              <Link
-                href="/analytics"
-                className="px-5 py-2.5 rounded-xl bg-stone-800/80 hover:bg-stone-750 text-stone-300 font-semibold text-xs sm:text-sm border border-stone-700 transition-all flex items-center space-x-2"
-              >
-                <span>View Live Pilot Analytics</span>
-              </Link>
+            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-[#FBFBF9]">
+              <div className="font-mono text-xs font-black text-stone-900">03.</div>
+              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">ASSESS</h3>
+              <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                Calculates limitation periods, identifies evidentiary gaps, and flags counter-claim risks.
+              </p>
+              <div className="font-mono text-[10px] text-stone-400 uppercase tracking-widest pt-2 border-t border-stone-200">
+                STAGE: LIMITATION
+              </div>
+            </div>
+
+            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-[#FBFBF9]">
+              <div className="font-mono text-xs font-black text-stone-900">04.</div>
+              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">ACT</h3>
+              <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                Generates formal Indian legal notices, consumer complaints, and Speed Post demand letters.
+              </p>
+              <div className="font-mono text-[10px] text-stone-400 uppercase tracking-widest pt-2 border-t border-stone-200">
+                STAGE: DISPATCH
+              </div>
+            </div>
+
+            <div className="p-5 space-y-3 bg-[#FBFBF9]">
+              <div className="font-mono text-xs font-black text-rose-600">05.</div>
+              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">ESCALATE</h3>
+              <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                Assembles a 10-section Advocate Case Pack for DLSA, Lok Adalat, or enrolled legal counsel.
+              </p>
+              <div className="font-mono text-[10px] text-stone-400 uppercase tracking-widest pt-2 border-t border-stone-200">
+                STAGE: ADVOCACY
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. Pre-loaded Sample Matters Section */}
+      {/* 3. Primary Wedge: Urban Tenancy Security Deposit Recovery */}
+      <section className="border-b-2 border-[#0A0A0A] bg-[#0A0A0A] text-white py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <div className="border-b border-stone-800 pb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <div className="inline-block px-2.5 py-1 bg-rose-600 text-white font-mono text-[11px] font-bold uppercase tracking-widest mb-3">
+                PRIMARY ENTRY WEDGE // URBAN INDIA (Primary Launch Wedge)
+              </div>
+              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white leading-tight">
+                Tenant Security Deposit Recovery
+              </h2>
+            </div>
+            <div className="font-mono text-xs text-stone-400 border border-stone-800 p-3 bg-stone-950">
+              <span>BENGALURU • MUMBAI • DELHI-NCR • HYDERABAD</span>
+            </div>
+          </div>
+
+          <p className="text-sm text-stone-300 max-w-3xl leading-relaxed font-sans">
+            Security deposits in urban tenancy agreements are routinely withheld under unsubstantiated painting or wear-and-tear deductions. Governed under the Model Tenancy Act principles, jurisdiction-specific rent statutes, Leave &amp; License terms, move-out condition, and documentary proof, NyaySaathi structures your tenancy evidence into an enforceable pre-litigation dossier.
+          </p>
+
+          {/* 3-Column Architectural Framework */}
+          <div className="grid grid-cols-1 md:grid-cols-3 border border-stone-800">
+            <div className="p-6 border-b md:border-b-0 md:border-r border-stone-800 space-y-2 bg-stone-950">
+              <span className="font-mono text-xs font-bold text-rose-500 uppercase tracking-widest">
+                01 // EVIDENTIARY AUDIT
+              </span>
+              <h4 className="font-bold text-sm text-white uppercase">Agreement &amp; Deposit Slip Verification</h4>
+              <p className="text-xs text-stone-400 leading-relaxed font-sans">
+                Extracts deposit clause, move-in handover notes, UPI payment slips, and notice period proof.
+              </p>
+            </div>
+
+            <div className="p-6 border-b md:border-b-0 md:border-r border-stone-800 space-y-2 bg-stone-950">
+              <span className="font-mono text-xs font-bold text-rose-500 uppercase tracking-widest">
+                02 // STATUTORY GROUNDS
+              </span>
+              <h4 className="font-bold text-sm text-white uppercase">State Rent Control &amp; Contract Law</h4>
+              <p className="text-xs text-stone-400 leading-relaxed font-sans">
+                Applies Karnataka Rent Act, Maharashtra Rent Control Act, or Indian Contract Act §73/§74 wear-and-tear rules.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-2 bg-stone-950">
+              <span className="font-mono text-xs font-bold text-rose-500 uppercase tracking-widest">
+                03 // ENFORCEMENT SUITE
+              </span>
+              <h4 className="font-bold text-sm text-white uppercase">Speed Post Legal Notice &amp; Advocate Pack</h4>
+              <p className="text-xs text-stone-400 leading-relaxed font-sans">
+                Generates a formal 15-day statutory demand letter and a complete 10-section Advocate Case Pack for court filing.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <Link
+              href="/matters/new?category=tenancy_housing"
+              className="px-6 py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors flex items-center space-x-2"
+            >
+              <span>Start Deposit Recovery Matter</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/analytics"
+              className="px-6 py-3.5 bg-stone-900 hover:bg-stone-800 text-stone-300 font-mono text-xs font-bold uppercase tracking-wider border border-stone-700 transition-colors flex items-center space-x-2"
+            >
+              <span>View Pilot Metrics</span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Judicial Docket: Live Interactive Matters */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+        <div className="border-b-2 border-[#0A0A0A] pb-4 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-amber-700">
-              Live Interactive Test Fixtures
+            <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600">
+              § 02 // DOCKET SAMPLES
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-[#0A0A0A]">
+              Pre-Analyzed Dispute Dossiers
             </h2>
-            <h3 className="text-2xl font-bold text-stone-900 mt-1">
-              Explore Pre-Analyzed Indian Legal Scenarios
-            </h3>
-            <p className="text-xs text-stone-500 mt-1">
-              Click any matter to inspect the complete 9-agent pipeline output, timeline, drafts, and 1-page lawyer brief.
+            <p className="text-xs text-stone-600 font-mono mt-1 uppercase">
+              Click any matter to inspect the complete multi-agent pipeline, chronology, and advocate brief.
             </p>
           </div>
 
           <Link
             href="/matters"
-            className="inline-flex items-center space-x-1.5 text-xs font-bold text-amber-700 hover:text-amber-800"
+            className="inline-flex items-center space-x-1 font-mono text-xs font-bold uppercase text-rose-600 hover:text-rose-700 tracking-wider"
           >
-            <span>View All Matters</span>
+            <span>VIEW COMPLETE WORKSPACE</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {SEED_MATTERS.map((matter) => (
+        {/* Docket Rows with Visible Swiss Borders */}
+        <div className="border border-[#0A0A0A] divide-y divide-[#0A0A0A] bg-white">
+          {SEED_MATTERS.map((matter, idx) => (
             <Link
               key={matter.id}
               href={`/matters/${matter.id}`}
-              className="bg-white rounded-2xl border border-stone-200/90 hover:border-amber-500 p-6 shadow-sm hover:shadow-md transition-all group flex flex-col justify-between"
+              className="p-6 hover:bg-stone-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 group"
             >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-200">
-                    {matter.category.replace(/_/g, ' ').toUpperCase()}
+              <div className="space-y-2 max-w-3xl">
+                <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                  <span className="font-bold text-rose-600">DOCKET #{idx + 1}</span>
+                  <span className="text-stone-300">/</span>
+                  <span className="px-2 py-0.5 bg-stone-100 border border-stone-300 text-stone-800 font-bold uppercase text-[10px]">
+                    {matter.category.replace(/_/g, ' ')}
                   </span>
                   {matter.claimAmount && (
-                    <span className="text-xs font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded">
-                      Stake: {formatCurrencyINR(matter.claimAmount)}
+                    <span className="font-bold text-stone-900 bg-amber-50 px-2 py-0.5 border border-amber-200">
+                      STAKE: {formatCurrencyINR(matter.claimAmount)}
                     </span>
                   )}
+                  <span className="text-stone-500 uppercase">
+                    LOC: {matter.locationCity}, {matter.locationState}
+                  </span>
                 </div>
 
-                <h4 className="text-base font-bold text-stone-900 group-hover:text-amber-700 transition-colors">
+                <h3 className="text-lg font-bold text-stone-950 group-hover:text-rose-600 transition-colors">
                   {matter.title}
-                </h4>
+                </h3>
 
-                <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed">
+                <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed font-sans">
                   {matter.summary.plainLanguage}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2 text-[11px] text-stone-500 border-t border-stone-100">
-                  <span>📍 {matter.locationCity}, {matter.locationState}</span>
-                  <span>📄 {matter.documents.length} Evidence Docs</span>
-                  <span>⚡ {matter.actionPlan.length} Phased Steps</span>
-                  <span>⚖️ Legal Notice Ready</span>
+                <div className="flex flex-wrap items-center gap-4 font-mono text-[11px] text-stone-500 pt-1">
+                  <span>DOCS: {matter.documents.length}</span>
+                  <span>•</span>
+                  <span>ACTIONS: {matter.actionPlan.length} STEPS</span>
+                  <span>•</span>
+                  <span className="text-emerald-700 font-bold">STATUS: NOTICE PREPARED</span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 flex items-center justify-between text-xs font-semibold text-amber-700 group-hover:translate-x-1 transition-transform">
-                <span>Inspect Matter Dossier</span>
+              <div className="shrink-0 flex items-center space-x-2 font-mono text-xs font-bold uppercase text-rose-600 group-hover:translate-x-1 transition-transform">
+                <span>INSPECT DOSSIER</span>
                 <ArrowRight className="w-4 h-4" />
               </div>
             </Link>
@@ -304,14 +360,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 4. Matter Types Grid */}
-      <section className="bg-stone-100/70 border-y border-stone-200 py-16">
+      {/* 5. Situation Classification Grid */}
+      <section className="bg-stone-100 border-t-2 border-b-2 border-[#0A0A0A] py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <h3 className="text-2xl font-bold text-stone-900">What type of situation are you facing?</h3>
-            <p className="text-xs text-stone-600">
-              Select a category to start your guided matter capture intake.
-            </p>
+          <div className="border-b border-stone-300 pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+            <div>
+              <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600">
+                § 03 // DISPUTE TAXONOMY
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#0A0A0A]">
+                Select Dispute Category to Initialize Matter
+              </h2>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -319,25 +379,24 @@ export default function HomePage() {
               <Link
                 key={cat.id}
                 href={`/matters/new?category=${cat.id}`}
-                className="bg-white rounded-xl p-5 border border-stone-200 hover:border-amber-500 hover:shadow-md transition-all group flex flex-col justify-between"
+                className="bg-white p-5 border border-[#0A0A0A] hover:border-rose-600 hover:shadow-md transition-all flex flex-col justify-between group"
               >
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="p-2 rounded-lg bg-stone-100 group-hover:bg-amber-100 transition-colors">
-                      {cat.icon}
-                    </div>
-                    <h4 className="text-sm font-bold text-stone-900 group-hover:text-amber-700 transition-colors">
-                      {cat.title}
-                    </h4>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-stone-200 pb-2">
+                    <span className="font-mono text-xs font-bold text-rose-600">{cat.num} {'//'}</span>
+                    <div>{cat.icon}</div>
                   </div>
-                  <p className="text-xs text-stone-600 leading-relaxed">
+                  <h3 className="font-bold text-sm uppercase text-[#0A0A0A] group-hover:text-rose-600 transition-colors">
+                    {cat.title}
+                  </h3>
+                  <p className="text-xs text-stone-600 leading-relaxed font-sans">
                     {cat.desc}
                   </p>
                 </div>
 
-                <div className="mt-4 flex items-center text-xs font-semibold text-stone-500 group-hover:text-amber-700">
-                  <span>Start Matter</span>
-                  <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between font-mono text-xs font-bold text-stone-900 group-hover:text-rose-600 uppercase">
+                  <span>START INTAKE</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </div>
               </Link>
             ))}
@@ -345,77 +404,78 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 5. Trust & Safety Principle Showcase */}
+      {/* 6. Trust & Safety 4-Tier Framework */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="bg-stone-900 text-white rounded-3xl p-8 sm:p-12 shadow-2xl space-y-8">
-          <div className="max-w-3xl space-y-3">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-semibold">
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span>India-First Responsible AI System</span>
-            </div>
-            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              Why NyaySaathi is different from standard AI chat
-            </h3>
-            <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
-              Standard AI chatbots guess, hallucinate certainty, and lose context in endless text threads. NyaySaathi persists a structured matter dossier, verifies dates against Indian statutory rules, separates verified facts from legal possibilities, and drafts actionable documents.
+        <div className="bg-[#0A0A0A] text-white p-8 sm:p-12 border-2 border-stone-800 space-y-8">
+          <div className="border-b border-stone-800 pb-4 max-w-3xl space-y-2">
+            <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-500">
+              § 04 // TRUST &amp; RESPONSIBILITY ARCHITECTURE
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-white">
+              Why NyaySaathi is Not a Generic AI Chatbot
+            </h2>
+            <p className="text-xs sm:text-sm text-stone-300 leading-relaxed font-sans">
+              Generic LLMs guess certainty, fabricate case law citations, and lose context in endless threads. NyaySaathi enforces an evidence-grounded 4-tier semantic confidence model:
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-            <div className="bg-stone-800/80 p-4 rounded-xl border border-stone-700/80 space-y-2">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                1. Fact
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-stone-800">
+            <div className="p-5 border-b sm:border-b-0 sm:border-r border-stone-800 space-y-2 bg-stone-950">
+              <span className="font-mono text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                [01 // VERIFIED FACT]
               </span>
-              <h4 className="text-xs font-bold text-white">Verified Ground Truth</h4>
-              <p className="text-[11px] text-stone-400">
-                Grounded solely in your uploaded agreements, bank receipts, and corroborated statements.
+              <h4 className="font-bold text-sm text-white uppercase">Evidentiary Grounding</h4>
+              <p className="text-xs text-stone-400 leading-relaxed font-sans">
+                Anchored strictly in uploaded agreements, bank receipts, and corroborated party facts.
               </p>
             </div>
 
-            <div className="bg-stone-800/80 p-4 rounded-xl border border-stone-700/80 space-y-2">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
-                2. Explanation
+            <div className="p-5 border-b sm:border-b-0 sm:border-r border-stone-800 space-y-2 bg-stone-950">
+              <span className="font-mono text-[11px] font-bold text-sky-400 uppercase tracking-wider">
+                [02 // LEGAL MEANING]
               </span>
-              <h4 className="text-xs font-bold text-white">Plain Legal Meaning</h4>
-              <p className="text-[11px] text-stone-400">
-                Explains Indian statutes (BNS, CPA 2019, RERA, Rent Control) without intimidating jargon.
+              <h4 className="font-bold text-sm text-white uppercase">Plain Statutory Meaning</h4>
+              <p className="text-xs text-stone-400 leading-relaxed font-sans">
+                Explains operative sections of BNS, Consumer Protection Act 2019, RERA, and Rent Acts.
               </p>
             </div>
 
-            <div className="bg-stone-800/80 p-4 rounded-xl border border-stone-700/80 space-y-2">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
-                3. Possibility
+            <div className="p-5 border-b sm:border-b-0 sm:border-r border-stone-800 space-y-2 bg-stone-950">
+              <span className="font-mono text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                [03 // COUNTER-CLAIM]
               </span>
-              <h4 className="text-xs font-bold text-white">Potential Counter-Claims</h4>
-              <p className="text-[11px] text-stone-400">
-                Anticipates what the opposing party may argue so you are never caught unprepared.
+              <h4 className="font-bold text-sm text-white uppercase">Adverse Possibility</h4>
+              <p className="text-xs text-stone-400 leading-relaxed font-sans">
+                Anticipates defense arguments, counter-deductions, and procedural exceptions.
               </p>
             </div>
 
-            <div className="bg-stone-800/80 p-4 rounded-xl border border-stone-700/80 space-y-2">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">
-                4. Counsel Required
+            <div className="p-5 space-y-2 bg-stone-950">
+              <span className="font-mono text-[11px] font-bold text-rose-400 uppercase tracking-wider">
+                [04 // ADVOCATE BOUNDARY]
               </span>
-              <h4 className="text-xs font-bold text-white">Advocate Referral</h4>
-              <p className="text-[11px] text-stone-400">
-                Clearly demarcates court filings, cross-examinations, and affidavits requiring an enrolled advocate.
+              <h4 className="font-bold text-sm text-white uppercase">Counsel Mandate</h4>
+              <p className="text-xs text-stone-400 leading-relaxed font-sans">
+                Demarcates court representation and filings requiring an enrolled Advocate under the Advocates Act 1961.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Sticky Mobile Action Bar (Responsive Mobile Breakpoint) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-stone-900/95 backdrop-blur-md border-t border-stone-800 z-40 flex items-center justify-between gap-3 shadow-xl">
+      {/* Sticky Mobile Action Bar - Swiss Design Edition */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-[#0A0A0A] border-t-2 border-stone-800 z-40 flex items-center justify-between gap-3 shadow-2xl font-mono">
         <div className="flex flex-col min-w-0">
-          <span className="text-xs font-bold text-stone-100 truncate">Deposit Withheld or Dispute?</span>
-          <span className="text-[10px] text-amber-400">Verified Legal Action Dossier</span>
+          <span className="text-xs font-bold text-white uppercase tracking-wider truncate">
+            DISPUTE DOSSIER INTAKE
+          </span>
+          <span className="text-[10px] text-rose-500 uppercase">§ BNS / LIMITATION 1963</span>
         </div>
         <Link
           href="/matters/new"
-          className="flex-shrink-0 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-xs shadow-md transition-colors flex items-center gap-1.5 active:scale-95"
+          className="shrink-0 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-mono font-bold text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5"
         >
-          <span>Start Matter</span>
+          <span>START</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>

@@ -38,17 +38,18 @@ export function TrustSafetyCard({ items, auditLog = [] }: TrustSafetyCardProps) 
   const unsuppCount = items.filter(i => i.tier === 'unsupported').length;
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+    <div className="bg-white border border-black overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-stone-900 to-stone-800 text-white p-4 sm:p-5">
+      <div className="bg-black text-white p-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
-              <ShieldCheck className="w-5 h-5" />
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-rose-600 text-white flex items-center justify-center font-mono font-bold text-sm">
+              §
             </div>
             <div>
-              <h3 className="font-semibold text-base text-white">Trust & Safety Transparency</h3>
-              <p className="text-xs text-stone-300">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-stone-400">AUDIT PROTOCOL 01</div>
+              <h3 className="font-mono font-bold text-base uppercase text-white tracking-tight">Trust & Safety Transparency Register</h3>
+              <p className="text-xs text-stone-300 font-sans">
                 NyaySaathi strictly separates verified facts, legal explanations, possibilities, lawyer-advised items, and unsupported claims.
               </p>
             </div>
@@ -57,89 +58,89 @@ export function TrustSafetyCard({ items, auditLog = [] }: TrustSafetyCardProps) 
           {auditLog.length > 0 && (
             <button
               onClick={() => setShowAuditDrawer(!showAuditDrawer)}
-              className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-600 text-amber-300 text-xs font-semibold inline-flex items-center space-x-1.5 transition-colors self-start sm:self-auto"
+              className="px-3 py-1.5 bg-stone-900 hover:bg-rose-600 border border-stone-700 hover:border-rose-600 text-white text-xs font-mono font-bold uppercase tracking-wider inline-flex items-center space-x-2 transition-colors self-start sm:self-auto"
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>{showAuditDrawer ? 'Hide Safety Audit' : `View Audit Trail (${auditLog.length})`}</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-white" />
+              <span>{showAuditDrawer ? 'HIDE SAFETY AUDIT' : `VIEW AUDIT TRAIL [${auditLog.length}]`}</span>
             </button>
           )}
         </div>
 
-        {/* 5-Tier Interactive Filter Pills */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4 pt-3 border-t border-stone-700/60">
+        {/* 5-Tier Interactive Filter Tabs */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 mt-5 pt-3 border-t border-stone-800 font-mono text-xs">
           <button
             onClick={() => setActiveFilter(activeFilter === 'fact' ? 'all' : 'fact')}
-            className={`flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center justify-between px-3 py-2 text-xs font-bold uppercase transition-all ${
               activeFilter === 'fact'
-                ? 'bg-emerald-500 text-stone-950 font-bold shadow'
-                : 'bg-stone-800/80 hover:bg-stone-700/80 text-emerald-300 border border-emerald-900/50'
+                ? 'bg-rose-600 text-white'
+                : 'bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800'
             }`}
           >
             <span className="flex items-center space-x-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5" />
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
               <span>1. Facts</span>
             </span>
-            <span className="px-1.5 py-0.5 rounded bg-stone-900/60 text-[11px]">{factsCount}</span>
+            <span className="px-1.5 py-0.2 bg-black text-[10px]">{factsCount}</span>
           </button>
 
           <button
             onClick={() => setActiveFilter(activeFilter === 'explanation' ? 'all' : 'explanation')}
-            className={`flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center justify-between px-3 py-2 text-xs font-bold uppercase transition-all ${
               activeFilter === 'explanation'
-                ? 'bg-blue-500 text-white font-bold shadow'
-                : 'bg-stone-800/80 hover:bg-stone-700/80 text-blue-300 border border-blue-900/50'
+                ? 'bg-white text-black font-bold'
+                : 'bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800'
             }`}
           >
             <span className="flex items-center space-x-1.5">
-              <HelpCircle className="w-3.5 h-3.5" />
+              <HelpCircle className="w-3.5 h-3.5 shrink-0" />
               <span>2. Meaning</span>
             </span>
-            <span className="px-1.5 py-0.5 rounded bg-stone-900/60 text-[11px]">{explCount}</span>
+            <span className="px-1.5 py-0.2 bg-black text-[10px] text-white">{explCount}</span>
           </button>
 
           <button
             onClick={() => setActiveFilter(activeFilter === 'possibility' ? 'all' : 'possibility')}
-            className={`flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center justify-between px-3 py-2 text-xs font-bold uppercase transition-all ${
               activeFilter === 'possibility'
-                ? 'bg-amber-500 text-stone-950 font-bold shadow'
-                : 'bg-stone-800/80 hover:bg-stone-700/80 text-amber-300 border border-amber-900/50'
+                ? 'bg-stone-200 text-black font-bold'
+                : 'bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800'
             }`}
           >
             <span className="flex items-center space-x-1.5">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>3. Possibility</span>
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span>3. Potential</span>
             </span>
-            <span className="px-1.5 py-0.5 rounded bg-stone-900/60 text-[11px]">{possCount}</span>
+            <span className="px-1.5 py-0.2 bg-black text-[10px] text-white">{possCount}</span>
           </button>
 
           <button
             onClick={() => setActiveFilter(activeFilter === 'counsel_required' ? 'all' : 'counsel_required')}
-            className={`flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center justify-between px-3 py-2 text-xs font-bold uppercase transition-all ${
               activeFilter === 'counsel_required'
-                ? 'bg-rose-500 text-white font-bold shadow'
-                : 'bg-stone-800/80 hover:bg-stone-700/80 text-rose-300 border border-rose-900/50'
+                ? 'bg-rose-600 text-white font-bold'
+                : 'bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800'
             }`}
           >
             <span className="flex items-center space-x-1.5">
-              <Scale className="w-3.5 h-3.5" />
+              <Scale className="w-3.5 h-3.5 shrink-0" />
               <span>4. Lawyer</span>
             </span>
-            <span className="px-1.5 py-0.5 rounded bg-stone-900/60 text-[11px]">{counselCount}</span>
+            <span className="px-1.5 py-0.2 bg-black text-[10px] text-white">{counselCount}</span>
           </button>
 
           <button
             onClick={() => setActiveFilter(activeFilter === 'unsupported' ? 'all' : 'unsupported')}
-            className={`col-span-2 sm:col-span-1 flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={`col-span-2 sm:col-span-1 flex items-center justify-between px-3 py-2 text-xs font-bold uppercase transition-all ${
               activeFilter === 'unsupported'
-                ? 'bg-purple-500 text-white font-bold shadow'
-                : 'bg-stone-800/80 hover:bg-stone-700/80 text-purple-300 border border-purple-900/50'
+                ? 'bg-stone-700 text-white font-bold'
+                : 'bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800'
             }`}
           >
             <span className="flex items-center space-x-1.5">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>5. Missing Proof</span>
+              <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+              <span>5. Unproven</span>
             </span>
-            <span className="px-1.5 py-0.5 rounded bg-stone-900/60 text-[11px]">{unsuppCount}</span>
+            <span className="px-1.5 py-0.2 bg-black text-[10px] text-white">{unsuppCount}</span>
           </button>
         </div>
       </div>
@@ -177,47 +178,45 @@ export function TrustSafetyCard({ items, auditLog = [] }: TrustSafetyCardProps) 
       )}
 
       {/* Item List */}
-      <div className="p-4 sm:p-5 divide-y divide-stone-100 space-y-3">
+      <div className="p-5 divide-y divide-black/10 space-y-4 font-sans">
         {filteredItems.map((item, index) => {
-          let badgeClass = 'tier-fact';
-          let icon = <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />;
-          let tierLabel = 'Verified Fact';
+          let badgeClass = 'bg-stone-100 text-black border-black';
+          let icon = <CheckCircle2 className="w-4 h-4 text-black shrink-0" />;
+          let tierLabel = 'VERIFIED FACT';
 
           if (item.tier === 'explanation') {
-            badgeClass = 'tier-explanation';
-            icon = <Info className="w-4 h-4 text-blue-600 shrink-0" />;
-            tierLabel = 'Legal Explanation';
+            badgeClass = 'bg-stone-100 text-black border-black';
+            icon = <Info className="w-4 h-4 text-black shrink-0" />;
+            tierLabel = 'LEGAL EXPLANATION';
           } else if (item.tier === 'possibility') {
-            badgeClass = 'tier-possibility';
-            icon = <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />;
-            tierLabel = 'Potential Possibility / Counter-Argument';
+            badgeClass = 'bg-stone-100 text-black border-black';
+            icon = <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />;
+            tierLabel = 'POTENTIAL COUNTER-ARGUMENT';
           } else if (item.tier === 'counsel_required') {
-            badgeClass = 'tier-counsel';
+            badgeClass = 'bg-rose-600 text-white border-rose-600';
             icon = <Scale className="w-4 h-4 text-rose-600 shrink-0" />;
-            tierLabel = 'Requires Professional Counsel';
+            tierLabel = 'PROFESSIONAL COUNSEL REQUIRED';
           } else if (item.tier === 'unsupported') {
-            badgeClass = 'bg-purple-100 text-purple-800 border-purple-200';
-            icon = <ShieldAlert className="w-4 h-4 text-purple-600 shrink-0" />;
-            tierLabel = 'Unsupported / Missing Proof';
+            badgeClass = 'bg-black text-white border-black';
+            icon = <ShieldAlert className="w-4 h-4 text-stone-400 shrink-0" />;
+            tierLabel = 'UNSUPPORTED / MISSING PROOF';
           }
 
           return (
-            <div key={index} className="pt-3 first:pt-0 flex items-start space-x-3">
+            <div key={index} className="pt-4 first:pt-0 flex items-start space-x-3.5">
               <div className="mt-0.5">{icon}</div>
-              <div className="flex-1 space-y-1">
+              <div className="flex-1 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${badgeClass}`}>
+                  <span className={`px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider border ${badgeClass}`}>
                     {tierLabel}
                   </span>
                   {item.confidenceScore !== undefined && (
-                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded border ${
+                    <span className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 border ${
                       item.confidenceScore >= 0.8
-                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                        ? 'text-black bg-stone-100 border-black'
                         : item.confidenceScore >= 0.6
-                        ? 'text-blue-700 bg-blue-50 border-blue-200'
-                        : item.confidenceScore >= 0.4
-                        ? 'text-amber-700 bg-amber-50 border-amber-200'
-                        : 'text-stone-700 bg-stone-100 border-stone-200'
+                        ? 'text-black bg-stone-100 border-stone-400'
+                        : 'text-rose-700 bg-rose-50 border-rose-200'
                     }`}>
                       {item.confidenceScore >= 0.8
                         ? 'Verified Support'
@@ -229,21 +228,21 @@ export function TrustSafetyCard({ items, auditLog = [] }: TrustSafetyCardProps) 
                     </span>
                   )}
                   {item.citation && (
-                    <span className="text-[11px] text-stone-500 font-medium">
-                      Source: {item.citation}
+                    <span className="text-[11px] font-mono text-stone-600">
+                      SOURCE: {item.citation}
                     </span>
                   )}
                   {item.groundingRefIds && item.groundingRefIds.length > 0 && (
-                    <span className="text-[10px] text-stone-400 font-mono">
-                      Ref: [{item.groundingRefIds.join(', ')}]
+                    <span className="text-[10px] text-stone-500 font-mono">
+                      REF: [{item.groundingRefIds.join(', ')}]
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-stone-800 leading-relaxed font-normal">
+                <p className="text-xs text-black leading-relaxed font-normal">
                   {item.text}
                 </p>
                 {item.disclaimer && (
-                  <p className="text-[11px] text-stone-500 italic">
+                  <p className="text-[11px] text-stone-600 italic border-l-2 border-rose-600 pl-2">
                     Note: {item.disclaimer}
                   </p>
                 )}

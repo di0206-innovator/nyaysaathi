@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Scale, PlusCircle, FolderLock, PhoneCall, BarChart3 } from 'lucide-react';
+import { Scale, Plus, FolderLock, PhoneCall, BarChart3, Users } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 export function Navbar() {
@@ -11,99 +11,105 @@ export function Navbar() {
   const { user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 bg-stone-900/95 backdrop-blur-md border-b border-stone-800 text-stone-100">
+    <header className="sticky top-0 z-50 bg-[#0A0A0A] border-b border-stone-800 text-stone-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Brand Logo & Tagline */}
-          <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-2.5 group">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-orange-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-950/40 group-hover:scale-105 transition-transform">
+          {/* Brand Logo & Tagline - Swiss Modernist Typography */}
+          <div className="flex items-center space-x-4">
+            <Link href="/" className="flex items-center space-x-3 group">
+              <div className="w-9 h-9 bg-rose-600 text-white flex items-center justify-center font-black rounded-none shadow-none group-hover:bg-rose-500 transition-colors">
                 <Scale className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <div className="flex items-center space-x-1.5">
-                  <span className="font-bold text-xl tracking-tight text-white">NyaySaathi</span>
-                  <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    India
+              <div className="flex flex-col">
+                <div className="flex items-center space-x-2">
+                  <span className="font-black text-lg tracking-tight uppercase text-white font-sans">
+                    NyaySaathi
+                  </span>
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 bg-stone-800 text-stone-300 border border-stone-700">
+                    IN // NAVIGATOR
                   </span>
                 </div>
-                <p className="text-[11px] text-stone-400 -mt-0.5 hidden sm:block">Legal Action Navigator</p>
+                <span className="font-mono text-[10px] text-stone-400 tracking-wider hidden sm:block uppercase">
+                  Matter-Based Legal Action Architecture
+                </span>
               </div>
             </Link>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center space-x-1">
+          {/* Navigation Links - Structural Grid Style */}
+          <nav className="hidden md:flex items-center space-x-1 border-l border-r border-stone-800 px-2 h-16">
             <Link
               href="/"
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${
                 pathname === '/'
-                  ? 'bg-stone-800 text-white'
-                  : 'text-stone-300 hover:bg-stone-800/60 hover:text-white'
+                  ? 'bg-stone-800 text-white font-bold'
+                  : 'text-stone-300 hover:text-white hover:bg-stone-900'
               }`}
             >
-              Home
+              01 // Home
             </Link>
             <Link
               href="/matters"
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1.5 ${
+              className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
                 pathname.startsWith('/matters') && pathname !== '/matters/new'
-                  ? 'bg-stone-800 text-white'
-                  : 'text-stone-300 hover:bg-stone-800/60 hover:text-white'
+                  ? 'bg-stone-800 text-white font-bold'
+                  : 'text-stone-300 hover:text-white hover:bg-stone-900'
               }`}
             >
-              <FolderLock className="w-4 h-4" />
-              <span>My Matters</span>
+              <FolderLock className="w-3.5 h-3.5 text-stone-400" />
+              <span>02 // Matters</span>
             </Link>
             <Link
               href="/pilot"
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1.5 ${
+              className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
                 pathname === '/pilot'
-                  ? 'bg-stone-800 text-white'
-                  : 'text-amber-300 hover:bg-stone-800/60 hover:text-amber-200'
+                  ? 'bg-rose-950/80 text-rose-300 border border-rose-800/80 font-bold'
+                  : 'text-rose-400 hover:text-rose-300 hover:bg-stone-900'
               }`}
             >
-              <span>Pilot Intake</span>
+              <Users className="w-3.5 h-3.5 text-rose-400" />
+              <span>03 // Pilot Intake</span>
             </Link>
             <Link
               href="/analytics"
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1.5 ${
+              className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
                 pathname === '/analytics'
-                  ? 'bg-stone-800 text-white'
-                  : 'text-stone-300 hover:bg-stone-800/60 hover:text-white'
+                  ? 'bg-stone-800 text-white font-bold'
+                  : 'text-stone-300 hover:text-white hover:bg-stone-900'
               }`}
             >
-              <BarChart3 className="w-4 h-4" />
-              <span>Analytics</span>
+              <BarChart3 className="w-3.5 h-3.5 text-stone-400" />
+              <span>04 // Analytics</span>
             </Link>
           </nav>
 
-          {/* Right Action Buttons */}
-          <div className="flex items-center space-x-2.5 sm:space-x-3">
-            {/* Free Legal Aid Badge */}
-            <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 text-xs font-medium">
-              <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
-              <span>NALSA Legal Aid: <strong className="text-emerald-200">15100</strong></span>
+          {/* Right Action Elements */}
+          <div className="flex items-center space-x-3">
+            {/* NALSA Statutory Helpline Badge */}
+            <div className="hidden lg:flex items-center space-x-2 px-2.5 py-1 bg-stone-900 border border-stone-800 text-stone-300 font-mono text-[11px]">
+              <PhoneCall className="w-3 h-3 text-emerald-400" />
+              <span>AID: <strong className="text-white">15100</strong></span>
             </div>
 
             {/* User Session Profile Badge */}
             {user ? (
               <div className="flex items-center space-x-2 pl-2 border-l border-stone-800">
-                <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-bold text-amber-300">
+                <div className="w-7 h-7 bg-stone-800 border border-stone-700 flex items-center justify-center font-mono text-xs font-bold text-rose-400">
                   {user.name ? user.name[0].toUpperCase() : 'U'}
                 </div>
                 <div className="hidden sm:block text-left">
-                  <div className="text-xs font-medium text-stone-200 leading-none">{user.name || 'User'}</div>
-                  <div className="text-[10px] text-amber-400/80 leading-tight">Secure Tenant</div>
+                  <div className="font-mono text-xs font-medium text-stone-200 leading-none">{user.name || 'User'}</div>
+                  <div className="font-mono text-[9px] text-stone-400 uppercase tracking-widest leading-tight">AUTHENTICATED</div>
                 </div>
               </div>
             ) : null}
 
+            {/* Swiss Red Action Trigger */}
             <Link
               href="/matters/new"
-              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold text-sm transition-all shadow-md shadow-amber-900/30 active:scale-98"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors active:translate-y-px"
             >
-              <PlusCircle className="w-4 h-4 text-stone-950" />
+              <Plus className="w-4 h-4 text-white" />
               <span>New Matter</span>
             </Link>
           </div>

@@ -24,7 +24,7 @@ import { useToast } from '@/components/ui/Toast';
 
 export default function NewMatterPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-xs text-stone-500">Loading Wizard...</div>}>
+    <Suspense fallback={<div className="p-8 text-center font-mono text-xs text-stone-500">INITIALIZING FILING WIZARD...</div>}>
       <NewMatterContent />
     </Suspense>
   );
@@ -66,20 +66,20 @@ function NewMatterContent() {
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
   const categories = [
-    { id: 'tenancy_housing', label: 'Tenancy & Housing (Security Deposit, Rent, Eviction)', icon: <Home className="w-4 h-4" /> },
-    { id: 'consumer_dispute', label: 'Consumer & Warranty Dispute (Defective Product, Service)', icon: <ShoppingBag className="w-4 h-4" /> },
-    { id: 'workplace_employment', label: 'Workplace & Salary (Withheld Wages, F&F, Gratuity)', icon: <Briefcase className="w-4 h-4" /> },
-    { id: 'financial_cheque_bounce', label: 'Financial & Cheque Bounce (Section 138 NI Act)', icon: <Coins className="w-4 h-4" /> },
-    { id: 'property_rera', label: 'Real Estate & RERA (Delayed Possession, Builder Dispute)', icon: <Building2 className="w-4 h-4" /> },
-    { id: 'cyber_fraud', label: 'Cyber Crime & Online Financial Fraud', icon: <Scale className="w-4 h-4" /> },
-    { id: 'other', label: 'Other Grievance / Civil Dispute', icon: <FileText className="w-4 h-4" /> }
+    { id: 'tenancy_housing', label: 'Tenancy & Housing (Security Deposit, Rent, Eviction)', icon: <Home className="w-4 h-4 text-rose-600" /> },
+    { id: 'consumer_dispute', label: 'Consumer & Warranty Dispute (Defective Goods, Service)', icon: <ShoppingBag className="w-4 h-4 text-stone-900" /> },
+    { id: 'workplace_employment', label: 'Workplace & Salary (Withheld Wages, F&F Settlement)', icon: <Briefcase className="w-4 h-4 text-stone-900" /> },
+    { id: 'financial_cheque_bounce', label: 'Financial & Cheque Dishonor (Sec 138 NI Act)', icon: <Coins className="w-4 h-4 text-stone-900" /> },
+    { id: 'property_rera', label: 'Real Estate & RERA (Delayed Possession, Builder Defect)', icon: <Building2 className="w-4 h-4 text-stone-900" /> },
+    { id: 'cyber_fraud', label: 'Cyber Crime & Online Financial Fraud', icon: <Scale className="w-4 h-4 text-stone-900" /> },
+    { id: 'other', label: 'Other Grievance / Civil Dispute', icon: <FileText className="w-4 h-4 text-stone-900" /> }
   ];
 
   const helpfulPromptChips = [
     'When did this issue first begin?',
-    'What was promised in writing vs what happened?',
-    'How much total money is owed or withheld?',
-    'What did they say when you asked them to resolve it?'
+    'What was agreed in writing vs actual occurrence?',
+    'Total monetary stake withheld or claimed?',
+    'What was the adverse party’s response to demands?'
   ];
 
   const handleAddPromptChip = (chip: string) => {
@@ -142,50 +142,52 @@ function NewMatterContent() {
 
   if (isProcessing) {
     const stageNames = [
-      'Intake & Party Identification',
-      'Document Intelligence & OCR',
-      'Chronology & Timeline Mapping',
-      'Indian Statutory Retrieval',
-      'Limitation & Risk Assessment',
-      'Phased Action Planning',
-      'Legal Notice & Advocate Brief Drafting',
-      'Trust & Safety 4-Tier Audit'
+      '01 // Intake & Party Identification',
+      '02 // Document Intelligence & OCR Verification',
+      '03 // Chronology & Fact Mapping',
+      '04 // Indian Statutory Code Retrieval',
+      '05 // Limitation Period & Risk Assessment',
+      '06 // Phased Action Planning',
+      '07 // Legal Notice & Advocate Brief Synthesis',
+      '08 // Trust & Safety 4-Tier Audit'
     ];
 
     return (
-      <div className="min-h-screen bg-stone-900 text-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-stone-850 p-8 rounded-2xl border border-stone-800 space-y-6 shadow-2xl text-center">
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
-            <Scale className="w-7 h-7 animate-pulse" />
+      <div className="min-h-screen bg-[#0A0A0A] text-white flex items-center justify-center p-4 font-mono">
+        <div className="max-w-md w-full bg-[#121212] p-8 border-2 border-stone-800 space-y-6 text-center">
+          <div className="w-12 h-12 bg-rose-600 text-white flex items-center justify-center mx-auto border border-black font-black">
+            <Scale className="w-6 h-6 animate-pulse" />
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-lg font-bold text-white">Analyzing Your Matter</h2>
-            <p className="text-xs text-stone-400">
-              Running 9 modular internal agents to organize your case dossier...
+            <h2 className="text-base font-black uppercase tracking-wider text-white">
+              Compiling Legal Dossier
+            </h2>
+            <p className="text-xs text-stone-400 uppercase">
+              Executing multi-agent DAG pipeline under Indian Statutory Frameworks...
             </p>
           </div>
 
-          <div className="space-y-2 text-left bg-stone-900/90 p-4 rounded-xl border border-stone-800 text-xs">
+          <div className="space-y-2 text-left bg-black p-4 border border-stone-800 text-xs">
             {stageNames.map((name, idx) => (
               <div
                 key={idx}
                 className={`flex items-center space-x-2 transition-all ${
                   idx < processingStage
-                    ? 'text-emerald-400 font-medium'
+                    ? 'text-emerald-400 font-bold'
                     : idx === processingStage
-                    ? 'text-amber-400 font-bold'
-                    : 'text-stone-600'
+                    ? 'text-rose-400 font-black'
+                    : 'text-stone-700'
                 }`}
               >
                 {idx < processingStage ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 ) : (
-                  <div className="w-3.5 h-3.5 rounded-full border border-current flex items-center justify-center text-[9px]">
+                  <div className="w-3.5 h-3.5 border border-current flex items-center justify-center text-[8px] shrink-0 font-bold">
                     {idx + 1}
                   </div>
                 )}
-                <span className="text-[11px]">{name}</span>
+                <span className="text-[11px] truncate uppercase">{name}</span>
               </div>
             ))}
           </div>
@@ -195,39 +197,42 @@ function NewMatterContent() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50/60 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#FBFBF9] py-10 px-4 sm:px-6 lg:px-8 font-sans text-[#0A0A0A]">
       <div className="max-w-3xl mx-auto space-y-8">
-        {/* Wizard Progress Bar */}
-        <div className="flex items-center justify-between border-b border-stone-200 pb-4">
+        {/* Wizard Progress Masthead */}
+        <div className="border-b-2 border-[#0A0A0A] pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
-              Step {step} of 4
+            <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600 bg-rose-50 px-2 py-0.5 border border-rose-200">
+              § STEP 0{step} OF 04 // FILING DOCKET
             </span>
-            <h1 className="text-xl sm:text-2xl font-bold text-stone-900 mt-1">
-              {step === 1 && 'What type of legal situation is this?'}
-              {step === 2 && 'What happened? Tell your story.'}
-              {step === 3 && 'Who are the parties involved?'}
-              {step === 4 && 'Add supporting documents or chats'}
+            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#0A0A0A] mt-2">
+              {step === 1 && 'Select Legal Category'}
+              {step === 2 && 'Dispute Narrative & Financial Claim'}
+              {step === 3 && 'Party Identification & Roles'}
+              {step === 4 && 'Evidentiary Attachments & Launch'}
             </h1>
+          </div>
+          <div className="font-mono text-xs text-stone-500 uppercase">
+            REPUBLIC OF INDIA
           </div>
         </div>
 
         {/* STEP 1: Category Selection */}
         {step === 1 && (
-          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
-            <p className="text-xs text-stone-600">
-              Select the broad category under Indian law that matches your situation:
+          <div className="bg-white p-6 border-2 border-[#0A0A0A] space-y-4">
+            <p className="text-xs text-stone-600 font-mono uppercase tracking-wider">
+              SELECT GOVERNING DISPUTE CLASSIFICATION:
             </p>
 
-            <div className="space-y-2.5">
-              {categories.map((cat) => (
+            <div className="space-y-2">
+              {categories.map((cat, idx) => (
                 <label
                   key={cat.id}
                   onClick={() => setCategory(cat.id as MatterCategory)}
-                  className={`flex items-center space-x-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  className={`flex items-center space-x-3 p-3.5 border cursor-pointer transition-all ${
                     category === cat.id
-                      ? 'border-amber-500 bg-amber-50/50 shadow-xs'
-                      : 'border-stone-200 hover:border-stone-300'
+                      ? 'border-2 border-rose-600 bg-rose-50/40'
+                      : 'border-stone-300 hover:border-[#0A0A0A]'
                   }`}
                 >
                   <input
@@ -235,20 +240,21 @@ function NewMatterContent() {
                     name="category"
                     checked={category === cat.id}
                     onChange={() => setCategory(cat.id as MatterCategory)}
-                    className="accent-amber-600"
+                    className="accent-rose-600"
                   />
-                  <div className="text-stone-700">{cat.icon}</div>
-                  <span className="text-xs font-bold text-stone-900">{cat.label}</span>
+                  <div className="font-mono text-xs font-bold text-stone-400">0{idx + 1}.</div>
+                  <div>{cat.icon}</div>
+                  <span className="text-xs font-bold uppercase text-[#0A0A0A]">{cat.label}</span>
                 </label>
               ))}
             </div>
 
-            <div className="pt-4 flex justify-end">
+            <div className="pt-4 border-t border-stone-200 flex justify-end">
               <button
                 onClick={() => setStep(2)}
-                className="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold flex items-center space-x-1.5"
+                className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider flex items-center space-x-2 border border-black transition-colors"
               >
-                <span>Continue to Narrative</span>
+                <span>Proceed to Narrative</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -257,36 +263,36 @@ function NewMatterContent() {
 
         {/* STEP 2: Narrative & What Happened */}
         {step === 2 && (
-          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-5">
+          <div className="bg-white p-6 border-2 border-[#0A0A0A] space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-stone-800 mb-1">
-                Matter Title (Short headline)
+              <label className="block font-mono text-xs font-bold text-[#0A0A0A] uppercase tracking-wider mb-1">
+                Matter Title (Formal Case Header)
               </label>
               <input
                 type="text"
-                placeholder="e.g. Withholding of ₹75,000 security deposit by landlord in Koramangala"
+                placeholder="e.g. Unlawful withholding of security deposit for lease at Koramangala"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full text-xs px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full text-xs px-3.5 py-2.5 border border-stone-300 focus:outline-none focus:ring-2 focus:ring-black font-mono uppercase bg-[#FBFBF9]"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-stone-800">
-                  What Happened? (Explain in your own words)
+                <label className="block font-mono text-xs font-bold text-[#0A0A0A] uppercase tracking-wider">
+                  Factual Chronology &amp; Incident Narrative
                 </label>
               </div>
 
               {/* Prompt chips */}
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                <span className="text-[10px] text-stone-500 font-bold uppercase self-center mr-1">Include:</span>
+              <div className="flex flex-wrap gap-1.5 mb-2 font-mono text-[11px]">
+                <span className="text-stone-500 font-bold uppercase self-center mr-1">Include:</span>
                 {helpfulPromptChips.map((chip, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => handleAddPromptChip(chip)}
-                    className="text-[11px] px-2 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 hover:text-amber-900 border border-stone-200 text-stone-700 transition-colors"
+                    className="px-2 py-0.5 border border-stone-300 hover:border-black hover:bg-stone-100 text-stone-700 transition-colors"
                   >
                     + {chip}
                   </button>
@@ -312,7 +318,7 @@ function NewMatterContent() {
                 required
                 aria-invalid={!!formErrors.userStory}
                 aria-describedby={formErrors.userStory ? 'userStory-error' : undefined}
-                placeholder="Explain the background, dates of transaction, what was promised, how much is owed, and what the other party did..."
+                placeholder="Detail the background, dates of transaction, written terms, total sum withheld, and adverse party's responses..."
                 value={userStory}
                 onChange={(e) => {
                   setUserStory(e.target.value);
@@ -324,55 +330,55 @@ function NewMatterContent() {
                     });
                   }
                 }}
-                className={`w-full text-xs p-3.5 rounded-lg border leading-relaxed font-sans focus:outline-none focus:ring-2 ${
+                className={`w-full text-xs p-3.5 border leading-relaxed font-sans focus:outline-none focus:ring-2 ${
                   formErrors.userStory
-                    ? 'border-red-500 focus:ring-red-400 bg-red-50/20'
-                    : 'border-stone-300 focus:ring-amber-500'
+                    ? 'border-rose-600 focus:ring-rose-400 bg-rose-50/20'
+                    : 'border-stone-300 focus:ring-black bg-[#FBFBF9]'
                 }`}
               />
               {formErrors.userStory && (
-                <p id="userStory-error" role="alert" className="mt-1 text-xs text-red-600 font-medium">
-                  {formErrors.userStory}
+                <p id="userStory-error" role="alert" className="mt-1 font-mono text-xs text-rose-600 font-bold uppercase">
+                  [ERROR: {formErrors.userStory}]
                 </p>
               )}
             </div>
 
             {/* Financial Stake & Location */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 font-mono text-xs">
               <div>
-                <label className="block text-xs font-semibold text-stone-800 mb-1">
-                  Claim Stake / Amount (₹ INR)
+                <label className="block font-bold text-[#0A0A0A] uppercase mb-1">
+                  Dispute Stake (₹ INR)
                 </label>
                 <input
                   type="number"
                   placeholder="e.g. 75000"
                   value={claimAmount}
                   onChange={(e) => setClaimAmount(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full text-xs px-3 py-2 border border-stone-300 focus:outline-none focus:ring-2 focus:ring-black bg-[#FBFBF9]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-800 mb-1">
-                  City
+                <label className="block font-bold text-[#0A0A0A] uppercase mb-1">
+                  City of Jurisdiction
                 </label>
                 <input
                   type="text"
                   placeholder="e.g. Bengaluru, Mumbai, Delhi"
                   value={locationCity}
                   onChange={(e) => setLocationCity(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full text-xs px-3 py-2 border border-stone-300 focus:outline-none focus:ring-2 focus:ring-black bg-[#FBFBF9] uppercase"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-800 mb-1">
+                <label className="block font-bold text-[#0A0A0A] uppercase mb-1">
                   State
                 </label>
                 <select
                   value={locationState}
                   onChange={(e) => setLocationState(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                  className="w-full text-xs px-3 py-2 border border-stone-300 focus:outline-none focus:ring-2 focus:ring-black bg-[#FBFBF9] font-mono uppercase"
                 >
                   {INDIAN_STATES.map((st) => (
                     <option key={st} value={st}>{st}</option>
@@ -381,10 +387,10 @@ function NewMatterContent() {
               </div>
             </div>
 
-            <div className="pt-4 flex items-center justify-between border-t border-stone-100">
+            <div className="pt-4 flex items-center justify-between border-t border-stone-200 font-mono">
               <button
                 onClick={() => setStep(1)}
-                className="px-4 py-2 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-100 flex items-center space-x-1"
+                className="px-4 py-2 border border-stone-300 text-xs font-bold uppercase text-stone-700 hover:border-black flex items-center space-x-1"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back</span>
@@ -393,13 +399,13 @@ function NewMatterContent() {
               <button
                 onClick={() => {
                   if (!userStory.trim() || userStory.trim().length < 15) {
-                    setFormErrors({ userStory: 'Please provide at least 15 characters explaining what happened.' });
+                    setFormErrors({ userStory: 'Provide at least 15 characters explaining what happened.' });
                     showToast('warning', 'Narrative Required', 'Please provide a brief explanation of what happened (at least 15 characters).');
                     return;
                   }
                   setStep(3);
                 }}
-                className="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold flex items-center space-x-1.5"
+                className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 border border-black"
               >
                 <span>Continue to Parties</span>
                 <ArrowRight className="w-4 h-4" />
@@ -410,53 +416,53 @@ function NewMatterContent() {
 
         {/* STEP 3: Parties Involved */}
         {step === 3 && (
-          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-5">
-            <p className="text-xs text-stone-600">
-              Provide names or details of yourself and the opposing party (landlord, merchant, company, or individual):
+          <div className="bg-white p-6 border-2 border-[#0A0A0A] space-y-5">
+            <p className="font-mono text-xs text-stone-600 uppercase tracking-wider">
+              PARTY IDENTIFICATION (CLAIMANT &amp; RESPONDENT):
             </p>
 
-            <div className="space-y-4">
+            <div className="space-y-4 font-mono text-xs">
               {/* Party 1: Aggrieved */}
-              <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-stone-900">1. Your Details (Aggrieved Party)</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">You</span>
+              <div className="p-4 border border-stone-300 space-y-2 bg-[#FBFBF9]">
+                <div className="flex items-center justify-between border-b border-stone-200 pb-1.5">
+                  <span className="font-bold text-[#0A0A0A] uppercase">01 // Aggrieved Party (You)</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 bg-stone-900 text-white uppercase">[CLAIMANT]</span>
                 </div>
                 <input
                   type="text"
-                  placeholder="Your Full Name (e.g. Arjun Verma)"
+                  placeholder="Your Full Legal Name (e.g. Arjun Verma)"
                   value={parties[0]?.name || ''}
                   onChange={(e) => {
                     const val = e.target.value;
                     setParties(prev => [{ ...prev[0], name: val }, prev[1]]);
                   }}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-stone-300 bg-white"
+                  className="w-full text-xs px-3 py-2 border border-stone-300 bg-white uppercase"
                 />
               </div>
 
               {/* Party 2: Opposing */}
-              <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-stone-900">2. Opposing Entity / Respondent</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800">Opposing</span>
+              <div className="p-4 border border-stone-300 space-y-2 bg-[#FBFBF9]">
+                <div className="flex items-center justify-between border-b border-stone-200 pb-1.5">
+                  <span className="font-bold text-[#0A0A0A] uppercase">02 // Opposing Entity / Respondent</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 bg-rose-600 text-white uppercase">[RESPONDENT]</span>
                 </div>
                 <input
                   type="text"
-                  placeholder="Landlord / Company / Merchant Name (e.g. R. K. Sundaram)"
+                  placeholder="Landlord / Company / Merchant Legal Name"
                   value={parties[1]?.name || ''}
                   onChange={(e) => {
                     const val = e.target.value;
                     setParties(prev => [prev[0], { ...prev[1], name: val }]);
                   }}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-stone-300 bg-white"
+                  className="w-full text-xs px-3 py-2 border border-stone-300 bg-white uppercase"
                 />
               </div>
             </div>
 
-            <div className="pt-4 flex items-center justify-between border-t border-stone-100">
+            <div className="pt-4 flex items-center justify-between border-t border-stone-200 font-mono">
               <button
                 onClick={() => setStep(2)}
-                className="px-4 py-2 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-100 flex items-center space-x-1"
+                className="px-4 py-2 border border-stone-300 text-xs font-bold uppercase text-stone-700 hover:border-black flex items-center space-x-1"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back</span>
@@ -464,7 +470,7 @@ function NewMatterContent() {
 
               <button
                 onClick={() => setStep(4)}
-                className="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold flex items-center space-x-1.5"
+                className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 border border-black"
               >
                 <span>Continue to Evidence</span>
                 <ArrowRight className="w-4 h-4" />
@@ -475,23 +481,23 @@ function NewMatterContent() {
 
         {/* STEP 4: Evidence & Run Analysis */}
         {step === 4 && (
-          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-6">
-            <p className="text-xs text-stone-600">
-              Add any supporting documents (agreements, receipts, invoices, or WhatsApp chat text). You can also proceed directly and add documents later.
+          <div className="bg-white p-6 border-2 border-[#0A0A0A] space-y-6">
+            <p className="font-mono text-xs text-stone-600 uppercase tracking-wider">
+              ATTACH VERIFIABLE EVIDENCE (AGREEMENTS, RECEIPTS, TRANSCRIPTS):
             </p>
 
             {/* Document list */}
             {documents.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-stone-800">Attached Supporting Items:</span>
+              <div className="space-y-2 font-mono">
+                <span className="text-xs font-bold uppercase text-stone-800">ATTACHED EVIDENTIARY EXHIBITS:</span>
                 {documents.map((d, i) => (
-                  <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-xs">
-                    <span className="font-medium text-stone-900">📄 {d.title}</span>
+                  <div key={i} className="flex items-center justify-between p-2.5 border border-stone-300 bg-[#FBFBF9] text-xs">
+                    <span className="font-bold text-[#0A0A0A] uppercase">[EXHIBIT 0{i + 1}]: {d.title}</span>
                     <button
                       onClick={() => setDocuments(prev => prev.filter((_, idx) => idx !== i))}
-                      className="text-stone-400 hover:text-rose-600 text-xs font-bold"
+                      className="text-rose-600 hover:text-rose-800 text-xs font-bold uppercase"
                     >
-                      Remove
+                      [Remove]
                     </button>
                   </div>
                 ))}
@@ -499,56 +505,56 @@ function NewMatterContent() {
             )}
 
             {/* Inline Add Doc Form */}
-            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-3">
-              <h4 className="text-xs font-bold text-stone-900 flex items-center space-x-1.5">
-                <Upload className="w-4 h-4 text-amber-700" />
-                <span>Attach New Evidence / Chat Transcript</span>
+            <div className="p-4 border border-stone-300 bg-[#FBFBF9] space-y-3 font-mono text-xs">
+              <h4 className="font-bold text-[#0A0A0A] uppercase flex items-center space-x-2">
+                <Upload className="w-4 h-4 text-rose-600" />
+                <span>Add Evidence Item / Transaction Excerpt</span>
               </h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input
                   type="text"
-                  placeholder="Document Title (e.g. Registered Lease Agreement)"
+                  placeholder="EXHIBIT TITLE (E.G. REGISTERED LEASE AGREEMENT)"
                   value={newDocTitle}
                   onChange={(e) => setNewDocTitle(e.target.value)}
-                  className="text-xs px-3 py-2 rounded-lg border border-stone-300 bg-white"
+                  className="text-xs px-3 py-2 border border-stone-300 bg-white uppercase"
                 />
 
                 <select
                   value={newDocType}
                   onChange={(e) => setNewDocType(e.target.value as DocumentEvidence['type'])}
-                  className="text-xs px-3 py-2 rounded-lg border border-stone-300 bg-white"
+                  className="text-xs px-3 py-2 border border-stone-300 bg-white font-mono uppercase"
                 >
-                  <option value="rental_agreement">Rental Agreement</option>
-                  <option value="invoice_bill">Invoice / Purchase Receipt</option>
-                  <option value="whatsapp_chat">WhatsApp / SMS Chat</option>
+                  <option value="rental_agreement">Rental / Lease Agreement</option>
+                  <option value="invoice_bill">Invoice / Payment Receipt</option>
+                  <option value="whatsapp_chat">Communication Transcript</option>
                   <option value="bank_statement">Bank / UPI Transfer Record</option>
-                  <option value="other">Other Document</option>
+                  <option value="other">Other Written Evidence</option>
                 </select>
               </div>
 
               <textarea
                 rows={2}
-                placeholder="Optional: Paste text excerpt or key clause..."
+                placeholder="Optional: Paste text clause, transaction reference number, or excerpt..."
                 value={newDocSnippet}
                 onChange={(e) => setNewDocSnippet(e.target.value)}
-                className="w-full text-xs px-3 py-2 rounded-lg border border-stone-300 bg-white"
+                className="w-full text-xs px-3 py-2 border border-stone-300 bg-white font-sans"
               />
 
               <button
                 type="button"
                 onClick={handleAddDocument}
                 disabled={!newDocTitle}
-                className="px-3 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold disabled:opacity-50"
+                className="px-4 py-2 bg-stone-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50"
               >
-                + Add to Locker
+                + Lock into Dossier
               </button>
             </div>
 
-            <div className="pt-4 flex items-center justify-between border-t border-stone-100">
+            <div className="pt-4 flex items-center justify-between border-t border-stone-200 font-mono">
               <button
                 onClick={() => setStep(3)}
-                className="px-4 py-2 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-100 flex items-center space-x-1"
+                className="px-4 py-2 border border-stone-300 text-xs font-bold uppercase text-stone-700 hover:border-black flex items-center space-x-1"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back</span>
@@ -556,10 +562,10 @@ function NewMatterContent() {
 
               <button
                 onClick={handleCreateMatter}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-stone-950 font-bold text-xs sm:text-sm shadow-md flex items-center space-x-2"
+                className="px-8 py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider flex items-center space-x-2 border border-black active:translate-y-px"
               >
-                <Sparkles className="w-4 h-4 text-stone-950" />
-                <span>Run Matter Navigator & Analyze</span>
+                <Sparkles className="w-4 h-4 text-white" />
+                <span>Compile Dossier &amp; Run Analysis</span>
               </button>
             </div>
           </div>

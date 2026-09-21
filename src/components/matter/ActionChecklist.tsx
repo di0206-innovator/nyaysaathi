@@ -5,13 +5,10 @@ import Link from 'next/link';
 import { ActionStep } from '@/types/matter';
 import { ActionDetailModal } from './ActionDetailModal';
 import {
-  Circle,
   Clock,
   ArrowRight,
-  Sparkles,
   FileEdit,
   Flame,
-  Check,
   AlertTriangle,
   ChevronRight,
   FileCheck2
@@ -60,19 +57,22 @@ export function ActionChecklist({ matterId, steps, onNavigateToUpload }: ActionC
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-100">
-          <div>
-            <h3 className="font-bold text-base text-stone-900 flex items-center space-x-2">
-              <Sparkles className="w-5 h-5 text-amber-600" />
-              <span>Executable Action Workspace</span>
-            </h3>
-            <p className="text-xs text-stone-500 mt-0.5">
-              Click any step to open the execution checklist, attach postal receipts, or mark completion.
-            </p>
+      <div className="bg-white border border-black p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 pb-4 border-b border-black gap-3">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-black text-white flex items-center justify-center font-mono font-bold text-xs">
+              03
+            </div>
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-stone-500">OPERATIONAL PROTOCOL</div>
+              <h3 className="font-mono font-bold text-base uppercase text-black">Executable Action Workspace</h3>
+              <p className="text-xs text-stone-600 font-sans mt-0.5">
+                Click any step to open the execution checklist, attach postal receipts, or mark completion.
+              </p>
+            </div>
           </div>
-          <div className="text-xs font-semibold px-2.5 py-1 rounded bg-stone-100 text-stone-700">
-            {localSteps.filter(s => s.status === 'completed').length} / {localSteps.length} Done
+          <div className="text-xs font-mono font-bold uppercase tracking-wider px-3 py-1.5 bg-black text-white self-start sm:self-auto">
+            STATUS: {localSteps.filter(s => s.status === 'completed').length} / {localSteps.length} COMPLETED
           </div>
         </div>
 
@@ -84,19 +84,19 @@ export function ActionChecklist({ matterId, steps, onNavigateToUpload }: ActionC
 
             return (
               <div key={phase.id} className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between border-b border-black/20 pb-2">
                   <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-stone-900">
+                    <h4 className="font-mono text-xs font-bold uppercase tracking-wider text-black">
                       {phase.title}
                     </h4>
-                    <p className="text-[11px] text-stone-500">{phase.subtitle}</p>
+                    <p className="text-[11px] text-stone-600 font-sans">{phase.subtitle}</p>
                   </div>
-                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-600 border border-stone-200">
+                  <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 bg-stone-100 text-black border border-black">
                     {phase.badge}
                   </span>
                 </div>
 
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {phaseSteps.map(step => {
                     const isDone = step.status === 'completed';
                     const isBlocked = step.status === 'blocked';
@@ -106,14 +106,14 @@ export function ActionChecklist({ matterId, steps, onNavigateToUpload }: ActionC
                       <div
                         key={step.id}
                         onClick={() => setSelectedAction(step)}
-                        className={`rounded-lg p-3.5 border transition-all cursor-pointer flex items-start space-x-3 group ${
+                        className={`p-4 border transition-all cursor-pointer flex items-start space-x-3.5 group ${
                           isDone
-                            ? 'bg-stone-50/80 border-stone-200 opacity-80'
+                            ? 'bg-stone-50 border-black/20 opacity-70'
                             : isBlocked
-                            ? 'bg-rose-50/30 border-rose-200 hover:border-rose-300 shadow-2xs'
+                            ? 'bg-stone-50 border-rose-600 border-l-4'
                             : isInProgress
-                            ? 'bg-amber-50/30 border-amber-200 hover:border-amber-300 shadow-2xs'
-                            : 'bg-white border-stone-200/90 hover:border-amber-400 shadow-2xs'
+                            ? 'bg-white border-black border-l-4'
+                            : 'bg-white border-black/30 hover:border-black'
                         }`}
                       >
                         {/* Checkbox button */}
@@ -124,18 +124,18 @@ export function ActionChecklist({ matterId, steps, onNavigateToUpload }: ActionC
                             setSelectedAction(step);
                           }}
                           aria-label={`Update action step: ${step.title}`}
-                          className="mt-0.5 text-stone-400 hover:text-emerald-600 transition-colors shrink-0"
+                          className="mt-0.5 text-stone-400 hover:text-black transition-colors shrink-0"
                         >
                           {isDone ? (
-                            <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center">
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            <div className="w-5 h-5 bg-black text-white flex items-center justify-center font-mono font-bold text-xs">
+                              ✓
                             </div>
                           ) : isBlocked ? (
-                            <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center">
-                              <AlertTriangle className="w-3 h-3" />
+                            <div className="w-5 h-5 bg-rose-600 text-white flex items-center justify-center font-mono font-bold text-xs">
+                              !
                             </div>
                           ) : (
-                            <Circle className="w-5 h-5 text-stone-400" />
+                            <div className="w-5 h-5 border border-black bg-white group-hover:border-rose-600" />
                           )}
                         </button>
 
@@ -143,8 +143,8 @@ export function ActionChecklist({ matterId, steps, onNavigateToUpload }: ActionC
                           <div className="flex flex-wrap items-center justify-between gap-1">
                             <div className="flex items-center space-x-2">
                               <span
-                                className={`text-xs font-bold ${
-                                  isDone ? 'line-through text-stone-500' : 'text-stone-900'
+                                className={`text-xs font-bold uppercase tracking-tight ${
+                                  isDone ? 'line-through text-stone-400' : 'text-black'
                                 }`}
                               >
                                 {step.title}
