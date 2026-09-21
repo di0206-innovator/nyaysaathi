@@ -11,8 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality-and-lint:
-    name: Lint & Typecheck
+  # 1. Lint & Static Analysis
+  lint:
+    name: Lint (ESLint)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -27,14 +28,12 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: ESLint Check
+      - name: Run ESLint
         run: npm run lint
 
-      - name: TypeScript Typecheck
-        run: npx tsc --noEmit
-
-  unit-and-contract-tests:
-    name: Unit & Contract Tests
+  # 2. Typecheck
+  typecheck:
+    name: Typecheck (TypeScript)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -49,15 +48,148 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Test Suites
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+  # 3. Unit Tests & OCR Provenance
+  unit:
+    name: Unit Tests & OCR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Unit Tests
         run: npm test
         env:
           NODE_ENV: test
 
-  production-build:
+  # 4. Security & Rate Limiting Concurrency
+  security:
+    name: Security & Concurrency
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Security & Concurrency Regression Tests
+        run: npx tsx --test tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts
+        env:
+          NODE_ENV: test
+
+  # 5. AI Evaluation & Evidence Grounding
+  ai-evaluation:
+    name: AI Trust & Grounding Evaluation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run AI Grounding & Anti-Hallucination Benchmarks
+        run: npx tsx --test tests/prompt2-ai-evaluation.test.ts tests/evidence-enforcement.test.ts tests/failure-paths.test.ts
+        env:
+          NODE_ENV: test
+
+  # 6. Supabase RLS Integration
+  integration:
+    name: Supabase RLS Integration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run RLS Multi-Tenant Isolation Tests
+        run: npx tsx --test tests/supabase-rls-integration.test.ts tests/phase8-production-integrity.test.ts
+        env:
+          NODE_ENV: test
+          SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_TEST_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+
+  # 7. Accessibility (axe-core & WCAG 2.2 AA)
+  accessibility:
+    name: Accessibility & WCAG 2.2 AA
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Accessibility Audit
+        run: npx tsx --test tests/prompt3-accessibility.test.ts tests/accessibility-audit.test.ts tests/accessibility-axe.test.ts
+        env:
+          NODE_ENV: test
+
+  # 8. E2E Tests
+  e2e:
+    name: E2E Lifecycle Journey
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run E2E Smoke & Journey Tests
+        run: npx tsx --test tests/e2e-journey.test.ts tests/phase6-production-readiness.test.ts
+        env:
+          NODE_ENV: test
+
+  # 9. Production Build
+  build:
     name: Production Build
     runs-on: ubuntu-latest
-    needs: [quality-and-lint, unit-and-contract-tests]
+    needs: [lint, typecheck, unit, security, ai-evaluation, accessibility, e2e]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

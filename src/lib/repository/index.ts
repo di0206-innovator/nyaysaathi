@@ -14,7 +14,10 @@ let activeService: MatterService | null = null;
 
 export function getStorageAdapter(userToken?: string): IStorageAdapter {
   if (isSupabaseConfigured()) {
-    const client = getSupabaseClient(userToken)!;
+    const client = getSupabaseClient(userToken);
+    if (!client) {
+      throw new Error('Security Error: Unable to initialize Supabase storage client.');
+    }
     return new SupabaseStorageAdapter(client);
   }
   if (!activeAdapter) {

@@ -358,7 +358,7 @@ Yours sincerely,
 
 (Arjun Verma)
 Encl: Copy of Rental Agreement, NEFT Payment Slip, Move-out Handover Chat Record.`,
-        statutoryReference: 'Indian Contract Act 1872 & Karnataka Rent Act / Model Tenancy Act',
+        statutoryReference: 'Indian Contract Act 1872 (§73) & Agreement Refund Covenant',
         disclaimer: 'This draft is generated based on your inputs and agreement terms. For maximum evidentiary value, serve via Speed Post with Acknowledgement Due (RPAD).',
         groundingRefIds: ['fact-1', 'fact-2', 'fact-3', 'doc-1', 'doc-2', 'doc-3'],
         createdAt: '2026-09-17',
@@ -423,9 +423,9 @@ Encl: Copy of Rental Agreement, NEFT Payment Slip, Move-out Handover Chat Record
           applicability: 'Breach of agreement terms causing direct financial loss.'
         },
         {
-          statute: 'Model Tenancy Act & State Rent Laws',
-          section: 'Deposit Provisions',
-          applicability: 'Mandate to refund deposit within 30 days post tenancy vacate.'
+          statute: 'State Rent Laws & Indian Contract Act (MTA Reference)',
+          section: 'Section 73 & Deposit Covenants',
+          applicability: 'Governing contractual breach for deposit refund; applicability depends on relevant state tenancy framework, agreement terms, and facts.'
         }
       ],
       reliefSought: [

@@ -8,8 +8,9 @@ export interface ApiFetchOptions extends RequestInit {
 }
 
 export function getStoredAuthToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('nyaysaathi_token');
+  // Production relies on browser HttpOnly cookies via credentials: 'include'.
+  // We do not persist raw auth tokens in localStorage in production.
+  return null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,13 +28,14 @@ export async function apiFetch<T = any>(
   url: string,
   options: ApiFetchOptions = {}
 ): Promise<ApiFetchResult<T>> {
-  const token = options.token !== undefined ? options.token : getStoredAuthToken();
+  const token = options.token;
 
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
 
+  // Inject Bearer header only if explicitly provided (e.g. In unit tests or external integrations)
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }

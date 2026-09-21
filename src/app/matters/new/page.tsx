@@ -228,6 +228,7 @@ function NewMatterContent() {
               {categories.map((cat, idx) => (
                 <label
                   key={cat.id}
+                  htmlFor={`cat-${cat.id}`}
                   onClick={() => setCategory(cat.id as MatterCategory)}
                   className={`flex items-center space-x-3 p-3.5 border cursor-pointer transition-all ${
                     category === cat.id
@@ -236,8 +237,10 @@ function NewMatterContent() {
                   }`}
                 >
                   <input
+                    id={`cat-${cat.id}`}
                     type="radio"
                     name="category"
+                    aria-label={cat.label}
                     checked={category === cat.id}
                     onChange={() => setCategory(cat.id as MatterCategory)}
                     className="accent-rose-600"

@@ -22,10 +22,10 @@ export function Navbar() {
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center space-x-2">
-                  <span className="font-black text-lg tracking-tight uppercase text-white font-sans">
+                  <span className="font-black text-base sm:text-lg tracking-tight uppercase text-white font-sans">
                     NyaySaathi
                   </span>
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 bg-stone-800 text-stone-300 border border-stone-700">
+                  <span className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-widest px-1 sm:px-1.5 py-0.5 bg-stone-800 text-stone-300 border border-stone-700 hidden sm:inline">
                     IN // NAVIGATOR
                   </span>
                 </div>
@@ -37,7 +37,7 @@ export function Navbar() {
           </div>
 
           {/* Navigation Links - Structural Grid Style */}
-          <nav className="hidden md:flex items-center space-x-1 border-l border-r border-stone-800 px-2 h-16">
+          <nav className="hidden lg:flex items-center space-x-1 border-l border-r border-stone-800 px-2 h-16">
             <Link
               href="/"
               className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${
@@ -84,7 +84,7 @@ export function Navbar() {
           </nav>
 
           {/* Right Action Elements */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1.5 sm:space-x-3">
             {/* NALSA Statutory Helpline Badge */}
             <div className="hidden lg:flex items-center space-x-2 px-2.5 py-1 bg-stone-900 border border-stone-800 text-stone-300 font-mono text-[11px]">
               <PhoneCall className="w-3 h-3 text-emerald-400" />
@@ -107,10 +107,11 @@ export function Navbar() {
             {/* Swiss Red Action Trigger */}
             <Link
               href="/matters/new"
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors active:translate-y-px"
+              className="inline-flex items-center space-x-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors active:translate-y-px shrink-0"
             >
-              <Plus className="w-4 h-4 text-white" />
-              <span>New Matter</span>
+              <Plus className="w-3.5 h-3.5 text-white" />
+              <span className="hidden xs:inline sm:inline">New Matter</span>
+              <span className="inline xs:hidden sm:hidden">New</span>
             </Link>
           </div>
         </div>

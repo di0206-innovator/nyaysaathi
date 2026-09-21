@@ -19,8 +19,20 @@ export async function POST(req: NextRequest) {
 
     if (action === 'logout') {
       const response = apiSuccess({ message: 'Logged out successfully' });
-      response.cookies.delete('sb-access-token');
-      response.cookies.delete('supabase-auth-token');
+      response.cookies.set('sb-access-token', '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 0
+      });
+      response.cookies.set('supabase-auth-token', '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 0
+      });
       return response;
     }
 

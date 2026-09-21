@@ -60,10 +60,12 @@ export default function PilotOnboardingPage() {
               <span>01 // Pilot Cohort Access Code (Optional)</span>
             </h2>
             <div>
-              <label className="block text-stone-600 mb-1 uppercase">
+              <label htmlFor="cohort-invite-key" className="block text-stone-600 mb-1 uppercase">
                 COHORT INVITE KEY OR ADVOCATE REFERRAL:
               </label>
               <input
+                id="cohort-invite-key"
+                name="cohort-invite-key"
                 type="text"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}

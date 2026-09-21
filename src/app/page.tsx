@@ -231,7 +231,7 @@ export default function HomePage() {
           </div>
 
           <p className="text-sm text-stone-300 max-w-3xl leading-relaxed font-sans">
-            Security deposits in urban tenancy agreements are routinely withheld under unsubstantiated painting or wear-and-tear deductions. Governed under the Model Tenancy Act principles, jurisdiction-specific rent statutes, Leave &amp; License terms, move-out condition, and documentary proof, NyaySaathi structures your tenancy evidence into an enforceable pre-litigation dossier.
+            Security deposits in urban tenancy agreements are routinely withheld under unsubstantiated painting or wear-and-tear deductions. Applicability depends on the relevant state/territorial tenancy framework (including Model Tenancy Act principles where adopted by state legislation, state rent control acts, Leave &amp; License terms, dates, and facts). NyaySaathi structures your tenancy evidence into an actionable pre-litigation dossier grounded in contract law, wear-and-tear jurisprudence, and jurisdiction-specific rent enactments.
           </p>
 
           {/* 3-Column Architectural Framework */}
@@ -248,21 +248,21 @@ export default function HomePage() {
 
             <div className="p-6 border-b md:border-b-0 md:border-r border-stone-800 space-y-2 bg-stone-950">
               <span className="font-mono text-xs font-bold text-rose-500 uppercase tracking-widest">
-                02 // STATUTORY GROUNDS
+                02 // LEGAL APPLICABILITY ENGINE
               </span>
-              <h4 className="font-bold text-sm text-white uppercase">State Rent Control &amp; Contract Law</h4>
+              <h4 className="font-bold text-sm text-white uppercase">Jurisdiction &amp; Wear-and-Tear Analysis</h4>
               <p className="text-xs text-stone-400 leading-relaxed font-sans">
-                Applies Karnataka Rent Act, Maharashtra Rent Control Act, or Indian Contract Act §73/§74 wear-and-tear rules.
+                Evaluates state rent enactments (MRCA/Karnataka Rent Act) vs Contract Act §73, distinguishing binding statutes from model laws.
               </p>
             </div>
 
             <div className="p-6 space-y-2 bg-stone-950">
               <span className="font-mono text-xs font-bold text-rose-500 uppercase tracking-widest">
-                03 // ENFORCEMENT SUITE
+                03 // ACTION PROTOCOL
               </span>
-              <h4 className="font-bold text-sm text-white uppercase">Speed Post Legal Notice &amp; Advocate Pack</h4>
+              <h4 className="font-bold text-sm text-white uppercase">Speed Post Notice &amp; Lawyer Brief</h4>
               <p className="text-xs text-stone-400 leading-relaxed font-sans">
-                Generates a formal 15-day statutory demand letter and a complete 10-section Advocate Case Pack for court filing.
+                Generates a formal 15-day legal demand letter and an indexed 10-section Advocate Case Pack for dispute resolution.
               </p>
             </div>
           </div>

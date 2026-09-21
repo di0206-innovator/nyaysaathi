@@ -25,16 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const savedUser = localStorage.getItem('nyaysaathi_user');
-    if (savedUser) {
-      try {
-        return JSON.parse(savedUser);
-      } catch {
-        return null;
-      }
-    }
-    // Only default to demo user if explicit environment variable is enabled
+    // Only default to demo user if explicit demo mode is set
     if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
       return {
         id: 'citizen-demo-01',
@@ -46,38 +37,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   });
 
-  const [token, setToken] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const savedToken = localStorage.getItem('nyaysaathi_token');
-    if (savedToken) return savedToken;
-    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
-      return 'mock-user-citizen-demo-01';
-    }
-    return null;
-  });
-
   const isDemo = Boolean(
-    (token && token.startsWith('mock-user-')) ||
-    (user && (user.id.includes('demo') || user.email.includes('demo')))
+    user && (user.id.includes('demo') || user.email.includes('demo'))
   );
 
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
 
   React.useEffect(() => {
+    let active = true;
     async function checkSession() {
       try {
         const res = await fetch('/api/auth', { credentials: 'include' });
         if (res.ok) {
           const json = await res.json();
-          if (json.success && json.data?.user) {
+          if (active && json.success && json.data?.user) {
             setUser(json.data.user);
           }
         }
       } catch {
         // Unauthenticated session
+      } finally {
+        if (active) setLoading(false);
       }
     }
     checkSession();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
@@ -91,10 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await res.json();
       if (data.success && data.data?.user) {
-        const u = data.data.user;
-        const t = data.data.token || (data.data.session?.access_token) || `mock-user-${u.id}`;
-        setUser(u);
-        setToken(t);
+        setUser(data.data.user);
         return true;
       }
       return false;
@@ -116,10 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await res.json();
       if (data.success && data.data?.user) {
-        const u = data.data.user;
-        const t = data.data.token || (data.data.session?.access_token) || `mock-user-${u.id}`;
-        setUser(u);
-        setToken(t);
+        setUser(data.data.user);
         return true;
       }
       return false;
@@ -132,11 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     setUser(null);
-    setToken(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('nyaysaathi_user');
-      localStorage.removeItem('nyaysaathi_token');
-    }
     try {
       await fetch('/api/auth', {
         method: 'POST',
@@ -156,11 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name: name || `User ${id}`,
       role: 'authenticated'
     };
-    const t = `mock-user-${id}`;
     setUser(u);
-    setToken(t);
-    localStorage.setItem('nyaysaathi_user', JSON.stringify(u));
-    localStorage.setItem('nyaysaathi_token', t);
   };
 
   const enableDemoMode = () => {
@@ -168,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, token, isDemo, login, signup, logout, setDemoUser, enableDemoMode }}>
+    <AuthContext.Provider value={{ user, loading, token: null, isDemo, login, signup, logout, setDemoUser, enableDemoMode }}>
       {children}
     </AuthContext.Provider>
   );

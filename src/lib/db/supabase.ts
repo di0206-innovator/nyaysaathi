@@ -95,12 +95,22 @@ export function getSupabaseUserClient(accessToken: string): SupabaseClient | nul
  * For unauthenticated server operations, uses the anonymous browser/public client.
  * Privileged service-role operations must explicitly invoke `getSupabaseAdminClient()`.
  */
-export function getSupabaseClient(userToken?: string): SupabaseClient | null {
+export function getSupabaseClient(
+  userToken?: string,
+  options?: { failClosedIfUnauthenticated?: boolean }
+): SupabaseClient | null {
   if (userToken) {
     const userClient = getSupabaseUserClient(userToken);
-    if (userClient) return userClient;
+    if (!userClient) {
+      throw new Error('Security Error: Failed to create request-scoped authenticated database client.');
+    }
+    return userClient;
   }
 
-  // Fallback to anonymous client adhering to RLS
+  if (options?.failClosedIfUnauthenticated) {
+    throw new Error('Security Error: Operation requires an authenticated database client.');
+  }
+
+  // Fallback to anonymous client adhering to RLS for explicitly public operations
   return getSupabaseBrowserClient();
 }
