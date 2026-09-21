@@ -478,6 +478,7 @@ export interface MatterActivityEvent {
 }
 
 export type DeadlineType = 'statutory' | 'action_step' | 'response_expected' | 'user_defined';
+export type DeadlineSource = 'STATUTE' | 'AGREEMENT' | 'NOTICE' | 'USER_ENTERED' | 'ESTIMATE';
 
 export interface MatterDeadline {
   id: string;
@@ -486,8 +487,11 @@ export interface MatterDeadline {
   description?: string;
   dueDate: string;
   type: DeadlineType;
+  source?: DeadlineSource;
   isStatutory: boolean;
   isUserDefined: boolean;
+  isEstimated?: boolean;
+  requiresLegalVerification?: boolean;
   confidence: number;
   trustTier: TrustSafetyTier;
   relatedActionId?: string;

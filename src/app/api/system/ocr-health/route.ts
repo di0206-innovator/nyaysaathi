@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server';
 import { OCRFactory } from '@/lib/ocr/ocr-factory';
 import { Metrics } from '@/lib/observability/metrics';
 import { apiSuccess, apiError } from '@/lib/api/response';
@@ -33,7 +32,7 @@ import { apiSuccess, apiError } from '@/lib/api/response';
  *   }
  * }
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const health = await OCRFactory.getAggregatedHealth();
     const telemetry = Metrics.getProductionTelemetry();

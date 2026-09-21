@@ -161,7 +161,11 @@ export class DeadlineEngine {
     if (matter.deadlines) {
       for (const d of matter.deadlines) {
         if (d.isUserDefined) {
-          deadlines.push(d);
+          deadlines.push({
+            ...d,
+            source: d.source || 'USER_ENTERED',
+            isEstimated: d.isEstimated || false
+          });
         }
       }
     }
@@ -171,6 +175,7 @@ export class DeadlineEngine {
       for (const comm of matter.communications) {
         if (comm.responseExpectedBy && comm.status !== 'responded' && comm.status !== 'resolved') {
           const isOverdue = new Date(comm.responseExpectedBy).getTime() < now.getTime();
+          const isStatutory138 = comm.type === 'legal_notice' && matter.category === 'financial_cheque_bounce';
           deadlines.push({
             id: `deadline-resp-${comm.id}`,
             matterId,
@@ -178,8 +183,11 @@ export class DeadlineEngine {
             description: `Expected formal response to ${comm.summary}`,
             dueDate: comm.responseExpectedBy,
             type: 'response_expected',
-            isStatutory: comm.type === 'legal_notice',
+            source: isStatutory138 ? 'STATUTE' : 'NOTICE',
+            isStatutory: isStatutory138,
             isUserDefined: false,
+            isEstimated: false,
+            requiresLegalVerification: !isStatutory138,
             confidence: 0.90,
             trustTier: 'explanation',
             status: isOverdue ? 'overdue' : 'active',
@@ -193,8 +201,10 @@ export class DeadlineEngine {
     for (const step of matter.actionPlan) {
       if (step.status === 'completed' || step.status === 'skipped') continue;
 
+      let isEstimated = false;
       let dueDateStr = step.dueDate;
       if (!dueDateStr) {
+        isEstimated = true;
         let days = 14;
         if (step.phase === 'immediate_48h') days = 2;
         else if (step.phase === 'formal_escalation') days = 30;
@@ -211,8 +221,10 @@ export class DeadlineEngine {
         description: step.description,
         dueDate: dueDateStr,
         type: 'action_step',
+        source: isEstimated ? 'ESTIMATE' : 'AGREEMENT',
         isStatutory: false,
         isUserDefined: false,
+        isEstimated,
         confidence: 0.95,
         trustTier: 'explanation',
         relatedActionId: step.id,
@@ -235,10 +247,6 @@ export class DeadlineEngine {
         const expiryStr = expiryDate.toISOString().split('T')[0];
         const isOverdue = expiryDate.getTime() < now.getTime();
 
-        // Trust & Safety tier determination for deadlines:
-        // - 'fact' if verified timeline event anchors the date
-        // - 'explanation' if estimated from story
-        // - 'counsel_required' if statutory rule has high complexity or critical risk
         const hasVerifiedEvent = matter.timelineEvents.some(e => e.status === 'verified');
         const trustTier = hasVerifiedEvent
           ? (risk.severity === 'critical' ? 'counsel_required' : 'fact')
@@ -248,12 +256,15 @@ export class DeadlineEngine {
           id: `deadline-statute-${risk.id}`,
           matterId,
           title: `Statutory Limitation: ${lim.statute}`,
-          description: `Period of limitation expires based on cause of action date. Consequence: Right to remedy extinguished.`,
+          description: `Statutory limitation expiry computed under ${lim.statute}. ${risk.mitigatingAction}`,
           dueDate: expiryStr,
           type: 'statutory',
+          source: 'STATUTE',
           isStatutory: true,
           isUserDefined: false,
-          confidence: hasVerifiedEvent ? 0.95 : 0.70,
+          isEstimated: !hasVerifiedEvent,
+          requiresLegalVerification: trustTier === 'counsel_required',
+          confidence: hasVerifiedEvent ? 0.92 : 0.70,
           trustTier,
           statuteReference: lim.statute,
           status: isOverdue ? 'overdue' : 'active'

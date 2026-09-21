@@ -10,6 +10,7 @@ export interface OCRMetadata {
   matterId?: string;
   documentId?: string;
   documentType?: 'rental_agreement' | 'notice_copy' | 'bank_statement' | 'cheque_copy' | 'photo_proof' | 'other';
+  language?: 'eng' | 'hin' | 'mar' | 'auto';
 }
 
 export interface OCRBoundingBox {
@@ -39,6 +40,7 @@ export interface OCRExtractionResult {
   provider: string;
   processingTimeMs: number;
   confidence?: number;
+  detectedLanguage?: string;
   warnings?: string[];
   failureReason?: string;
 }
@@ -58,6 +60,7 @@ export interface OCRProvenanceRecord {
   extractionTimestamp: string;
   extractedText: string;
   confidence?: number;
+  detectedLanguage?: string;
   boundingBoxes?: OCRBoundingBox[];
 }
 

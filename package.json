@@ -7,8 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/**/*.test.ts",
+    "test": "tsx scripts/run-tests.ts",
     "verify:production": "tsx scripts/verify-production.ts"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@google-cloud/documentai": "^10.1.0",

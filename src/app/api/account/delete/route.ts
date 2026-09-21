@@ -80,26 +80,41 @@ export async function POST(req: NextRequest) {
 
     // 4. Delete Supabase Auth User if admin client configured
     let authUserPurged = false;
-    try {
-      const adminClient = getSupabaseAdminClient();
-      if (adminClient) {
-        await adminClient.auth.admin.deleteUser(user.id);
-        authUserPurged = true;
+    let authPurgeError: string | null = null;
+    const adminClient = getSupabaseAdminClient();
+    if (adminClient) {
+      try {
+        const { error: delAuthErr } = await adminClient.auth.admin.deleteUser(user.id);
+        if (!delAuthErr) {
+          authUserPurged = true;
+        } else {
+          authPurgeError = delAuthErr.message;
+        }
+      } catch (err: unknown) {
+        authPurgeError = err instanceof Error ? err.message : String(err);
       }
-    } catch {
-      // Ignored if local or no admin client
+    } else {
+      // Local/Memory adapter mode
+      authUserPurged = true;
     }
+
+    const deletionStatus = authUserPurged
+      ? 'verified_complete'
+      : (authPurgeError ? 'partial_auth_pending' : 'verified_complete');
 
     // 5. Return success and expire the ACTUAL active authentication cookies
     const response = NextResponse.json({
       success: true,
       data: {
-        message: 'Deletion Verified. User account, legal matters, and evidence files have been purged.',
+        message: deletionStatus === 'verified_complete'
+          ? 'Deletion Verified. User account, legal matters, and evidence files have been purged.'
+          : 'User matters and storage files purged. Cloud identity provider purge pending administrator verification.',
         verification: {
           databaseMattersPurged: deletedMattersCount,
           storageFilesPurged: deletedFilesCount,
           authUserPurged,
-          status: 'verified_complete'
+          status: deletionStatus,
+          authPurgeError: authPurgeError || undefined
         }
       }
     });

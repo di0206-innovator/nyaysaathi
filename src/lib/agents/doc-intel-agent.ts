@@ -103,7 +103,7 @@ export class DocIntelAgent {
       });
 
       // Fact 3+: Add verified clause facts with page provenance
-      processedDocuments.forEach((doc, dIdx) => {
+      processedDocuments.forEach((doc) => {
         if (doc.extractionStatus === 'verified_extraction' && doc.keyQuotes && doc.keyQuotes.length > 0) {
           const isOcr = Boolean(doc.classification?.includes('OCR') || doc.mimeType?.startsWith('image/'));
           doc.keyQuotes.slice(0, 2).forEach((quote, qIdx) => {

@@ -108,7 +108,7 @@ export class OCRFactory {
 
         Metrics.recordOcrProcessing(res.processingTimeMs, false);
         return res;
-      } catch (err) {
+      } catch {
         // Fallback below
       }
     }

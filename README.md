@@ -130,8 +130,8 @@ nyaysaathi/
 ## ⚡ Getting Started
 
 ### Prerequisites
-- Node.js 18.18+ or 20+
-- npm, pnpm, or yarn
+- Node.js 22.0.0+
+- npm (v10+), pnpm, or yarn
 
 ### 1. Clone the repository
 ```bash

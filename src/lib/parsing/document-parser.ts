@@ -1,6 +1,5 @@
 import { DocumentParserProvider } from '@/types/matter';
 import { OCRFactory } from '@/lib/ocr/ocr-factory';
-import { OCRProvenanceRecord } from '@/lib/ocr/types';
 
 export interface ExtractedFactProvenance {
   factId: string;
@@ -375,7 +374,7 @@ export class ProductionDocumentParser implements DocumentParserProvider {
             relevanceSummary: `Scanned PDF processed via OCR (${ocrRes.provider || this.ocrEngine.name}). Extracted ${cleanedText.length} characters across ${ocrRes.pages?.length || pageCount} page(s).`
           };
         }
-      } catch (err) {
+      } catch {
         // Fall through to truthful unextracted state
       }
     }

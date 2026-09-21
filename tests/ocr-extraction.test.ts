@@ -279,10 +279,7 @@ describe('OCR & DOCUMENT PROCESSING EXTRACTION SUITE', () => {
 
   it('queries GET /api/system/ocr-health and reports provider status & telemetry correctly', async () => {
     const { GET } = await import('../src/app/api/system/ocr-health/route');
-    const { NextRequest } = await import('next/server');
-
-    const req = new NextRequest('http://localhost:3000/api/system/ocr-health');
-    const res = await GET(req);
+    const res = await GET();
 
     assert.equal(res.status, 200);
     const json = await res.json();
@@ -296,7 +293,6 @@ describe('OCR & DOCUMENT PROCESSING EXTRACTION SUITE', () => {
 
   it('integrates OCR-derived facts with Evidence Graph and preserves provenance traceability', async () => {
     const { DocIntelAgent } = await import('../src/lib/agents/doc-intel-agent');
-    const { MatterOrchestrator } = await import('../src/lib/agents/orchestrator');
 
     const agent = new DocIntelAgent();
     const result = await agent.execute({

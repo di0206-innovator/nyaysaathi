@@ -16,6 +16,14 @@ export default defineConfig({
     trace: 'on-first-retry',
     video: 'retain-on-failure'
   },
+  webServer: {
+    command: process.env.CI ? 'npm run start' : 'npm run dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+    stdout: 'pipe',
+    stderr: 'pipe'
+  },
   projects: [
     {
       name: 'Desktop Chrome',

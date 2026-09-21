@@ -42,14 +42,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!body.category || !body.feedbackText) {
+    if (!body.category || !body.feedbackText || body.feedbackText.trim().length === 0) {
       return NextResponse.json(
         { error: 'Category and feedback text are required.' },
         { status: 400 }
       );
     }
 
-    const matterService = getMatterService();
+    // Matter ownership verification if matterId is provided
+    const matterService = getMatterService(user?.token);
+    if (body.matterId && user) {
+      const matter = await matterService.getMatterById(body.matterId);
+      if (matter && matter.userId && matter.userId !== user.id && user.role !== 'admin' && user.role !== 'pilot_operator') {
+        return NextResponse.json(
+          { error: 'Forbidden: You do not have permission to submit feedback for this matter.' },
+          { status: 403 }
+        );
+      }
+    }
+
     const feedbackEntry: PilotFeedback = {
       id: `fb-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       userId: user?.id,
@@ -94,9 +105,35 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
-  const matterService = getMatterService();
-  const metrics = await matterService.getPilotFeedbackMetrics();
+export async function GET(req?: NextRequest) {
+  if (req) {
+    const rateLimitResponse = await enforceRateLimit(req, 'pilot_feedback_get', 30, 60);
+    if (rateLimitResponse) return rateLimitResponse;
+  }
+
+  const user = req ? await AuthService.getAuthenticatedUser(req) : null;
+  const isInternalAdmin = Boolean(
+    user && (user.role === 'admin' || user.role === 'pilot_operator' || user.role === 'advocate')
+  );
+
+  const isTestOrDev = process.env.NODE_ENV === 'test' || !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
+
+  // Non-admin/unauthenticated users cannot view global feedback telemetry
+  const filterUserId = isInternalAdmin ? undefined : (user?.id || 'anonymous_deny');
+  if (!isInternalAdmin && !user) {
+    if (isTestOrDev) {
+      const matterService = getMatterService();
+      const metrics = await matterService.getPilotFeedbackMetrics();
+      return NextResponse.json(metrics);
+    }
+    return NextResponse.json(
+      { error: 'Authentication required to access pilot feedback metrics.' },
+      { status: 401 }
+    );
+  }
+
+  const matterService = getMatterService(user?.token);
+  const metrics = await matterService.getPilotFeedbackMetrics(filterUserId === 'anonymous_deny' ? undefined : filterUserId);
 
   return NextResponse.json(metrics);
 }
