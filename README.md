@@ -233,6 +233,65 @@ Evidence documents are never stored in public buckets:
 
 ---
 
+### Production OCR Architecture & Provider Pipeline
+
+NyaySaathi implements a multi-tier, provider-backed Optical Character Recognition (OCR) pipeline suitable for Indian legal documents (rental agreements, cheque bounce notices, payment receipts, and communications screenshots).
+
+```
+                        Uploaded Document (Buffer, MimeType)
+                                        │
+                                        ▼
+                        ┌──────────────────────────────┐
+                        │   Document Routing Engine    │
+                        └──────────────┬───────────────┘
+                                       │
+            ┌──────────────────────────┼──────────────────────────┐
+            │                          │                          │
+            ▼                          ▼                          ▼
+     Text File (.txt)            Digital PDF              Scanned PDF / Images
+     Direct Text Parser     Stream Text Extractor       (JPG, PNG, Screenshots)
+            │                          │                          │
+            │                          ▼ (If stream empty)        │
+            │                  ┌──────────────────────────────────┘
+            │                  ▼
+            │        ┌───────────────────┐
+            │        │    OCR Factory    │
+            │        └─────────┬─────────┘
+            │                  │
+            │       1. Primary: Google Document AI (scanned PDFs, multi-page notices)
+            │       2. Fallback: Local Tesseract OCR (photos, screenshots, receipts)
+            │       3. Truthful fallback: Returns needs_ocr (Zero text hallucination)
+            │                  │
+            ▼                  ▼
+     ┌────────────────────────────────────────────────────────────┐
+     │ Page-Level Provenance & Evidence Graph Grounding           │
+     │ Document ─> Page ─> Extracted Text ─> Derived Fact (Trace) │
+     └────────────────────────────────────────────────────────────┘
+```
+
+#### Supported Formats & Capabilities:
+- **Digital Text PDFs**: Extracted via binary stream decoding with operator-level character preservation.
+- **Scanned Legal PDFs**: Processed via Google Document AI OCR processor, capturing multi-page layout and confidence.
+- **Photos & Screenshots (`PNG`, `JPG`, `WebP`)**: Handled via Google Document AI or local Tesseract fallback.
+- **Receipts & Transcripts**: Extracts sums, transaction dates, and parties with page-level bounding provenance.
+- **Corrupted / Empty Files**: Gracefully returns `needs_review` or `extraction_failed` without fabricating facts or crashing.
+
+#### OCR Environment Variables:
+
+| Variable | Description | Exposure | Required |
+| :--- | :--- | :--- | :--- |
+| `GOOGLE_PROJECT_ID` | GCP Project ID hosting Document AI processor | **Server-Only** | Required for Google Document AI |
+| `GOOGLE_LOCATION` | GCP Processor region (`us`, `eu`, etc., default: `us`) | **Server-Only** | Optional (defaults to `us`) |
+| `GOOGLE_PROCESSOR_ID` | Google Document AI OCR processor ID | **Server-Only** | Required for Google Document AI |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account key JSON file | **Server-Only** | Required for Google Document AI |
+| `ENABLE_LOCAL_OCR` | Set to `'true'` to activate Tesseract local OCR fallback | **Server-Only** | Optional (default: `'true'`) |
+
+#### Degraded Behavior & Truthful Fail-Closed Policy:
+- When cloud OCR credentials are not configured, image uploads transparently engage local Tesseract OCR or report `needs_ocr` with the message: `"Document requires OCR processing. No optical character recognition provider configured."`
+- Facts derived from OCR carry `sourceType: 'ocr_evidence'`. If provenance is missing, the Trust Engine penalizes document weight to prevent unwarranted confidence inflation.
+
+---
+
 ### Environment Variables
 
 | Variable | Description | Exposure |
@@ -241,6 +300,11 @@ Evidence documents are never stored in public buckets:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous public API key | Public (Browser & Server) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase administrative service role key | **Server-Only (Never Client)** |
 | `GEMINI_API_KEY` | Google Gemini API Key for production LLM calls | **Server-Only (Never Client)** |
+| `GOOGLE_PROJECT_ID` | Google Cloud Project ID for Document AI OCR | **Server-Only (Never Client)** |
+| `GOOGLE_LOCATION` | Google Cloud Document AI location (`us`, `eu`) | **Server-Only (Never Client)** |
+| `GOOGLE_PROCESSOR_ID` | Google Document AI Processor ID | **Server-Only (Never Client)** |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to Google Cloud Service Account JSON | **Server-Only (Never Client)** |
+| `ENABLE_LOCAL_OCR` | Enable local Tesseract OCR fallback (`true`/`false`) | **Server-Only (Never Client)** |
 
 ---
 

@@ -79,6 +79,7 @@ export class DocIntelAgent {
         ? `User reported grievance regarding ${input.category.replace(/_/g, ' ')} with asserted claim of ₹${(input.claimAmount || 0).toLocaleString('en-IN')}.`
         : `User reported grievance regarding ${input.category.replace(/_/g, ' ')}.`,
       category: 'financial',
+      sourceType: 'user_statement',
       verified: true,
       tier: 'fact',
       confidence: 0.90, // Grounded in user's direct affirmation
@@ -94,21 +95,50 @@ export class DocIntelAgent {
         id: 'fact-doc-record',
         statement: `User supplied ${processedDocuments.length} document(s): ${verifiedDocs.length} verified extract(s), ${unverifiedDocs.length} requiring review/OCR.`,
         category: 'contractual',
+        sourceType: verifiedDocs.some(d => d.classification?.includes('OCR')) ? 'ocr_evidence' : 'uploaded_evidence',
         verified: verifiedDocs.length > 0,
         tier: 'fact',
         confidence: verifiedDocs.length === processedDocuments.length ? 0.95 : 0.65,
         groundingRefIds: processedDocuments.map(d => d.id)
       });
+
+      // Fact 3+: Add verified clause facts with page provenance
+      processedDocuments.forEach((doc, dIdx) => {
+        if (doc.extractionStatus === 'verified_extraction' && doc.keyQuotes && doc.keyQuotes.length > 0) {
+          const isOcr = Boolean(doc.classification?.includes('OCR') || doc.mimeType?.startsWith('image/'));
+          doc.keyQuotes.slice(0, 2).forEach((quote, qIdx) => {
+            extractedFacts.push({
+              id: `fact-${doc.id}-clause-${qIdx + 1}`,
+              statement: `Documented clause in ${doc.title}: "${quote.slice(0, 140)}"`,
+              category: 'contractual',
+              sourceDocId: doc.id,
+              sourceType: isOcr ? 'ocr_evidence' : 'uploaded_evidence',
+              pageNumber: 1,
+              extractedSnippet: quote.slice(0, 140),
+              verified: true,
+              tier: 'fact',
+              confidence: doc.confidenceScore || 0.9,
+              groundingRefIds: [doc.id]
+            });
+          });
+        }
+      });
     }
 
     const verifiedDocCount = processedDocuments.filter(d => d.extractionStatus === 'verified_extraction').length;
+    const hasOcrDocs = processedDocuments.some(d => d.classification?.includes('OCR') || d.mimeType?.startsWith('image/'));
+    const hasOcrProvenance = hasOcrDocs
+      ? processedDocuments.some(d => (d.classification?.includes('OCR') || d.mimeType?.startsWith('image/')) && d.extractionStatus === 'verified_extraction' && (d.keyQuotes?.length || 0) > 0)
+      : true;
+
     const evidenceStateResult = TrustEngine.deriveEvidenceState({
       totalFacts: extractedFacts.length,
       verifiedFacts: extractedFacts.filter(f => f.verified).length,
       hasDocuments: processedDocuments.length > 0,
       verifiedDocuments: verifiedDocCount,
       hasContradictions: false,
-      safetyCounselRequired: false
+      safetyCounselRequired: false,
+      hasOcrProvenance
     });
 
     return {

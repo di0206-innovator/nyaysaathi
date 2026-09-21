@@ -587,12 +587,21 @@ export class MatterOrchestrator {
       graph.addNode({
         id: fact.id,
         type: 'fact',
-        label: fact.category.toUpperCase(),
+        label: `${fact.category.toUpperCase()} (${fact.sourceType || 'evidence'})`,
         content: fact.statement,
-        confidence: fact.confidence ?? (fact.verified ? 0.9 : 0.5)
+        confidence: fact.confidence ?? (fact.verified ? 0.9 : 0.5),
+        metadata: {
+          sourceType: fact.sourceType,
+          pageNumber: fact.pageNumber,
+          extractedSnippet: fact.extractedSnippet,
+          sourceDocId: fact.sourceDocId
+        }
       });
       if (fact.sourceDocId) {
         graph.addEdge(fact.id, fact.sourceDocId, 'evidenced_by');
+      }
+      if (fact.sourceType === 'ocr_evidence' && fact.sourceDocId) {
+        graph.addEdge(fact.id, fact.sourceDocId, 'derives_from');
       }
     });
 

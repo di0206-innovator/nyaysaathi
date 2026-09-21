@@ -77,13 +77,30 @@ export interface DocumentEvidence {
   storagePath?: string;
   mimeType?: string;
   extractionStatus?: 'verified_extraction' | 'partial_extraction' | 'needs_review' | 'needs_ocr' | 'extraction_failed' | 'raw_uploaded';
+  provenanceRecords?: Array<{
+    documentId: string;
+    pageNumber: number;
+    provider: string;
+    extractionTimestamp: string;
+    extractedText: string;
+    confidence?: number;
+  }>;
 }
+
+export type FactSourceType =
+  | 'user_statement'
+  | 'ocr_evidence'
+  | 'uploaded_evidence'
+  | 'generated_inference';
 
 export interface ExtractedFact {
   id: string;
   statement: string;
   category: 'chronology' | 'financial' | 'contractual' | 'conduct' | 'statutory';
   sourceDocId?: string;
+  sourceType?: FactSourceType;
+  pageNumber?: number;
+  extractedSnippet?: string;
   verified: boolean;
   tier: TrustSafetyTier;
   confidence: number;

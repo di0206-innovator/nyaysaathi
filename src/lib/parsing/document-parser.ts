@@ -1,4 +1,6 @@
 import { DocumentParserProvider } from '@/types/matter';
+import { OCRFactory } from '@/lib/ocr/ocr-factory';
+import { OCRProvenanceRecord } from '@/lib/ocr/types';
 
 export interface ExtractedFactProvenance {
   factId: string;
@@ -8,6 +10,7 @@ export interface ExtractedFactProvenance {
   entityType: 'FINANCIAL_SUM' | 'DATE' | 'PARTY_NAME' | 'LEGAL_CLAUSE';
   extractedValue: string;
   confidence: number;
+  provider?: string;
 }
 
 export interface ParsedDocumentResult {
@@ -48,26 +51,19 @@ export interface IOcrEngine {
   recognize(buffer: ArrayBuffer, mimeType?: string, filename?: string): Promise<{
     text: string;
     confidence: number;
-    pages?: Array<{ pageNumber: number; text: string }>;
+    pages?: Array<{ pageNumber: number; text: string; confidence?: number }>;
+    provider?: string;
   } | null>;
 }
 
 /**
- * Environment-configured OCR provider with health monitoring.
- * When no external OCR credentials are set in environment, safely reports 'unavailable'
- * and preserves truthful 'needs_ocr' extractionStatus.
+ * Production OCR Provider Engine
+ * Backed by OCRFactory with multi-tier Google Document AI and Tesseract fallbacks.
  */
 export class ConfiguredOcrProvider implements IOcrEngine {
   public name = 'ConfiguredOcrProvider';
 
   public getHealth(): OcrHealthStatus {
-    const hasKey = Boolean(
-      process.env.OCR_API_KEY ||
-      process.env.DOCUMENT_AI_KEY ||
-      process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-      process.env.ENABLE_LOCAL_OCR === 'true'
-    );
-
     if (process.env.SIMULATE_OCR_QUOTA_EXCEEDED === 'true') {
       return {
         status: 'quota_exceeded',
@@ -86,12 +82,30 @@ export class ConfiguredOcrProvider implements IOcrEngine {
       };
     }
 
-    if (hasKey) {
+    const hasCloudKey = Boolean(
+      process.env.OCR_API_KEY ||
+      process.env.DOCUMENT_AI_KEY ||
+      process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+      (process.env.GOOGLE_PROJECT_ID && process.env.GOOGLE_PROCESSOR_ID)
+    );
+
+    const isLocalTesseractEnabled = process.env.ENABLE_LOCAL_OCR === 'true';
+
+    if (hasCloudKey) {
       return {
         status: 'configured',
-        providerName: this.name,
+        providerName: 'google-document-ai',
         isAvailable: true,
-        message: 'OCR provider credentials configured and active.'
+        message: 'Cloud OCR provider credentials configured and active.'
+      };
+    }
+
+    if (isLocalTesseractEnabled) {
+      return {
+        status: 'configured',
+        providerName: 'tesseract',
+        isAvailable: true,
+        message: 'Local Tesseract OCR engine configured and active.'
       };
     }
 
@@ -99,7 +113,7 @@ export class ConfiguredOcrProvider implements IOcrEngine {
       status: 'unavailable',
       providerName: this.name,
       isAvailable: false,
-      message: 'No external OCR credentials (OCR_API_KEY / DOCUMENT_AI_KEY) configured. Image OCR requires provider setup.'
+      message: 'No external OCR credentials (GOOGLE_APPLICATION_CREDENTIALS / DOCUMENT_AI_KEY) configured. Image OCR requires provider setup.'
     };
   }
 
@@ -107,27 +121,40 @@ export class ConfiguredOcrProvider implements IOcrEngine {
     return this.getHealth().isAvailable;
   }
 
-  public async recognize(buffer: ArrayBuffer): Promise<{
+  public async recognize(
+    buffer: ArrayBuffer,
+    mimeType?: string,
+    filename?: string
+  ): Promise<{
     text: string;
     confidence: number;
-    pages?: Array<{ pageNumber: number; text: string }>;
+    pages?: Array<{ pageNumber: number; text: string; confidence?: number }>;
+    provider?: string;
   } | null> {
     const health = this.getHealth();
     if (!health.isAvailable) {
       return null;
     }
 
-    // If local test OCR runner is enabled
-    if (process.env.ENABLE_LOCAL_OCR === 'true') {
-      const nodeBuf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
-      const str = nodeBuf.toString('utf-8');
-      if (str.length > 0) {
-        return {
-          text: str,
-          confidence: 0.92,
-          pages: [{ pageNumber: 1, text: str }]
-        };
-      }
+    const nodeBuf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+
+    // Call OCRFactory for real provider execution
+    const res = await OCRFactory.processDocument(nodeBuf, {
+      filename: filename || 'attachment',
+      mimeType: mimeType || 'image/png'
+    });
+
+    if (res.success && res.text.trim().length > 0) {
+      return {
+        text: res.text,
+        confidence: res.confidence || 0.9,
+        pages: res.pages.map(p => ({
+          pageNumber: p.pageNumber,
+          text: p.text,
+          confidence: p.confidence
+        })),
+        provider: res.provider
+      };
     }
 
     return null;
@@ -191,12 +218,12 @@ export class ProductionDocumentParser implements DocumentParserProvider {
       return this.parseTextContent(content, file.filename);
     }
 
-    // 2. PDF Document
+    // 2. PDF Document: Digital stream first, then OCR for scanned PDFs
     if (mime === 'application/pdf' || filename.endsWith('.pdf')) {
       return this.parsePdfContent(file.buffer, file.filename);
     }
 
-    // 3. Image / Screenshot (OCR processing adapter)
+    // 3. Image / Screenshot / Photo (OCR processing adapter)
     if (mime.startsWith('image/')) {
       return this.parseImageOcrContent(file.buffer, file.filename, mime);
     }
@@ -239,7 +266,7 @@ export class ProductionDocumentParser implements DocumentParserProvider {
     const { cleanedText, injectionDetected } = sanitizeAdversarialText(text);
     const entities = this.extractEntities(cleanedText, 1);
     const clauses = this.extractClauses(cleanedText, 1);
-    const provenanceRecords = this.buildProvenance(entities, clauses, filename);
+    const provenanceRecords = this.buildProvenance(entities, clauses, filename, 'direct_text');
 
     return {
       extractedText: cleanedText,
@@ -255,7 +282,7 @@ export class ProductionDocumentParser implements DocumentParserProvider {
     };
   }
 
-  private parsePdfContent(buffer: ArrayBuffer | undefined, filename: string): ParsedDocumentResult {
+  private async parsePdfContent(buffer: ArrayBuffer | undefined, filename: string): Promise<ParsedDocumentResult> {
     let extractedText = '';
     let pageCount = 1;
 
@@ -273,7 +300,15 @@ export class ProductionDocumentParser implements DocumentParserProvider {
       const textMatches = str.match(/\(([^()]{2,})\)Tj/g) || str.match(/\[([^\]]+)\]TJ/g);
       if (textMatches && textMatches.length > 0) {
         extractedText = textMatches
-          .map(m => m.replace(/[()[\]TjTJ]/g, ''))
+          .map(m => {
+            if (m.startsWith('(') && m.endsWith(')Tj')) {
+              return m.slice(1, -3);
+            }
+            if (m.startsWith('[') && m.endsWith(']TJ')) {
+              return m.slice(1, -3).replace(/\(([^)]+)\)/g, '$1');
+            }
+            return m.replace(/[()[\]]/g, '');
+          })
           .join(' ')
           .trim();
       }
@@ -296,37 +331,66 @@ export class ProductionDocumentParser implements DocumentParserProvider {
       }
     }
 
-    // NEVER fabricate evidence or transactions from filename!
-    if (!extractedText || extractedText.length < 10) {
+    // If digital text stream exists and is substantial, return verified PDF extraction
+    if (extractedText && extractedText.length >= 10) {
+      const { cleanedText, injectionDetected } = sanitizeAdversarialText(extractedText);
+      const entities = this.extractEntities(cleanedText, 1);
+      const clauses = this.extractClauses(cleanedText, 1);
+      const provenanceRecords = this.buildProvenance(entities, clauses, filename, 'pdf_stream');
+
       return {
-        extractedText: '',
-        confidence: 0.2,
+        extractedText: cleanedText,
+        confidence: 0.88,
         detectedPages: pageCount,
-        clauses: [],
-        entities: [],
-        provenanceRecords: [],
-        classification: 'Unprocessed PDF Document',
-        extractionStatus: 'needs_review',
-        relevanceSummary: `Text could not be reliably extracted from this PDF stream (${filename}). No legal facts were inferred from the filename or metadata.`
+        clauses,
+        entities,
+        provenanceRecords,
+        classification: 'PDF Legal Evidence',
+        extractionStatus: 'verified_extraction',
+        sanitizedForPromptInjection: injectionDetected,
+        relevanceSummary: `PDF parsed (${pageCount} page(s)) with ${clauses.length} extracted clauses and ${entities.length} detected entities.`
       };
     }
 
-    const { cleanedText, injectionDetected } = sanitizeAdversarialText(extractedText);
-    const entities = this.extractEntities(cleanedText, 1);
-    const clauses = this.extractClauses(cleanedText, 1);
-    const provenanceRecords = this.buildProvenance(entities, clauses, filename);
+    // Scanned PDF: No digital text stream found. Attempt OCR if available.
+    if (buffer && this.ocrEngine.isAvailable()) {
+      try {
+        const ocrRes = await this.ocrEngine.recognize(buffer, 'application/pdf', filename);
+        if (ocrRes && ocrRes.text.trim().length > 0) {
+          const { cleanedText, injectionDetected } = sanitizeAdversarialText(ocrRes.text.trim());
+          const entities = this.extractEntities(cleanedText, 1);
+          const clauses = this.extractClauses(cleanedText, 1);
+          const provenanceRecords = this.buildProvenance(entities, clauses, filename, ocrRes.provider || this.ocrEngine.name);
 
+          return {
+            extractedText: cleanedText,
+            confidence: ocrRes.confidence,
+            detectedPages: ocrRes.pages?.length || pageCount,
+            clauses,
+            entities,
+            provenanceRecords,
+            classification: 'Scanned PDF Legal Evidence (OCR)',
+            extractionStatus: 'verified_extraction',
+            sanitizedForPromptInjection: injectionDetected,
+            relevanceSummary: `Scanned PDF processed via OCR (${ocrRes.provider || this.ocrEngine.name}). Extracted ${cleanedText.length} characters across ${ocrRes.pages?.length || pageCount} page(s).`
+          };
+        }
+      } catch (err) {
+        // Fall through to truthful unextracted state
+      }
+    }
+
+    // NEVER fabricate evidence or transactions from filename!
     return {
-      extractedText: cleanedText,
-      confidence: 0.88,
+      extractedText: '',
+      confidence: 0.2,
       detectedPages: pageCount,
-      clauses,
-      entities,
-      provenanceRecords,
-      classification: 'PDF Legal Evidence',
-      extractionStatus: 'verified_extraction',
-      sanitizedForPromptInjection: injectionDetected,
-      relevanceSummary: `PDF parsed (${pageCount} page(s)) with ${clauses.length} extracted clauses and ${entities.length} detected entities.`
+      clauses: [],
+      entities: [],
+      provenanceRecords: [],
+      classification: 'Unprocessed PDF Document',
+      extractionStatus: 'needs_review',
+      relevanceSummary: `Text could not be reliably extracted from this PDF stream (${filename}). No legal facts were inferred from the filename or metadata.`
     };
   }
 
@@ -360,7 +424,7 @@ export class ProductionDocumentParser implements DocumentParserProvider {
           const { cleanedText, injectionDetected } = sanitizeAdversarialText(ocrResult.text.trim());
           const entities = this.extractEntities(cleanedText, 1);
           const clauses = this.extractClauses(cleanedText, 1);
-          const provenanceRecords = this.buildProvenance(entities, clauses, filename);
+          const provenanceRecords = this.buildProvenance(entities, clauses, filename, ocrResult.provider || this.ocrEngine.name);
 
           return {
             extractedText: cleanedText,
@@ -372,7 +436,7 @@ export class ProductionDocumentParser implements DocumentParserProvider {
             classification: `OCR Scanned Evidence (${mimeType})`,
             extractionStatus: 'verified_extraction',
             sanitizedForPromptInjection: injectionDetected,
-            relevanceSummary: `OCR extracted ${cleanedText.length} chars via ${this.ocrEngine.name} with ${entities.length} detected entities.`
+            relevanceSummary: `OCR extracted ${cleanedText.length} chars via ${ocrResult.provider || this.ocrEngine.name} with ${entities.length} detected entities.`
           };
         }
       } catch (err: unknown) {
@@ -464,7 +528,8 @@ export class ProductionDocumentParser implements DocumentParserProvider {
   private buildProvenance(
     entities: Array<{ name: string; type: string; pageNumber?: number }>,
     clauses: Array<{ title: string; text: string; pageNumber: number }>,
-    filename: string
+    filename: string,
+    provider: string = 'internal'
   ): ExtractedFactProvenance[] {
     const records: ExtractedFactProvenance[] = [];
 
@@ -476,7 +541,8 @@ export class ProductionDocumentParser implements DocumentParserProvider {
         sourceTextSnippet: e.name,
         entityType: e.type as ExtractedFactProvenance['entityType'],
         extractedValue: e.name,
-        confidence: 0.95
+        confidence: 0.95,
+        provider
       });
     });
 
@@ -488,7 +554,8 @@ export class ProductionDocumentParser implements DocumentParserProvider {
         sourceTextSnippet: c.text.substring(0, 100),
         entityType: 'LEGAL_CLAUSE',
         extractedValue: c.title,
-        confidence: 0.90
+        confidence: 0.90,
+        provider
       });
     });
 

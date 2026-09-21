@@ -195,4 +195,135 @@ describe('OCR & DOCUMENT PROCESSING EXTRACTION SUITE', () => {
     assert.ok(misconfigRes.relevanceSummary?.includes('misconfigured'));
     delete process.env.SIMULATE_OCR_MISCONFIGURED;
   });
+
+  // -------------------------------------------------------------
+  // PART 13 & 14: PRODUCTION FIXTURE & OCR LIFECYCLE TESTS
+  // -------------------------------------------------------------
+
+  it('correctly extracts Rent Agreement parties, dates, and deposit terms with page provenance', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const rentPdf = fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/documents/rent-agreement.pdf'));
+
+    const result = await parser.parseDocument({
+      buffer: rentPdf.buffer.slice(rentPdf.byteOffset, rentPdf.byteOffset + rentPdf.byteLength),
+      filename: 'rent-agreement.pdf',
+      mimeType: 'application/pdf'
+    });
+
+    assert.equal(result.extractionStatus, 'verified_extraction');
+    assert.ok(result.extractedText.includes('RENTAL LEASE AGREEMENT'));
+    assert.ok(result.extractedText.includes('Ramesh Sharma'));
+    assert.ok(result.extractedText.includes('Arjun Verma'));
+    assert.ok(result.extractedText.includes('75,000'));
+    assert.ok(result.clauses && result.clauses.some(c => c.title.includes('Deposit')));
+    assert.ok(result.provenanceRecords && result.provenanceRecords.length > 0);
+
+    const depositProv = result.provenanceRecords.find(p => p.entityType === 'LEGAL_CLAUSE' && p.extractedValue.includes('Deposit'));
+    assert.ok(depositProv);
+    assert.equal(depositProv.pageNumber, 1);
+    assert.equal(depositProv.sourceDocumentName, 'rent-agreement.pdf');
+  });
+
+  it('correctly extracts Section 138 Notice dates, demand amounts, and parties', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const noticePdf = fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/documents/notice.pdf'));
+
+    const result = await parser.parseDocument({
+      buffer: noticePdf.buffer.slice(noticePdf.byteOffset, noticePdf.byteOffset + noticePdf.byteLength),
+      filename: 'notice.pdf',
+      mimeType: 'application/pdf'
+    });
+
+    assert.equal(result.extractionStatus, 'verified_extraction');
+    assert.ok(result.extractedText.includes('SECTION 138 NEGOTIABLE INSTRUMENTS ACT'));
+    assert.ok(result.extractedText.includes('Vikram Malhotra'));
+    assert.ok(result.extractedText.includes('Priya Sundaram'));
+    assert.ok(result.extractedText.includes('1,20,000'));
+    assert.ok(result.entities && result.entities.some(e => e.type === 'DATE' && e.name.includes('12-05-2025')));
+  });
+
+  it('gracefully handles corrupted PDF without crash or synthetic fact hallucination', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const corruptPdf = fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/documents/corrupted.pdf'));
+
+    const result = await parser.parseDocument({
+      buffer: corruptPdf.buffer.slice(corruptPdf.byteOffset, corruptPdf.byteOffset + corruptPdf.byteLength),
+      filename: 'corrupted.pdf',
+      mimeType: 'application/pdf'
+    });
+
+    assert.equal(result.extractionStatus, 'needs_review');
+    assert.equal(result.extractedText, '');
+    assert.equal(result.clauses?.length, 0);
+    assert.equal(result.entities?.length, 0);
+  });
+
+  it('handles empty image fixture gracefully with zero confidence and extraction_failed', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const emptyImg = fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/documents/empty-image.png'));
+
+    const result = await parser.parseDocument({
+      buffer: emptyImg.buffer.slice(emptyImg.byteOffset, emptyImg.byteOffset + emptyImg.byteLength),
+      filename: 'empty-image.png',
+      mimeType: 'image/png'
+    });
+
+    assert.equal(result.extractionStatus, 'extraction_failed');
+    assert.equal(result.confidence, 0.0);
+    assert.equal(result.extractedText, '');
+  });
+
+  it('queries GET /api/system/ocr-health and reports provider status & telemetry correctly', async () => {
+    const { GET } = await import('../src/app/api/system/ocr-health/route');
+    const { NextRequest } = await import('next/server');
+
+    const req = new NextRequest('http://localhost:3000/api/system/ocr-health');
+    const res = await GET(req);
+
+    assert.equal(res.status, 200);
+    const json = await res.json();
+    assert.equal(json.success, true);
+    assert.ok(json.data.provider);
+    assert.ok('healthy' in json.data);
+    assert.ok('details' in json.data);
+    assert.ok(json.data.details.googleDocumentAI);
+    assert.ok(json.data.details.tesseractFallback);
+  });
+
+  it('integrates OCR-derived facts with Evidence Graph and preserves provenance traceability', async () => {
+    const { DocIntelAgent } = await import('../src/lib/agents/doc-intel-agent');
+    const { MatterOrchestrator } = await import('../src/lib/agents/orchestrator');
+
+    const agent = new DocIntelAgent();
+    const result = await agent.execute({
+      matterId: 'matter-test-ocr-1',
+      title: 'Tenancy Deposit Dispute',
+      userStory: 'Landlord refused to return my security deposit after notice was given.',
+      category: 'tenancy_housing',
+      parties: [],
+      documents: [{
+        id: 'doc-rent-agreement-1',
+        title: 'rent-agreement.pdf',
+        type: 'rental_agreement',
+        uploadedAt: '2026-03-01',
+        classification: 'Scanned PDF Legal Evidence (OCR)',
+        extractedText: 'Clause 9: The security deposit of Rs. 75,000 shall be refunded within 15 days.',
+        keyQuotes: ['The security deposit of Rs. 75,000 shall be refunded within 15 days.'],
+        confidenceScore: 0.92,
+        extractionStatus: 'verified_extraction',
+        status: 'verified'
+      }]
+    });
+
+    assert.ok(result.result.extractedFacts.length >= 2);
+    const ocrFact = result.result.extractedFacts.find(f => f.sourceType === 'ocr_evidence' && f.statement.includes('75,000'));
+    assert.ok(ocrFact, 'Fact derived from OCR must be tagged with sourceType ocr_evidence');
+    assert.equal(ocrFact?.sourceDocId, 'doc-rent-agreement-1');
+    assert.equal(ocrFact?.pageNumber, 1);
+    assert.ok(ocrFact?.verified);
+  });
 });

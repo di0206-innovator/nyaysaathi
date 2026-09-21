@@ -191,6 +191,7 @@ export class TrustEngine {
   /**
    * Derives a truthful evidence state and defensible completeness score based strictly
    * on real factual backing rather than arbitrary hardcoded numbers (no fake 0.94 / 0.98).
+   * OCR-derived evidence increases trust score only when provenance exists.
    */
   public static deriveEvidenceState(metrics: {
     totalFacts: number;
@@ -199,6 +200,7 @@ export class TrustEngine {
     verifiedDocuments: number;
     hasContradictions: boolean;
     safetyCounselRequired: boolean;
+    hasOcrProvenance?: boolean;
   }): {
     state: EvidenceState;
     groundingRatio: number;
@@ -229,10 +231,13 @@ export class TrustEngine {
     }
 
     const factRatio = metrics.totalFacts > 0 ? metrics.verifiedFacts / metrics.totalFacts : 0;
-    const docWeight = metrics.verifiedDocuments > 0 ? 0.5 : (metrics.hasDocuments ? 0.2 : 0);
+    
+    // Provenance guard: If OCR documents exist but lack provenance, doc weight is penalized
+    const provenanceBonus = metrics.hasOcrProvenance === false ? 0.1 : 0.5;
+    const docWeight = metrics.verifiedDocuments > 0 ? provenanceBonus : (metrics.hasDocuments ? 0.2 : 0);
     const calculatedRatio = Math.min(1.0, Math.round((factRatio * 0.5 + docWeight) * 100) / 100);
 
-    if (metrics.verifiedDocuments >= 1 && factRatio >= 0.7) {
+    if (metrics.verifiedDocuments >= 1 && factRatio >= 0.7 && metrics.hasOcrProvenance !== false) {
       return {
         state: 'verified',
         groundingRatio: calculatedRatio,
