@@ -152,7 +152,7 @@ export function Footer() {
             </a>
           </div>
           <p className="text-stone-400 uppercase tracking-widest text-[10px]">
-            SWISS INTERNATIONAL TYPOGRAPHIC STYLE // REPUBLIC OF INDIA
+            REPUBLIC OF INDIA {'//'} VERIFIED LEGAL DOSSIER
           </p>
         </div>
       </div>
