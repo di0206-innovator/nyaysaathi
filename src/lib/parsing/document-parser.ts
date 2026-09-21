@@ -23,12 +23,28 @@ export interface ParsedDocumentResult {
   sanitizedForPromptInjection?: boolean;
 }
 
+export type OcrProviderStatus =
+  | 'configured'
+  | 'unavailable'
+  | 'misconfigured'
+  | 'quota_exceeded'
+  | 'provider_error'
+  | 'timeout';
+
+export interface OcrHealthStatus {
+  status: OcrProviderStatus;
+  providerName: string;
+  isAvailable: boolean;
+  message: string;
+}
+
 /**
  * Pluggable OCR interface for vision/document AI backends (e.g. Google Cloud Document AI, Tesseract, AWS Textract)
  */
 export interface IOcrEngine {
   name: string;
   isAvailable(): boolean;
+  getHealth(): OcrHealthStatus;
   recognize(buffer: ArrayBuffer, mimeType?: string, filename?: string): Promise<{
     text: string;
     confidence: number;
@@ -37,21 +53,58 @@ export interface IOcrEngine {
 }
 
 /**
- * Environment-configured OCR provider.
- * When no external OCR credentials are set in environment, safely reports unavailable
+ * Environment-configured OCR provider with health monitoring.
+ * When no external OCR credentials are set in environment, safely reports 'unavailable'
  * and preserves truthful 'needs_ocr' extractionStatus.
  */
 export class ConfiguredOcrProvider implements IOcrEngine {
   public name = 'ConfiguredOcrProvider';
 
-  public isAvailable(): boolean {
+  public getHealth(): OcrHealthStatus {
     const hasKey = Boolean(
       process.env.OCR_API_KEY ||
       process.env.DOCUMENT_AI_KEY ||
       process.env.GOOGLE_APPLICATION_CREDENTIALS ||
       process.env.ENABLE_LOCAL_OCR === 'true'
     );
-    return hasKey;
+
+    if (process.env.SIMULATE_OCR_QUOTA_EXCEEDED === 'true') {
+      return {
+        status: 'quota_exceeded',
+        providerName: this.name,
+        isAvailable: false,
+        message: 'OCR provider quota exceeded. Please try again later or consult an operator.'
+      };
+    }
+
+    if (process.env.SIMULATE_OCR_MISCONFIGURED === 'true') {
+      return {
+        status: 'misconfigured',
+        providerName: this.name,
+        isAvailable: false,
+        message: 'OCR provider is misconfigured (invalid credentials or endpoint).'
+      };
+    }
+
+    if (hasKey) {
+      return {
+        status: 'configured',
+        providerName: this.name,
+        isAvailable: true,
+        message: 'OCR provider credentials configured and active.'
+      };
+    }
+
+    return {
+      status: 'unavailable',
+      providerName: this.name,
+      isAvailable: false,
+      message: 'No external OCR credentials (OCR_API_KEY / DOCUMENT_AI_KEY) configured. Image OCR requires provider setup.'
+    };
+  }
+
+  public isAvailable(): boolean {
+    return this.getHealth().isAvailable;
   }
 
   public async recognize(buffer: ArrayBuffer): Promise<{
@@ -59,7 +112,8 @@ export class ConfiguredOcrProvider implements IOcrEngine {
     confidence: number;
     pages?: Array<{ pageNumber: number; text: string }>;
   } | null> {
-    if (!this.isAvailable()) {
+    const health = this.getHealth();
+    if (!health.isAvailable) {
       return null;
     }
 
@@ -291,10 +345,17 @@ export class ProductionDocumentParser implements DocumentParserProvider {
       };
     }
 
+    const health = this.ocrEngine.getHealth ? this.ocrEngine.getHealth() : {
+      status: this.ocrEngine.isAvailable() ? 'configured' : 'unavailable',
+      providerName: this.ocrEngine.name,
+      isAvailable: this.ocrEngine.isAvailable(),
+      message: 'OCR provider unavailable.'
+    };
+
     // If OCR engine is configured and available
-    if (buffer && this.ocrEngine.isAvailable()) {
+    if (buffer && health.isAvailable) {
       try {
-        const ocrResult = await this.ocrEngine.recognize(buffer);
+        const ocrResult = await this.ocrEngine.recognize(buffer, mimeType, filename);
         if (ocrResult && ocrResult.text.trim().length > 0) {
           const { cleanedText, injectionDetected } = sanitizeAdversarialText(ocrResult.text.trim());
           const entities = this.extractEntities(cleanedText, 1);
@@ -314,9 +375,28 @@ export class ProductionDocumentParser implements DocumentParserProvider {
             relevanceSummary: `OCR extracted ${cleanedText.length} chars via ${this.ocrEngine.name} with ${entities.length} detected entities.`
           };
         }
-      } catch {
-        // Fall through to truthful needs_ocr
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : 'OCR execution error';
+        return {
+          extractedText: '',
+          confidence: 0.0,
+          detectedPages: 1,
+          clauses: [],
+          entities: [],
+          provenanceRecords: [],
+          classification: `Image Processing Error (${mimeType})`,
+          extractionStatus: 'needs_review',
+          relevanceSummary: `OCR processing failed for "${filename}": ${errMsg}. No legal facts inferred.`
+        };
       }
+    }
+
+    // Specific truthful statuses
+    let relevanceSummary = `Document requires OCR processing. No OCR provider configured.`;
+    if (health.status === 'quota_exceeded') {
+      relevanceSummary = `OCR provider quota exceeded for "${filename}". Document requires OCR processing once quota resets.`;
+    } else if (health.status === 'misconfigured') {
+      relevanceSummary = `OCR provider misconfigured. Document requires OCR processing with verified credentials.`;
     }
 
     // Truthful fallback when OCR is unconfigured: NEVER synthesize facts from filename!
@@ -329,7 +409,7 @@ export class ProductionDocumentParser implements DocumentParserProvider {
       provenanceRecords: [],
       classification: `Image / Photographic Proof (${mimeType})`,
       extractionStatus: 'needs_ocr',
-      relevanceSummary: `Text could not be reliably extracted from image "${filename}" without an OCR provider. No legal fact was inferred from the filename or image metadata.`
+      relevanceSummary
     };
   }
 

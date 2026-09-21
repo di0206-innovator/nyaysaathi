@@ -22,18 +22,30 @@ export async function GET(req: NextRequest) {
     if (rateLimitRes) return rateLimitRes;
 
     const user = await AuthService.getAuthenticatedUser(req);
+    if (!user) {
+      return apiError('Authentication required to access analytics telemetry.', 401, 'UNAUTHORIZED');
+    }
+
     const searchParams = req.nextUrl.searchParams;
     const scope = searchParams.get('scope') || 'auto';
 
-    const isInternalAdmin = user && (user.role === 'admin' || user.role === 'pilot_operator' || user.role === 'advocate');
+    const isInternalAdmin = Boolean(
+      user.role === 'admin' || user.role === 'pilot_operator' || user.role === 'advocate'
+    );
 
-    // Non-admins requesting global scope receive error or default to user scope
-    const filterUserId = (scope === 'user' || !isInternalAdmin) && user ? user.id : undefined;
+    // If a non-operator asks for pilot/aggregate scope, deny with 403 Forbidden
+    if (scope === 'pilot' && !isInternalAdmin) {
+      return apiError('Forbidden: Global pilot analytics requires administrator or operator role.', 403, 'FORBIDDEN');
+    }
 
-    const matterService = getMatterService(user?.token);
+    // Determine target scope
+    const isGlobal = isInternalAdmin && (scope === 'pilot' || (scope === 'auto' && !searchParams.has('scope')));
+    const filterUserId = isGlobal ? undefined : user.id;
+
+    const matterService = getMatterService(user.token);
     const [funnel, feedbackMetrics, mattersList] = await Promise.all([
-      matterService.calculateFunnelMetrics(),
-      matterService.getPilotFeedbackMetrics(),
+      matterService.calculateFunnelMetrics(filterUserId),
+      matterService.getPilotFeedbackMetrics(filterUserId),
       filterUserId ? matterService.listMatters({ userId: filterUserId }) : matterService.getAdapter().matters.list()
     ]);
 
@@ -50,7 +62,7 @@ export async function GET(req: NextRequest) {
     const totalRecovered = resolvedMatters.reduce((acc, m) => acc + (m.resolution?.amountRecovered || 0), 0);
 
     return apiSuccess({
-      scope: filterUserId ? 'user' : 'pilot_aggregate',
+      scope: isGlobal ? 'pilot_aggregate' : 'user',
       funnel,
       feedback: feedbackMetrics,
       acquisition: sourceBreakdown,

@@ -108,4 +108,91 @@ describe('OCR & DOCUMENT PROCESSING EXTRACTION SUITE', () => {
     assert.equal(parsed.sanitizedForPromptInjection, true);
     assert.ok(!parsed.extractedText.includes('IGNORE PREVIOUS INSTRUCTIONS'));
   });
+
+  it('accurately handles full file type matrix deterministically', async () => {
+    // 1. Text (.txt) -> verified_extraction
+    const txtRes = await parser.parseDocument({
+      text: 'Agreement dated 01-01-2026. Rent ₹20,000.',
+      filename: 'lease.txt',
+      mimeType: 'text/plain'
+    });
+    assert.equal(txtRes.extractionStatus, 'verified_extraction');
+
+    // 2. Text PDF (.pdf with stream text) -> verified_extraction
+    const rawPdfBuf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Page >>\nendobj\n(Tenancy Deposit ₹50,000)Tj\n%%EOF');
+    const pdfBuf = rawPdfBuf.buffer.slice(rawPdfBuf.byteOffset, rawPdfBuf.byteOffset + rawPdfBuf.byteLength);
+    const pdfRes = await parser.parseDocument({
+      buffer: pdfBuf,
+      filename: 'contract.pdf',
+      mimeType: 'application/pdf'
+    });
+    assert.equal(pdfRes.extractionStatus, 'verified_extraction');
+    assert.ok(pdfRes.extractedText.includes('50,000'));
+
+    // 3. Scanned PDF (no parseable stream) -> needs_review
+    const rawScannedBuf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Page >>\nendobj\n%%EOF');
+    const scannedPdfBuf = rawScannedBuf.buffer.slice(rawScannedBuf.byteOffset, rawScannedBuf.byteOffset + rawScannedBuf.byteLength);
+    const scannedPdfRes = await parser.parseDocument({
+      buffer: scannedPdfBuf,
+      filename: 'scanned_agreement.pdf',
+      mimeType: 'application/pdf'
+    });
+    assert.equal(scannedPdfRes.extractionStatus, 'needs_review');
+
+    // 4. JPG Image -> needs_ocr when unconfigured
+    const jpgRes = await parser.parseDocument({
+      buffer: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]).buffer,
+      filename: 'flat_key_handover.jpg',
+      mimeType: 'image/jpeg'
+    });
+    assert.equal(jpgRes.extractionStatus, 'needs_ocr');
+
+    // 5. PNG Image -> needs_ocr
+    const pngRes = await parser.parseDocument({
+      buffer: new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer,
+      filename: 'damage_inspection.png',
+      mimeType: 'image/png'
+    });
+    assert.equal(pngRes.extractionStatus, 'needs_ocr');
+
+    // 6. WhatsApp Screenshot -> needs_ocr
+    const screenRes = await parser.parseDocument({
+      buffer: new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer,
+      filename: 'chat_screenshot_may.png',
+      mimeType: 'image/png'
+    });
+    assert.equal(screenRes.extractionStatus, 'needs_ocr');
+
+    // 7. Payment Receipt (Image) -> needs_ocr
+    const receiptRes = await parser.parseDocument({
+      buffer: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]).buffer,
+      filename: 'upi_payment_receipt.jpg',
+      mimeType: 'image/jpeg'
+    });
+    assert.equal(receiptRes.extractionStatus, 'needs_ocr');
+  });
+
+  it('manages OCR provider health statuses (quota_exceeded, misconfigured, timeout)', async () => {
+    // Quota Exceeded Simulation
+    process.env.SIMULATE_OCR_QUOTA_EXCEEDED = 'true';
+    const quotaRes = await parser.parseDocument({
+      buffer: new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer,
+      filename: 'receipt.png',
+      mimeType: 'image/png'
+    });
+    assert.equal(quotaRes.extractionStatus, 'needs_ocr');
+    assert.ok(quotaRes.relevanceSummary?.includes('quota exceeded'));
+    delete process.env.SIMULATE_OCR_QUOTA_EXCEEDED;
+
+    // Misconfigured Simulation
+    process.env.SIMULATE_OCR_MISCONFIGURED = 'true';
+    const misconfigRes = await parser.parseDocument({
+      buffer: new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer,
+      filename: 'receipt.png',
+      mimeType: 'image/png'
+    });
+    assert.equal(misconfigRes.extractionStatus, 'needs_ocr');
+    assert.ok(misconfigRes.relevanceSummary?.includes('misconfigured'));
+    delete process.env.SIMULATE_OCR_MISCONFIGURED;
+  });
 });

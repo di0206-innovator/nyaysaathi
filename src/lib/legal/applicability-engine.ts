@@ -49,10 +49,30 @@ export interface LegalApplicabilityInput {
   facts?: string[];
 }
 
+export type LegalBindingClassification =
+  | 'binding'
+  | 'advisory'
+  | 'contractual'
+  | 'inapplicable'
+  | 'superseded'
+  | 'unresolved';
+
+export type LegalApplicabilityReasonCode =
+  | 'ACTIVE_GOVERNING_STATUTE'
+  | 'ADVISORY_MODEL_FRAMEWORK'
+  | 'CONTRACTUAL_COMMON_LAW_REMEDY'
+  | 'STATE_JURISDICTION_MISMATCH'
+  | 'TEMPORAL_PRE_ENACTMENT'
+  | 'SUPERSEDED_BY_NEWER_CODE'
+  | 'OUT_OF_SCOPE_CATEGORY'
+  | 'REQUIRES_LEGAL_COUNSEL_VERIFICATION';
+
 export interface ApplicabilityEvaluation {
   source: LegalSource;
   isApplicable: boolean;
   bindingNature: 'binding' | 'advisory' | 'contractual' | 'inapplicable' | 'superseded_or_repealed';
+  legalClassification: LegalBindingClassification;
+  reasonCode: LegalApplicabilityReasonCode;
   confidenceScore: number;
   rationale: string;
   status: LegalSourceStatus;
@@ -294,6 +314,8 @@ export class LegalApplicabilityEngine {
         source,
         isApplicable: false,
         bindingNature: 'inapplicable',
+        legalClassification: 'inapplicable',
+        reasonCode: 'OUT_OF_SCOPE_CATEGORY',
         confidenceScore: 0.1,
         rationale: `Source category (${source.applicabilityCriteria.categories.join(', ')}) does not match matter category (${normalizedCategory}).`,
         status: source.status,
@@ -307,6 +329,8 @@ export class LegalApplicabilityEngine {
         source,
         isApplicable: false,
         bindingNature: 'superseded_or_repealed',
+        legalClassification: 'superseded',
+        reasonCode: 'SUPERSEDED_BY_NEWER_CODE',
         confidenceScore: 0,
         rationale: `Source is repealed and cannot drive action recommendations.`,
         status: source.status,
@@ -321,6 +345,8 @@ export class LegalApplicabilityEngine {
           source,
           isApplicable: true,
           bindingNature: 'binding',
+          legalClassification: 'binding',
+          reasonCode: 'ACTIVE_GOVERNING_STATUTE',
           confidenceScore: 0.85,
           rationale: `Source was active at the date of cause of action (${matterDateStr}) prior to sunset (${source.effectiveTo}).`,
           status: source.status,
@@ -331,6 +357,8 @@ export class LegalApplicabilityEngine {
         source,
         isApplicable: false,
         bindingNature: 'superseded_or_repealed',
+        legalClassification: 'superseded',
+        reasonCode: 'SUPERSEDED_BY_NEWER_CODE',
         confidenceScore: 0.1,
         rationale: `Source was superseded on ${source.effectiveTo}. Governing law for current matters is the successor enactment.`,
         status: source.status,
@@ -344,6 +372,8 @@ export class LegalApplicabilityEngine {
         source,
         isApplicable: false,
         bindingNature: 'inapplicable',
+        legalClassification: 'inapplicable',
+        reasonCode: 'TEMPORAL_PRE_ENACTMENT',
         confidenceScore: 0.2,
         rationale: `Matter date (${matterDateStr}) precedes the effective date (${source.effectiveFrom}) of this enactment.`,
         status: source.status,
@@ -361,6 +391,8 @@ export class LegalApplicabilityEngine {
           source,
           isApplicable: false,
           bindingNature: 'inapplicable',
+          legalClassification: 'inapplicable',
+          reasonCode: 'STATE_JURISDICTION_MISMATCH',
           confidenceScore: 0.2,
           rationale: `State-specific enactment for ${source.jurisdiction} does not apply to jurisdiction: ${normalizedState || 'unspecified'}.`,
           status: source.status,
@@ -375,6 +407,8 @@ export class LegalApplicabilityEngine {
         source,
         isApplicable: true,
         bindingNature: 'advisory',
+        legalClassification: 'advisory',
+        reasonCode: 'ADVISORY_MODEL_FRAMEWORK',
         confidenceScore: 0.75,
         rationale: 'Applicability depends on the relevant state/territorial tenancy framework, agreement terms, dates and facts. MTA 2021 is advisory reference unless adopted by state enactment.',
         status: source.status,
@@ -382,11 +416,14 @@ export class LegalApplicabilityEngine {
       };
     }
 
-    // 6. Active Binding Statute
+    // 6. Active Binding Statute or Contractual Common Law
+    const isContractual = source.hierarchy === 'Contractual Common Law' || !source.isBinding;
     return {
       source,
       isApplicable: true,
       bindingNature: source.isBinding ? 'binding' : 'contractual',
+      legalClassification: isContractual ? 'contractual' : 'binding',
+      reasonCode: isContractual ? 'CONTRACTUAL_COMMON_LAW_REMEDY' : 'ACTIVE_GOVERNING_STATUTE',
       confidenceScore: 0.95,
       rationale: `Active governing statutory provision under ${source.hierarchy} in ${source.jurisdiction}.`,
       status: source.status,

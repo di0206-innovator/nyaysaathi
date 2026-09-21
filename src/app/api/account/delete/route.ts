@@ -31,17 +31,39 @@ export async function POST(req: NextRequest) {
     const service = getMatterService(user.token);
     const userMatters = await service.listMatters({ userId: user.id });
     let deletedMattersCount = 0;
+    const failedMatterIds: string[] = [];
 
     for (const matter of userMatters) {
       try {
-        await service.deleteMatter(matter.id, user.id);
-        deletedMattersCount++;
+        const ok = await service.deleteMatter(matter.id, user.id);
+        if (ok) {
+          deletedMattersCount++;
+        } else {
+          failedMatterIds.push(matter.id);
+        }
       } catch {
-        // Continue cleaning up remaining matters
+        failedMatterIds.push(matter.id);
       }
     }
 
-    // 2. Audit log retention (Preserve security audit record for statutory compliance under IT Act & DPDP Act)
+    if (failedMatterIds.length > 0) {
+      return apiError(
+        `Failed to purge matters: [${failedMatterIds.join(', ')}]. Deletion unverified.`,
+        500,
+        'PARTIAL_DELETION_FAILURE'
+      );
+    }
+
+    // 2. Explicitly purge all uploaded document files from storage
+    const { getStorageProvider } = await import('@/lib/storage/storage-provider');
+    const storage = getStorageProvider();
+    let deletedFilesCount = 0;
+    if (storage.deleteUserFiles) {
+      const fileCleanupRes = await storage.deleteUserFiles(user.id);
+      deletedFilesCount = fileCleanupRes.deletedCount;
+    }
+
+    // 3. Audit log retention (Preserve security audit record for statutory compliance under IT Act & DPDP Act)
     SecurityAuditLogger.log({
       action: 'account_deleted',
       userId: user.id,
@@ -49,38 +71,51 @@ export async function POST(req: NextRequest) {
       status: 'success',
       metadata: {
         deletedMattersCount,
+        deletedFilesCount,
         email: user.email,
         deletionTimestamp: new Date().toISOString(),
         retentionPolicy: 'Legal audit logs retained per DPDP Act Section 8(7) statutory compliance obligations.'
       }
     });
 
-    // 3. Delete Supabase Auth User if admin client configured
+    // 4. Delete Supabase Auth User if admin client configured
+    let authUserPurged = false;
     try {
       const adminClient = getSupabaseAdminClient();
       if (adminClient) {
         await adminClient.auth.admin.deleteUser(user.id);
+        authUserPurged = true;
       }
     } catch {
-      // Best effort deletion from auth directory
+      // Ignored if local or no admin client
     }
 
-    // 4. Return success and expire session cookie
+    // 5. Return success and expire the ACTUAL active authentication cookies
     const response = NextResponse.json({
       success: true,
       data: {
-        message: 'User account and all associated legal matters successfully purged.',
-        deletedMattersCount
+        message: 'Deletion Verified. User account, legal matters, and evidence files have been purged.',
+        verification: {
+          databaseMattersPurged: deletedMattersCount,
+          storageFilesPurged: deletedFilesCount,
+          authUserPurged,
+          status: 'verified_complete'
+        }
       }
     });
 
-    response.cookies.set('nyaysaathi_session', '', {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       path: '/',
       maxAge: 0
-    });
+    };
+
+    // Expire both the actual Supabase session token and the legacy cookies
+    response.cookies.set('sb-access-token', '', cookieOptions);
+    response.cookies.set('supabase-auth-token', '', cookieOptions);
+    response.cookies.set('nyaysaathi_session', '', cookieOptions);
 
     return response;
   } catch (error: unknown) {

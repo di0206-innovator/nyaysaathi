@@ -20,6 +20,7 @@ export interface UploadFileInput {
 export interface IStorageProvider {
   uploadFile(file: UploadFileInput): Promise<StoredFile>;
   deleteFile(fileUrl: string): Promise<boolean>;
+  deleteUserFiles?(userId: string): Promise<{ deletedCount: number; success: boolean }>;
   getSignedUrl?(storagePath: string, expiresInSeconds?: number): Promise<string | null>;
   getFile?(storagePath: string): Promise<{ buffer: Buffer; mimeType: string } | null>;
 }
@@ -75,6 +76,18 @@ export class LocalStorageProvider implements IStorageProvider {
       return this.files.delete(decoded);
     }
     return false;
+  }
+
+  public async deleteUserFiles(userId: string): Promise<{ deletedCount: number; success: boolean }> {
+    let deletedCount = 0;
+    const prefix = `user/${userId}/`;
+    for (const path of Array.from(this.files.keys())) {
+      if (path.startsWith(prefix)) {
+        this.files.delete(path);
+        deletedCount++;
+      }
+    }
+    return { deletedCount, success: true };
   }
 
   public async getSignedUrl(storagePath: string): Promise<string | null> {
@@ -166,6 +179,31 @@ export class SupabaseStorageProvider implements IStorageProvider {
       .remove([path]);
 
     return !error;
+  }
+
+  public async deleteUserFiles(userId: string): Promise<{ deletedCount: number; success: boolean }> {
+    const client = getSupabaseClient();
+    if (!client) return { deletedCount: 0, success: false };
+
+    try {
+      const prefix = `user/${userId}`;
+      const { data: listData, error: listError } = await client.storage
+        .from(this.bucketName)
+        .list(prefix, { limit: 100 });
+
+      if (listError || !listData || listData.length === 0) {
+        return { deletedCount: 0, success: true };
+      }
+
+      const paths = listData.map(item => `${prefix}/${item.name}`);
+      const { error: removeError } = await client.storage
+        .from(this.bucketName)
+        .remove(paths);
+
+      return { deletedCount: paths.length, success: !removeError };
+    } catch {
+      return { deletedCount: 0, success: false };
+    }
   }
 
   public async getSignedUrl(storagePath: string, expiresInSeconds: number = 3600): Promise<string | null> {

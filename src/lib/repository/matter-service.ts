@@ -891,19 +891,19 @@ export class MatterService {
   /**
    * Retrieve empirical feedback metrics with true sample size.
    */
-  public async getPilotFeedbackMetrics(): Promise<import('./types').FeedbackSummaryMetrics> {
+  public async getPilotFeedbackMetrics(userId?: string): Promise<import('./types').FeedbackSummaryMetrics> {
     if (!this.adapter.pilotFeedback) {
       return {
         totalSubmissions: 0,
         averageRating: 0,
         sampleSize: 0,
-        measurementPeriod: 'No evaluations recorded',
+        measurementPeriod: userId ? 'No user evaluations recorded' : 'No evaluations recorded',
         categoryBreakdown: {},
         correctionBreakdown: {},
         advocateConsultedCount: 0
       };
     }
-    return this.adapter.pilotFeedback.getMetrics();
+    return this.adapter.pilotFeedback.getMetrics(userId);
   }
 
   /**

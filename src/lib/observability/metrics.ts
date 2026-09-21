@@ -121,11 +121,102 @@ class MetricsRegistry {
   }
 
   /**
+   * Dedicated Production Telemetry Counters (Zero PII)
+   */
+  private ocrTelemetry = {
+    total: 0,
+    success: 0,
+    failure: 0,
+    durations: [] as number[]
+  };
+
+  private aiTrustTelemetry = {
+    evaluatedCount: 0,
+    hallucinationRejections: 0,
+    trustScoreSum: 0
+  };
+
+  private legalRetrievalTelemetry = {
+    queries: 0,
+    matchedSources: 0,
+    unmatchedQueries: 0
+  };
+
+  public recordOcrProcessing(durationMs: number, success: boolean): void {
+    this.ocrTelemetry.total++;
+    if (success) {
+      this.ocrTelemetry.success++;
+    } else {
+      this.ocrTelemetry.failure++;
+    }
+    if (this.ocrTelemetry.durations.length >= MAX_SAMPLES) {
+      this.ocrTelemetry.durations.shift();
+    }
+    this.ocrTelemetry.durations.push(durationMs);
+  }
+
+  public recordAiTrustEvaluation(trustScore: number, rejectedHallucination: boolean): void {
+    this.aiTrustTelemetry.evaluatedCount++;
+    this.aiTrustTelemetry.trustScoreSum += trustScore;
+    if (rejectedHallucination) {
+      this.aiTrustTelemetry.hallucinationRejections++;
+    }
+  }
+
+  public recordLegalRetrieval(sourcesFound: number): void {
+    this.legalRetrievalTelemetry.queries++;
+    if (sourcesFound > 0) {
+      this.legalRetrievalTelemetry.matchedSources += sourcesFound;
+    } else {
+      this.legalRetrievalTelemetry.unmatchedQueries++;
+    }
+  }
+
+  public getProductionTelemetry() {
+    const ocrDurations = this.ocrTelemetry.durations;
+    const avgOcrDurationMs = ocrDurations.length > 0
+      ? Math.round(ocrDurations.reduce((a, b) => a + b, 0) / ocrDurations.length)
+      : 0;
+
+    const avgTrustScore = this.aiTrustTelemetry.evaluatedCount > 0
+      ? Math.round((this.aiTrustTelemetry.trustScoreSum / this.aiTrustTelemetry.evaluatedCount) * 10) / 10
+      : 0;
+
+    return {
+      ocr: {
+        total: this.ocrTelemetry.total,
+        successRate: this.ocrTelemetry.total > 0
+          ? Math.round((this.ocrTelemetry.success / this.ocrTelemetry.total) * 100) / 100
+          : 0,
+        failureRate: this.ocrTelemetry.total > 0
+          ? Math.round((this.ocrTelemetry.failure / this.ocrTelemetry.total) * 100) / 100
+          : 0,
+        avgProcessingTimeMs: avgOcrDurationMs
+      },
+      aiTrust: {
+        evaluatedCount: this.aiTrustTelemetry.evaluatedCount,
+        averageTrustScore: avgTrustScore,
+        hallucinationRejections: this.aiTrustTelemetry.hallucinationRejections
+      },
+      legalRetrieval: {
+        queries: this.legalRetrievalTelemetry.queries,
+        retrievalSuccessRate: this.legalRetrievalTelemetry.queries > 0
+          ? Math.round(((this.legalRetrievalTelemetry.queries - this.legalRetrievalTelemetry.unmatchedQueries) / this.legalRetrievalTelemetry.queries) * 100) / 100
+          : 0,
+        noSourceResponses: this.legalRetrievalTelemetry.unmatchedQueries
+      }
+    };
+  }
+
+  /**
    * Reset all collected samples (useful for isolated tests)
    */
   public reset(): void {
     this.routeMetrics.clear();
     this.agentMetrics.clear();
+    this.ocrTelemetry = { total: 0, success: 0, failure: 0, durations: [] };
+    this.aiTrustTelemetry = { evaluatedCount: 0, hallucinationRejections: 0, trustScoreSum: 0 };
+    this.legalRetrievalTelemetry = { queries: 0, matchedSources: 0, unmatchedQueries: 0 };
   }
 
   /**

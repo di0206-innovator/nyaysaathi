@@ -53,26 +53,34 @@ export class DeadlineEngine {
 
       deadlines.push({
         id: `deadline-notice-cure-${dispatchedNotice.id}`,
-        title: '15-Day Notice Statutory Cure Window (Verified Dispatch)',
+        title: matter.category === 'financial_cheque_bounce'
+          ? 'Mandatory 15-Day Statutory Notice Cure Window (Sec 138 NI Act)'
+          : '15-Day Formal Notice Response & Cure Window',
         category: 'notice_cure',
         dueDate: cureDue.toISOString().split('T')[0],
         daysRemaining: Math.max(0, daysRemaining),
         urgency: daysRemaining <= 3 ? 'critical' : 'warning',
-        statuteBasis: 'Section 138 NI Act / CPC Section 80 Notice Practice',
-        consequenceIfMissed: 'Opposing party may claim notice was premature if filed in forum without 15 days cure.',
+        statuteBasis: matter.category === 'financial_cheque_bounce'
+          ? 'Section 138(c) Negotiable Instruments Act 1881'
+          : 'Indian Contract Act 1872 / Legal Notice Practice',
+        consequenceIfMissed: 'Opposing party may claim formal demand period has not elapsed before complaint or suit.',
         recommendedAction: 'Verify postal delivery slip or tracking report via registered post (RPAD).'
       });
     } else if (hasNoticeDraft) {
       const noticeDue = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
       deadlines.push({
         id: 'deadline-notice-cure-15d',
-        title: '15-Day Notice Cure Window (Calculated Estimate)',
+        title: matter.category === 'financial_cheque_bounce'
+          ? '15-Day Statutory Demand Window (Sec 138 NI Act)'
+          : '15-Day Formal Notice Response Window (Estimated)',
         category: 'notice_cure',
         dueDate: noticeDue.toISOString().split('T')[0],
         daysRemaining: 15,
         urgency: 'warning',
-        statuteBasis: 'Section 138 NI Act / CPC Section 80 Notice Practice',
-        consequenceIfMissed: 'Opposing party may claim notice was premature if filed in forum without 15 days cure.',
+        statuteBasis: matter.category === 'financial_cheque_bounce'
+          ? 'Section 138(c) Negotiable Instruments Act 1881'
+          : 'Indian Contract Act 1872 / Notice Practice',
+        consequenceIfMissed: 'Opposing party may claim formal demand period has not elapsed before complaint or suit.',
         recommendedAction: 'Verify postal delivery slip or tracking report via registered post (RPAD).'
       });
     }

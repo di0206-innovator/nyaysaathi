@@ -24,10 +24,19 @@ export class AuthService {
     }
 
     // 2. Check Supabase cookies if no header
-    if (!token && 'cookies' in req && req.cookies) {
-      const cookieToken = req.cookies.get?.('sb-access-token')?.value || req.cookies.get?.('supabase-auth-token')?.value;
-      if (cookieToken) {
-        token = cookieToken;
+    if (!token) {
+      if ('cookies' in req && req.cookies?.get) {
+        const cookieToken = req.cookies.get('sb-access-token')?.value || req.cookies.get('supabase-auth-token')?.value;
+        if (cookieToken) token = cookieToken;
+      }
+      
+      // Fallback: parse raw Cookie header if req.cookies didn't resolve
+      if (!token) {
+        const rawCookie = req.headers.get('cookie');
+        if (rawCookie) {
+          const match = rawCookie.match(/(?:^|;\s*)(?:sb-access-token|supabase-auth-token)=([^;]+)/);
+          if (match) token = decodeURIComponent(match[1]);
+        }
       }
     }
 

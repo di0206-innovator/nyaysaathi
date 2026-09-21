@@ -43,13 +43,13 @@ export default function MatterConfirmedPage() {
             <div className="flex items-start gap-3">
               <span className="font-mono font-black text-stone-900 shrink-0">02.</span>
               <div>
-                <strong className="text-black">Monitor 15-Day Statutory Window:</strong> Under Indian contract and rent laws, the respondent is provided 15 statutory business days to comply or reply.
+                <strong className="text-black">Track Response & Cure Window:</strong> Monitor the cure deadline specified in your notice (typically 15 days under notice practice and agreement terms) for the opposing party to reply or refund.
               </div>
             </div>
             <div className="flex items-start gap-3">
               <span className="font-mono font-black text-rose-600 shrink-0">03.</span>
               <div>
-                <strong className="text-black">Download Advocate Case Pack:</strong> If no refund or reply is received upon expiry of the 15-day deadline, download your 10-section Case Pack to consult an enrolled advocate or approach DLSA.
+                <strong className="text-black">Download Advocate Case Pack:</strong> If no refund or reply is received upon expiry of the notice deadline, download your 10-section Case Pack to consult an enrolled advocate or approach DLSA for pre-litigation mediation.
               </div>
             </div>
           </div>

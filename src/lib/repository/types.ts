@@ -142,7 +142,7 @@ export interface FeedbackSummaryMetrics {
 export interface IPilotFeedbackRepository {
   create(feedback: PilotFeedback): Promise<PilotFeedback>;
   list(filter?: { matterId?: string; userId?: string; category?: string }): Promise<PilotFeedback[]>;
-  getMetrics(): Promise<FeedbackSummaryMetrics>;
+  getMetrics(userId?: string): Promise<FeedbackSummaryMetrics>;
 }
 
 export interface IStorageAdapter {

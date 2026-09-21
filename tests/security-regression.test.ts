@@ -91,7 +91,11 @@ describe('SECURITY REGRESSION SUITE (95+ Production Standards)', () => {
       const userHeader = await AuthService.getAuthenticatedUser(reqWithHeader);
       assert.equal(userHeader, null, 'Production must reject x-user-id bypass header');
     } finally {
-      (process.env as Record<string, string | undefined>).NODE_ENV = origEnv;
+      if (origEnv === undefined) {
+        delete (process.env as Record<string, string | undefined>).NODE_ENV;
+      } else {
+        (process.env as Record<string, string | undefined>).NODE_ENV = origEnv;
+      }
     }
   });
 
@@ -166,5 +170,49 @@ describe('SECURITY REGRESSION SUITE (95+ Production Standards)', () => {
     assert.ok(redacted.includes('XXXXX[REDACTED_PAN]'));
     assert.ok(!redacted.includes('98765432101234'));
     assert.ok(redacted.includes('[REDACTED_ACC_1234]'));
+  });
+
+  // 9. Analytics Authorization & Data Isolation
+  it('enforces strict analytics authorization and prevents tenant data leakage', async () => {
+    const { GET } = await import('../src/app/api/analytics/route');
+
+    // 1. Unauthenticated request -> 401 Unauthorized
+    const unauthReq = new NextRequest('http://localhost:3000/api/analytics');
+    const unauthRes = await GET(unauthReq);
+    assert.equal(unauthRes.status, 401);
+    const unauthJson = await unauthRes.json();
+    assert.equal(unauthJson.error?.code, 'UNAUTHORIZED');
+
+    // 2. Regular user requesting global pilot scope -> 403 Forbidden
+    const citizenReq = new NextRequest('http://localhost:3000/api/analytics?scope=pilot', {
+      headers: {
+        cookie: 'sb-access-token=mock-user-alice'
+      }
+    });
+    const citizenRes = await GET(citizenReq);
+    assert.equal(citizenRes.status, 403);
+    const citizenJson = await citizenRes.json();
+    assert.equal(citizenJson.error?.code, 'FORBIDDEN');
+  });
+
+  // 10. Account Deletion Cookie & Storage Invalidation
+  it('clears sb-access-token and supabase-auth-token on account deletion', async () => {
+    const { POST } = await import('../src/app/api/account/delete/route');
+
+    const deleteReq = new NextRequest('http://localhost:3000/api/account/delete', {
+      method: 'POST',
+      headers: {
+        cookie: 'sb-access-token=mock-user-alice-del',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ confirmEmail: 'alice-del@test.nyaysaathi.in' })
+    });
+
+    const res = await POST(deleteReq);
+    assert.equal(res.status, 200);
+    const setCookies = res.headers.getSetCookie ? res.headers.getSetCookie().join('; ') : (res.headers.get('set-cookie') || '');
+    assert.ok(setCookies.includes('sb-access-token=;'));
+    assert.ok(setCookies.includes('supabase-auth-token=;'));
+    assert.ok(setCookies.includes('Max-Age=0'));
   });
 });

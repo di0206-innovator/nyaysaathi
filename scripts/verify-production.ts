@@ -34,6 +34,11 @@ async function verifyProduction() {
   let highIssues = 0;
   let warnings = 0;
 
+  const isReleaseMode = process.argv.includes('--release') || process.env.RELEASE_MODE === 'true';
+  if (isReleaseMode) {
+    console.log('[RELEASE GATE ACTIVE] All services, test suites and browser engines must pass. NOT CONFIGURED is treated as release block.');
+  }
+
   // 1. Lint
   console.log('1/10 Running ESLint static code quality inspection...');
   const lintRes = runStep('Lint', 'npm run lint');
@@ -115,35 +120,35 @@ async function verifyProduction() {
   if (e2eRes.status === 'FAIL') criticalIssues++;
 
   // 9. Browser E2E (Playwright)
-  console.log('9/10 Inspecting browser Playwright execution environment...');
-  const playwrightInstalled = fs.existsSync('/Users/divyanshusinha/Library/Caches/ms-playwright') ||
-    fs.existsSync(process.env.PLAYWRIGHT_BROWSERS_PATH || '');
-
-  if (process.env.CI || playwrightInstalled) {
-    const pwRes = runStep('Browser E2E (Playwright)', 'npx playwright test');
-    if (
-      pwRes.status === 'FAIL' &&
-      (pwRes.error?.includes("Executable doesn't exist") ||
-       pwRes.error?.includes("download new browsers") ||
-       pwRes.error?.includes("playwright install"))
-    ) {
+  console.log('9/10 Executing browser Playwright multi-viewport E2E suite...');
+  const pwRes = runStep('Browser E2E (Playwright)', 'npx playwright test');
+  if (
+    pwRes.status === 'FAIL' &&
+    (pwRes.error?.includes("Executable doesn't exist") ||
+     pwRes.error?.includes("download new browsers") ||
+     pwRes.error?.includes("playwright install"))
+  ) {
+    if (isReleaseMode) {
+      results.push({
+        name: 'Browser E2E (Playwright)',
+        status: 'FAIL',
+        durationMs: pwRes.durationMs,
+        error: 'Playwright browser engine required for release mode but not installed.'
+      });
+      criticalIssues++;
+    } else {
       results.push({
         name: 'Browser E2E (Playwright)',
         status: 'NOT CONFIGURED',
         durationMs: pwRes.durationMs
       });
       warnings++;
-    } else {
-      results.push(pwRes);
-      if (pwRes.status === 'FAIL') highIssues++;
     }
   } else {
-    results.push({
-      name: 'Browser E2E (Playwright)',
-      status: 'NOT CONFIGURED',
-      durationMs: 0
-    });
-    warnings++;
+    results.push(pwRes);
+    if (pwRes.status === 'FAIL') {
+      criticalIssues++;
+    }
   }
 
   // 10. Production Build

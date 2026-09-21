@@ -185,11 +185,37 @@ jobs:
         env:
           NODE_ENV: test
 
-  # 9. Production Build
+  # 9. Browser E2E (Playwright)
+  playwright:
+    name: Browser E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers & OS Dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright Multi-Viewport Test Suite
+        run: npx playwright test
+        env:
+          CI: 'true'
+          PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3000'
+
+  # 10. Production Build
   build:
     name: Production Build
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, unit, security, ai-evaluation, accessibility, e2e]
+    needs: [lint, typecheck, unit, security, ai-evaluation, accessibility, e2e, playwright]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
