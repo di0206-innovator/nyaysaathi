@@ -37,9 +37,10 @@ export function Navbar() {
           </div>
 
           {/* Navigation Links - Structural Grid Style */}
-          <nav className="hidden lg:flex items-center space-x-1 border-l border-r border-stone-800 px-2 h-16">
+          <nav aria-label="Main Navigation" className="hidden lg:flex items-center space-x-1 border-l border-r border-stone-800 px-2 h-16">
             <Link
               href="/"
+              aria-current={pathname === '/' ? 'page' : undefined}
               className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${
                 pathname === '/'
                   ? 'bg-stone-800 text-white font-bold'
@@ -50,6 +51,7 @@ export function Navbar() {
             </Link>
             <Link
               href="/matters"
+              aria-current={pathname.startsWith('/matters') && pathname !== '/matters/new' ? 'page' : undefined}
               className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
                 pathname.startsWith('/matters') && pathname !== '/matters/new'
                   ? 'bg-stone-800 text-white font-bold'
@@ -61,6 +63,7 @@ export function Navbar() {
             </Link>
             <Link
               href="/pilot"
+              aria-current={pathname === '/pilot' ? 'page' : undefined}
               className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
                 pathname === '/pilot'
                   ? 'bg-rose-950/80 text-rose-300 border border-rose-800/80 font-bold'
@@ -72,6 +75,7 @@ export function Navbar() {
             </Link>
             <Link
               href="/analytics"
+              aria-current={pathname === '/analytics' ? 'page' : undefined}
               className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
                 pathname === '/analytics'
                   ? 'bg-stone-800 text-white font-bold'

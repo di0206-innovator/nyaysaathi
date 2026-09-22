@@ -3,7 +3,7 @@ import { Scale, ExternalLink, ShieldCheck, Mail, MapPin } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="bg-[#0A0A0A] text-stone-300 border-t-2 border-stone-800 mt-20 font-sans">
+    <footer role="contentinfo" aria-label="Site Footer" className="bg-[#0A0A0A] text-stone-300 border-t-2 border-stone-800 mt-20 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Gazette Masthead Section */}
         <div className="border-b border-stone-800 pb-8 mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">

@@ -46,6 +46,43 @@ export interface CreateMatterInput {
   acquisitionSource?: string;
 }
 
+/**
+ * Recursively checks if an object contains dangerous prototype pollution keys.
+ */
+export function detectPrototypePollution(obj: unknown, depth = 0): boolean {
+  if (!obj || typeof obj !== 'object' || depth > 10) return false;
+
+  for (const key of Object.getOwnPropertyNames(obj)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return true;
+    }
+    try {
+      const val = (obj as Record<string, unknown>)[key];
+      if (val && typeof val === 'object' && detectPrototypePollution(val, depth + 1)) {
+        return true;
+      }
+    } catch {
+      // Ignore accessor errors
+    }
+  }
+  return false;
+}
+
+/**
+ * Strips script tags, iframes, javascript: URIs, and inline event handlers to prevent stored XSS.
+ */
+export function sanitizeHtml(input: string): string {
+  if (!input || typeof input !== 'string') return '';
+  return input
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+    .replace(/javascript:[^\s"'>]+/gi, '')
+    .replace(/\bon\w+\s*=\s*(['"]).*?\1/gi, '')
+    .replace(/\bon\w+\s*=\s*[^\s>]+/gi, '');
+}
+
 export function validateCreateMatter(body: unknown): {
   isValid: boolean;
   errors: string[];
@@ -55,6 +92,10 @@ export function validateCreateMatter(body: unknown): {
 
   if (!body || typeof body !== 'object') {
     return { isValid: false, errors: ['Request body must be a valid JSON object.'] };
+  }
+
+  if (detectPrototypePollution(body)) {
+    return { isValid: false, errors: ['Prototype pollution violation: Request payload contains forbidden properties.'] };
   }
 
   const b = body as Record<string, unknown>;
@@ -93,12 +134,12 @@ export function validateCreateMatter(body: unknown): {
     isValid: true,
     errors: [],
     data: {
-      title: String(b.title).trim(),
+      title: sanitizeHtml(String(b.title).trim()),
       category: b.category as MatterCategory,
-      userStory: String(b.userStory).trim(),
+      userStory: sanitizeHtml(String(b.userStory).trim()),
       claimAmount,
-      locationCity: b.locationCity ? String(b.locationCity).trim() : undefined,
-      locationState: b.locationState ? String(b.locationState).trim() : undefined,
+      locationCity: b.locationCity ? sanitizeHtml(String(b.locationCity).trim()) : undefined,
+      locationState: b.locationState ? sanitizeHtml(String(b.locationState).trim()) : undefined,
       parties: Array.isArray(b.parties) ? (b.parties as Party[]) : [],
       documents: Array.isArray(b.documents) ? (b.documents as DocumentEvidence[]) : [],
       userId: b.userId ? String(b.userId).trim() : undefined,

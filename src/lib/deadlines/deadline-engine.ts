@@ -86,13 +86,13 @@ export class DeadlineEngine {
     }
 
     // 2. Statutory Limitation Deadlines (from Matter Risks)
-    for (const risk of matter.risks) {
+    for (const risk of (matter.risks || [])) {
       if (risk.limitationPeriodInfo) {
         const lim = risk.limitationPeriodInfo;
         const months = lim.deadlineMonths;
 
         // Estimate based on earliest or latest timeline event
-        const baseDate = matter.timelineEvents.length > 0
+        const baseDate = (matter.timelineEvents && matter.timelineEvents.length > 0)
           ? new Date(matter.timelineEvents[0].date)
           : now;
 
@@ -121,7 +121,7 @@ export class DeadlineEngine {
     }
 
     // 3. Action Plan Target Dates
-    for (const step of matter.actionPlan) {
+    for (const step of (matter.actionPlan || [])) {
       let days = 14;
       if (step.phase === 'immediate_48h') days = 2;
       else if (step.phase === 'formal_escalation') days = 30;

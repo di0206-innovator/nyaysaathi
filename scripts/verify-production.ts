@@ -63,7 +63,7 @@ async function verifyProduction() {
   console.log('4/10 Executing production security, authorization & atomic rate limiter suite...');
   const secRes = runStep(
     'Security & Concurrency',
-    'npx tsx --test tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts tests/production-durability-and-storage.test.ts'
+    'npx tsx --test tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts tests/production-durability-and-storage.test.ts tests/adversarial-security-and-quality.test.ts'
   );
   results.push(secRes);
   if (secRes.status === 'FAIL') criticalIssues++;

@@ -56,10 +56,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-[#FAF9F5] text-stone-900">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-stone-900 focus:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:font-mono focus:text-xs"
+        >
+          Skip to main content
+        </a>
         <AuthProvider>
           <ToastProvider>
             <Navbar />
-            <div className="flex-1">{children}</div>
+            <main id="main-content" className="flex-1" tabIndex={-1}>
+              {children}
+            </main>
             <Footer />
             <CookieBanner />
           </ToastProvider>

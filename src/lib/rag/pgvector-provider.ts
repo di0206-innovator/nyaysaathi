@@ -20,6 +20,9 @@ export class PgVectorLegalRAGProvider implements LegalRAGProvider {
   public name = 'Supabase-pgvector-Statute-RAG';
   private embeddingProvider: EmbeddingProvider;
   private fallbackProvider: StatuteRAGProvider;
+  private queryCache = new Map<string, { results: LegalRetrievalResult[]; expiresAt: number }>();
+  private static readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  private static readonly MAX_CACHE_ENTRIES = 100;
 
   constructor(embeddingProvider: EmbeddingProvider) {
     this.embeddingProvider = embeddingProvider;
@@ -38,12 +41,20 @@ export class PgVectorLegalRAGProvider implements LegalRAGProvider {
     query: string,
     criteria: LegalRetrievalCriteria
   ): Promise<LegalRetrievalResult[]> {
+    const cacheKey = `${query.trim().toLowerCase()}::${criteria.category}::${criteria.state || ''}::${criteria.limit || 5}`;
+    const cached = this.queryCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.results;
+    }
+
     if (!isSupabaseConfigured()) {
       const fallbackResults = await this.fallbackProvider.searchStatutes(query, criteria);
-      return fallbackResults.map(r => ({
+      const mapped = fallbackResults.map(r => ({
         ...r,
         retrievalMode: 'LOCAL_FALLBACK' as RAGRetrievalMode
       }));
+      this.setCache(cacheKey, mapped);
+      return mapped;
     }
 
     try {
@@ -135,16 +146,30 @@ export class PgVectorLegalRAGProvider implements LegalRAGProvider {
         };
       });
 
+      this.setCache(cacheKey, results);
       return results;
     } catch (err) {
       Logger.error('pgvector retrieval threw exception, falling back gracefully to DEGRADED_RAG', err, {
         operation: 'pgvector_search'
       });
       const fallbackResults = await this.fallbackProvider.searchStatutes(query, criteria);
-      return fallbackResults.map(r => ({
+      const mapped = fallbackResults.map(r => ({
         ...r,
         retrievalMode: 'DEGRADED_RAG' as RAGRetrievalMode
       }));
+      this.setCache(cacheKey, mapped);
+      return mapped;
     }
+  }
+
+  private setCache(key: string, results: LegalRetrievalResult[]): void {
+    if (this.queryCache.size >= PgVectorLegalRAGProvider.MAX_CACHE_ENTRIES) {
+      const oldestKey = this.queryCache.keys().next().value;
+      if (oldestKey) this.queryCache.delete(oldestKey);
+    }
+    this.queryCache.set(key, {
+      results,
+      expiresAt: Date.now() + PgVectorLegalRAGProvider.CACHE_TTL_MS
+    });
   }
 }
