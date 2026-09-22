@@ -14,14 +14,15 @@ NyaySaathi is a legal document intelligence platform built to parse, compare, an
 
 | Component | Architecture / Implementation | Automated Verification Suite | Result |
 | :--- | :--- | :--- | :--- |
-| **Document Comparison** | Canonical single engine (`compareDocuments`) | `tests/document-comparison-engine.test.ts` | 11/11 Passed |
-| **Security & File Validation** | Binary magic bytes, SVG/HTML sanitization, SHA-256 | `tests/document-comparison-security.test.ts` | 11/11 Passed |
+| **Document Comparison** | Canonical single engine (`compareDocuments`) | `tests/document-comparison-engine.test.ts` | 13/13 Passed |
+| **Security & Upload Validation** | Auth required (401), binary magic bytes, SHA-256 | `tests/document-upload-security.test.ts` | 3/3 Passed |
+| **Grounded QA & Validation** | Deterministic claim-to-evidence validation | `tests/qa-grounding-validator.test.ts` | 8/8 Passed |
 | **Worker Authentication** | Zero fallback secret in production; `service_role` bound | `tests/adversarial-security-and-quality.test.ts` | 11/11 Passed |
 | **AI Failure Transparency** | Fails closed in production; no mock prose pretending to be AI | `src/lib/ai/gemini-provider.ts` unit audit | Verified |
 | **Legal Citations & MTA** | Section 11 MTA (security deposit, advisory); Section 138 NI Act | `tests/statutory-deadlines.test.ts` | 6/6 Passed |
 | **Cross-Platform Accessibility** | WCAG 2.2 AA compliant landmarks, non-color status badges | `tests/accessibility-axe.test.ts` | 12/12 Passed |
 | **Multi-Viewport E2E** | 320px, 375px, 768px, 1024px, 1280px, 1440px | `tests/e2e/document-journey.spec.ts` | Verified |
-| **Full Test Suite** | 84 test suites across unit, integration, and security | `npx tsx scripts/run-tests.ts` | **226/226 Passed (0 Failed)** |
+| **Full Test Suite** | 88 test suites across unit, integration, and security | `npx tsx scripts/run-tests.ts` | **243/243 Passed (0 Failed)** |
 
 ---
 
@@ -57,25 +58,24 @@ The comparison pipeline (`src/lib/legal/clause-comparison-engine.ts`) avoids exp
 ## 3. Grounded GenAI Architecture & Failure Transparency
 
 ### 3.1 Clause Retrieval & Grounded Q&A (`/api/documents/ask`)
-The Q&A pipeline rejects ungrounded generation and keyword-only search in favor of a verifiable retrieval pipeline:
+The Q&A pipeline rejects ungrounded generation and keyword-only search in favor of a verifiable retrieval and validation pipeline:
 1. **Query Normalization**: Strips punctuation and extracts salient semantic keywords.
-2. **Clause Scoring & Evidence Selection**: Scores document clauses based on keyword overlap, category relevance, and position. Retrieves top-ranking clauses as verified evidence.
-3. **Structured Gemini Reasoning**: Prompts Gemini 2.5 Flash with strict structured JSON constraints. Demands discrete claims, citation references, and uncertainty identification.
-4. **Evidence Grounding Verification**: Evaluates whether retrieved clauses substantiate the answer. If evidence is insufficient, marks `isGrounded: false` and returns:
-   > *"I could not verify this from the uploaded documents. Please verify with the original agreement or legal counsel."*
+2. **Clause Scoring & Evidence Selection**: Scores document clauses deterministically based on keyword overlap, category relevance, and position. Retrieves top-ranking clauses as verified evidence.
+3. **Structured Gemini Reasoning**: Prompts Gemini 2.5 Flash with strict structured grounding constraints. Demands discrete claims, citation references, and uncertainty identification.
+4. **Post-Generation Claim-to-Evidence Validation (`qa-grounding-validator`)**: Extracts individual claims from generated prose, cross-validates each claim's entities and semantics against retrieved evidence clauses, and ensures unsupported assertions are never marked as verified. If evidence is insufficient, marks `isGrounded: false` and returns:
+   > *"I could not verify this from the uploaded documents. The question relates to information not established by the provided text."*
 5. **Response Schema**:
    ```typescript
    interface DocumentQAAnswer {
-     question: string;
      answer: string;
      isGrounded: boolean;
-     claims: Array<{ text: string; sourceRefs: string[] }>;
+     claims: Array<{ text: string; sourceRefs: SourceRef[] }>;
      sourceRefs: Array<{ documentTitle: string; pageNumber?: number; snippet?: string }>;
      uncertainty?: string[];
      whyThisMatters?: string;
      whatToVerify?: string[];
      counselRequired: boolean;
-     retrievalMode: 'semantic_rag';
+     retrievalMode?: 'deterministic_search' | 'semantic_rag';
    }
    ```
 
@@ -131,18 +131,26 @@ All document API endpoints enforce strict Zod boundary limits:
 
 ## 6. Automated Verification Matrix
 
-The repository contains 84 test suites. Key test executions verify critical functionality:
+The repository contains 88 test suites. Key test executions verify critical functionality:
 
 ```bash
 # Production durability and storage isolation suite
 npx tsx scripts/run-tests.ts tests/production-durability-and-storage.test.ts
-# Result: 226/226 tests passed in 84 suites (0 failures)
+# Result: 243/243 tests passed in 88 suites (0 failures)
 
-# Canonical document comparison engine suite
+# Canonical document comparison engine suite (with Levenshtein & semantic analysis)
 npx tsx scripts/run-tests.ts tests/document-comparison-engine.test.ts
-# Result: 11/11 tests passed (0 failures)
+# Result: 13/13 tests passed (0 failures)
 
-# Document upload, magic byte, and security validation suite
+# Document upload authentication & security regression suite
+npx tsx scripts/run-tests.ts tests/document-upload-security.test.ts
+# Result: 3/3 tests passed (0 failures)
+
+# Document-grounded Q&A claim-to-evidence validation suite
+npx tsx scripts/run-tests.ts tests/qa-grounding-validator.test.ts
+# Result: 8/8 tests passed (0 failures)
+
+# Document magic byte, rate limiter fail-closed & security validation suite
 npx tsx scripts/run-tests.ts tests/document-comparison-security.test.ts
 # Result: 11/11 tests passed (0 failures)
 

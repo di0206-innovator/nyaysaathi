@@ -107,7 +107,7 @@ export class ActionPlannerAgent {
             id: 'act-cpa-formal-demand',
             title: 'Serve Formal Demand & Notice of Deficiency',
             phase: 'short_term_14d',
-            description: 'Serve 15-day notice under CPA 2019 demanding replacement or refund with damages.',
+            description: 'Serve recommended 15-day formal notice of deficiency demanding replacement or refund before filing consumer complaint.',
             estimatedTurnaround: '1 hour',
             status: 'pending',
             priority: 'must_do',

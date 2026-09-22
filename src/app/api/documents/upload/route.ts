@@ -18,8 +18,19 @@ export async function POST(req: NextRequest) {
   const requestId = getOrGenerateRequestId(req);
 
   try {
+    // 1. Enforce authentication immediately at server boundary before expensive processing
     const user = await AuthService.getAuthenticatedUser(req);
-    const rateLimitRes = await enforceRateLimit(req, 'upload_document', 20, 60, user?.id, true);
+    if (!user) {
+      return apiError(
+        'Authentication required to upload documents.',
+        401,
+        'UNAUTHORIZED',
+        undefined,
+        requestId
+      );
+    }
+
+    const rateLimitRes = await enforceRateLimit(req, 'upload_document', 20, 60, user.id, true);
     if (rateLimitRes) return rateLimitRes;
 
     const formData = await req.formData();
@@ -39,7 +50,7 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 1. Validate file (magic bytes, MIME consistency, size <= 10MB, SHA-256)
+    // 2. Validate file (magic bytes, MIME consistency, size <= 10MB, SHA-256)
     const validation = validateUploadedFile(buffer, file.name, file.type);
     if (!validation.valid) {
       return apiError(
@@ -54,7 +65,7 @@ export async function POST(req: NextRequest) {
     const docId = `doc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const effectiveTitle = customTitle?.trim() || file.name.replace(/\.[^/.]+$/, '').replace(/[_.-]+/g, ' ');
 
-    // 2. Extract text & provenance records
+    // 3. Extract text & provenance records
     const parser = getDocumentParser();
     const parsed = await parser.parseDocument({
       buffer: arrayBuffer,
@@ -62,9 +73,9 @@ export async function POST(req: NextRequest) {
       mimeType: validation.detectedMimeType || file.type || 'application/pdf'
     });
 
-    // 3. Secure storage persistence
-    const userId = user?.id || 'unauthenticated';
-    const storage = getStorageProvider(user?.token);
+    // 4. Secure storage persistence bound to authenticated user
+    const userId = user.id;
+    const storage = getStorageProvider(user.token);
     let stored;
     try {
       stored = await storage.uploadFile({

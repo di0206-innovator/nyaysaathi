@@ -4,6 +4,8 @@ import {
   segmentClauses,
   classifyClause,
   compareDocuments,
+  levenshteinDistance,
+  normalizedLevenshteinSimilarity,
 } from '../src/lib/legal/clause-comparison-engine';
 import {
   understandDocument
@@ -180,6 +182,24 @@ describe('GenAI Legal Document Understanding & Clause Comparison Engine', () => 
       assert.ok(result.clauses[0].semanticAnalysis);
       assert.equal(result.clauses[0].semanticAnalysis?.matchType, 'conflict');
       assert.ok(result.clauses[0].semanticAnalysis?.explanation?.includes('responsibility shifted'));
+    });
+
+    it('accurately computes normalized Levenshtein distance for typographical edits', () => {
+      assert.strictEqual(levenshteinDistance('kitten', 'sitting'), 3);
+      assert.strictEqual(levenshteinDistance('deposit', 'deposit'), 0);
+      assert.ok(normalizedLevenshteinSimilarity('termination', 'termination') === 1.0);
+      assert.ok(normalizedLevenshteinSimilarity('termination', 'termintion') > 0.85);
+    });
+
+    it('identifies identical clauses and marks them unchanged without modification overhead', () => {
+      const textA = '1. Jurisdiction: The courts of New Delhi shall have exclusive jurisdiction.';
+      const textB = '1. Jurisdiction: The courts of New Delhi shall have exclusive jurisdiction.';
+
+      const result = compareDocuments('doc-a', 'Doc A', textA, 'doc-b', 'Doc B', textB);
+      assert.equal(result.clauses.length, 1);
+      assert.equal(result.clauses[0].status, 'unchanged');
+      assert.equal(result.summary.unchanged, 1);
+      assert.equal(result.summary.modified, 0);
     });
   });
 

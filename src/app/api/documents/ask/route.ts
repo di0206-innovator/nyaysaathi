@@ -3,14 +3,13 @@ import { z } from 'zod';
 import { apiSuccess, apiError, getOrGenerateRequestId } from '@/lib/api/response';
 import type {
   DocumentQAAnswer,
-  QAClaim,
-  SourceRef,
 } from '@/types/document-comparison';
 import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
 import { AuthService } from '@/lib/auth/auth-service';
 import { segmentClauses } from '@/lib/legal/clause-comparison-engine';
 import { getLLMProvider } from '@/lib/ai';
+import { buildGroundedResponse } from '@/lib/legal/qa-grounding-validator';
 
 const AskRequestSchema = z.object({
   question: z.string().min(3, 'Question must be at least 3 characters').max(2000, 'Question exceeds 2000 characters limit'),
@@ -150,7 +149,7 @@ export async function POST(req: NextRequest) {
         whyThisMatters: 'NyaySaathi strictly refuses to synthesize answers unsupported by uploaded evidence.',
         whatToVerify: ['Review additional annexures, email correspondences, or addendums that may contain this term.'],
         counselRequired: false,
-        retrievalMode: 'semantic_rag',
+        retrievalMode: 'deterministic_search',
         cannotVerifyDisclaimer: 'This answer is limited to the uploaded document text. No legal facts were inferred.',
         processingMode
       };
@@ -161,14 +160,6 @@ export async function POST(req: NextRequest) {
     const evidenceText = topEvidence.map((e, idx) => 
       `[Evidence ${idx + 1}] (${e.documentTitle}${e.clauseNumber ? ` Clause ${e.clauseNumber}` : ''}${e.pageNumber ? ` Page ${e.pageNumber}` : ''}):\n"${e.text}"`
     ).join('\n\n');
-
-    const topSourceRefs: SourceRef[] = topEvidence.map(e => ({
-      documentId: e.documentId,
-      documentTitle: e.documentTitle,
-      pageNumber: e.pageNumber,
-      clauseNumber: e.clauseNumber,
-      snippet: e.text.slice(0, 140)
-    }));
 
     // 5. GenAI Reasoning using LLM Provider (Gemini or deterministic structured engine)
     const prompt = `You are NyaySaathi, an evidentiary legal AI assistant for India.
@@ -185,9 +176,6 @@ Instructions:
 5. Do not invent statutory sections, amounts, or dates not in the evidence.`;
 
     let generatedAnswer = '';
-    let generatedClaims: QAClaim[] = [];
-    let generatedWhyItMayMatter: string | undefined;
-    let generatedWhatToVerify: string[] = [];
     let counselRequired = false;
 
     // Determine counsel requirement from grievance nature
@@ -222,46 +210,22 @@ Instructions:
       generatedAnswer = answerLines.join('\n');
     }
 
-    // Build structured verified claims
-    generatedClaims = topEvidence.map(e => ({
-      text: e.text.slice(0, 160),
-      sourceRefs: [{
-        documentId: e.documentId,
-        documentTitle: e.documentTitle,
-        pageNumber: e.pageNumber,
-        clauseNumber: e.clauseNumber,
-        snippet: e.text.slice(0, 120)
-      }]
-    }));
+    // 6. Deterministic Post-Generation Claim-to-Evidence Validation
+    const result = buildGroundedResponse({
+      rawAnswer: generatedAnswer,
+      evidenceList: topEvidence,
+      processingMode,
+      counselRequired
+    });
 
+    // Attach dual-document comparison insight when evidence spans multiple documents
     if (clausesB.length > 0 && topEvidence.some(e => e.documentId === documentAId) && topEvidence.some(e => e.documentId === documentBId)) {
-      generatedWhyItMayMatter = 'Both documents touch upon this matter with differing language or timelines. Legal effect depends on which document was executed later or mutually signed.';
-      generatedWhatToVerify = [
+      result.whyThisMatters = 'Both documents touch upon this matter with differing language or timelines. Legal effect depends on which document was executed later or mutually signed.';
+      result.whatToVerify = [
         'Confirm which version contains the authoritative signatures of both parties.',
         'Check whether any subsequent amendment clause overrides earlier provisions.'
       ];
-    } else {
-      generatedWhyItMayMatter = `This term establishes the contractual obligation regarding ${topEvidence[0].heading || 'this provision'}.`;
-      generatedWhatToVerify = [
-        'Verify that this matches the signed executed agreement.',
-        'Check if any written notices have been served under this clause.'
-      ];
     }
-
-    const result: DocumentQAAnswer = {
-      answer: generatedAnswer,
-      isGrounded: true,
-      claims: generatedClaims,
-      sourceRefs: topSourceRefs,
-      whyThisMatters: generatedWhyItMayMatter,
-      whatToVerify: generatedWhatToVerify,
-      counselRequired,
-      retrievalMode: 'semantic_rag',
-      processingMode,
-      cannotVerifyDisclaimer: counselRequired
-        ? 'This query may involve contested legal rights. This answer is strictly based on the text of the uploaded documents and does not constitute formal legal counsel.'
-        : undefined
-    };
 
     return apiSuccess(result, 200, undefined, requestId);
   } catch (err: unknown) {

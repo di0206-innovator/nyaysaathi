@@ -648,9 +648,9 @@ Encl: Copy of Rental Agreement, NEFT Payment Slip, Move-out Handover Chat Record
       },
       {
         id: 'act-2',
-        title: 'Serve Formal Statutory Legal Notice to Manufacturer & Retailer',
+        title: 'Serve Formal Legal Demand Notice to Manufacturer & Retailer',
         phase: 'immediate_48h',
-        description: 'Issue 15-day notice under CPA 2019 demanding free screen replacement or full refund.',
+        description: 'Serve recommended 15-day formal demand notice calling for free screen replacement or refund before e-Daakhil filing.',
         estimatedTurnaround: '1 hour',
         status: 'in_progress',
         priority: 'must_do',

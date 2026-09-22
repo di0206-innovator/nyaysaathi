@@ -265,18 +265,76 @@ function normalizeHeading(h?: string): string {
 }
 
 /**
- * Simple word-overlap similarity (Jaccard-like) for clause matching.
+ * Computes the Levenshtein distance between two strings.
  */
-function textSimilarity(a: string, b: string): number {
+export function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const m = a.length;
+  const n = b.length;
+  let prevRow = new Array(n + 1);
+  let currRow = new Array(n + 1);
+
+  for (let j = 0; j <= n; j++) {
+    prevRow[j] = j;
+  }
+
+  for (let i = 1; i <= m; i++) {
+    currRow[0] = i;
+    const charA = a.charCodeAt(i - 1);
+    for (let j = 1; j <= n; j++) {
+      const cost = charA === b.charCodeAt(j - 1) ? 0 : 1;
+      currRow[j] = Math.min(
+        currRow[j - 1] + 1,       // insertion
+        prevRow[j] + 1,           // deletion
+        prevRow[j - 1] + cost     // substitution
+      );
+    }
+    const temp = prevRow;
+    prevRow = currRow;
+    currRow = temp;
+  }
+
+  return prevRow[n];
+}
+
+/**
+ * Computes normalized Levenshtein similarity score between 0.0 (entirely different) and 1.0 (identical).
+ */
+export function normalizedLevenshteinSimilarity(a: string, b: string): number {
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1.0;
+  const dist = levenshteinDistance(a, b);
+  return Math.max(0, 1.0 - dist / maxLen);
+}
+
+/**
+ * Hybrid string similarity combining Jaccard token overlap and normalized Levenshtein edit distance.
+ */
+export function textSimilarity(a: string, b: string): number {
   const wordsA = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 2));
   const wordsB = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 2));
   if (wordsA.size === 0 && wordsB.size === 0) return 1;
   if (wordsA.size === 0 || wordsB.size === 0) return 0;
+  
   let intersection = 0;
   for (const w of wordsA) {
     if (wordsB.has(w)) intersection++;
   }
-  return intersection / Math.max(wordsA.size, wordsB.size);
+  const jaccard = intersection / Math.max(wordsA.size, wordsB.size);
+
+  // For short strings or high overlap, compute Levenshtein on normalized substrings for typo tolerance
+  if (a.length <= 250 && b.length <= 250) {
+    const lev = normalizedLevenshteinSimilarity(
+      a.toLowerCase().replace(/\s+/g, ' ').trim(),
+      b.toLowerCase().replace(/\s+/g, ' ').trim()
+    );
+    return (jaccard * 0.6) + (lev * 0.4);
+  }
+
+  return jaccard;
 }
 
 // ---------------------------------------------------------------------------

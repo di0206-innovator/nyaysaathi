@@ -54,7 +54,7 @@ describe('PROMPT 5: GTM, Product Wedge, Real-World Validation & Feedback Capture
       body: JSON.stringify({
         rating: 5,
         category: 'statute_accuracy',
-        feedbackText: 'Model Tenancy Act section 13 was accurately cited for the 30-day deposit refund.',
+        feedbackText: 'Model Tenancy Act Section 11 (advisory model framework) was accurately cited for the security deposit refund.',
         advocateConsulted: true
       })
     });
