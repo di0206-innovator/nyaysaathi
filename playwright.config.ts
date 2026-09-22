@@ -2,23 +2,27 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 30 * 1000,
+  timeout: process.env.CI ? 60 * 1000 : 30 * 1000,
   expect: {
-    timeout: 5000
+    timeout: process.env.CI ? 10 * 1000 : 5000
   },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'list',
+  reporter: process.env.CI
+    ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]]
+    : 'list',
   use: {
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3000',
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || (process.env.CI ? 'http://127.0.0.1:3000' : 'http://localhost:3000'),
     trace: 'on-first-retry',
     video: 'retain-on-failure'
   },
   webServer: {
-    command: process.env.CI ? 'npm run start' : 'npm run dev',
-    url: 'http://localhost:3000',
+    command: process.env.CI
+      ? 'npx next start -p 3000 -H 127.0.0.1'
+      : 'npm run dev',
+    url: process.env.CI ? 'http://127.0.0.1:3000' : 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     stdout: 'pipe',

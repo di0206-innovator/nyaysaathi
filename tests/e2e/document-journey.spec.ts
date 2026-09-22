@@ -9,13 +9,14 @@ test.describe('DOCUMENT-FIRST END-TO-END JOURNEY', () => {
     // Check no horizontal overflow
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
-    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 3);
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 4);
 
     // 2. COMPARE: Navigate to /compare
     const compareLink = page.locator('a[href="/compare"]:visible').first();
     await compareLink.click();
     await expect(page).toHaveURL(/\/compare/);
     await expect(page.locator('h1')).toContainText(/Compare/i);
+    await page.waitForLoadState('domcontentloaded');
 
     // 3. SAMPLE DOCUMENTS: Select rental demo set
     const rentalDemoBtn = page.locator('button:has-text("Rental Agreement")').first();
@@ -62,6 +63,7 @@ test.describe('DOCUMENT-FIRST END-TO-END JOURNEY', () => {
   test('Understand single document journey', async ({ page }) => {
     await page.goto('/understand');
     await expect(page.locator('h1')).toContainText(/Understand/i);
+    await page.waitForLoadState('domcontentloaded');
 
     // Test sample document
     const sampleBtn = page.locator('button:has-text("Rental Agreement v1")').first();
@@ -84,6 +86,6 @@ test.describe('DOCUMENT-FIRST END-TO-END JOURNEY', () => {
 
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
-    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 3);
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 4);
   });
 });

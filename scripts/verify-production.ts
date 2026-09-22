@@ -63,7 +63,7 @@ async function verifyProduction() {
   console.log('4/10 Executing production security, authorization & atomic rate limiter suite...');
   const secRes = runStep(
     'Security & Concurrency',
-    'npx tsx --test tests/document-comparison-security.test.ts tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts tests/production-durability-and-storage.test.ts tests/adversarial-security-and-quality.test.ts'
+    'npx tsx --test tests/document-upload-security.test.ts tests/document-comparison-security.test.ts tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts tests/production-durability-and-storage.test.ts tests/adversarial-security-and-quality.test.ts'
   );
   results.push(secRes);
   if (secRes.status === 'FAIL') criticalIssues++;
@@ -72,7 +72,7 @@ async function verifyProduction() {
   console.log('5/10 Executing truthful AI reasoning, stale-law defense & evidence grounding suite...');
   const aiRes = runStep(
     'AI Evaluation',
-    'npx tsx --test tests/prompt2-ai-evaluation.test.ts tests/evidence-enforcement.test.ts tests/failure-paths.test.ts tests/promptwars-evaluation-audit.test.ts'
+    'npx tsx --test tests/qa-grounding-validator.test.ts tests/prompt2-ai-evaluation.test.ts tests/evidence-enforcement.test.ts tests/failure-paths.test.ts tests/promptwars-evaluation-audit.test.ts'
   );
   results.push(aiRes);
   if (aiRes.status === 'FAIL') criticalIssues++;

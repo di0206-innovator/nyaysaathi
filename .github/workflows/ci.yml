@@ -91,7 +91,7 @@ jobs:
         run: npm ci
 
       - name: Run Security & Concurrency Regression Tests
-        run: npx tsx --test tests/document-comparison-security.test.ts tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts tests/production-durability-and-storage.test.ts tests/adversarial-security-and-quality.test.ts
+        run: npx tsx --test tests/document-upload-security.test.ts tests/document-comparison-security.test.ts tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts tests/production-durability-and-storage.test.ts tests/adversarial-security-and-quality.test.ts
         env:
           NODE_ENV: test
 
@@ -113,7 +113,7 @@ jobs:
         run: npm ci
 
       - name: Run AI Grounding & Anti-Hallucination Benchmarks
-        run: npx tsx --test tests/prompt2-ai-evaluation.test.ts tests/evidence-enforcement.test.ts tests/failure-paths.test.ts tests/promptwars-evaluation-audit.test.ts
+        run: npx tsx --test tests/qa-grounding-validator.test.ts tests/prompt2-ai-evaluation.test.ts tests/evidence-enforcement.test.ts tests/failure-paths.test.ts tests/promptwars-evaluation-audit.test.ts
         env:
           NODE_ENV: test
 
@@ -215,7 +215,15 @@ jobs:
         run: npx playwright test
         env:
           CI: 'true'
-          PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3000'
+          PLAYWRIGHT_TEST_BASE_URL: 'http://127.0.0.1:3000'
+
+      - name: Upload Playwright Test Report & Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
 
   # 10. Production Build
   build:
