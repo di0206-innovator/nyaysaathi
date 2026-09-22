@@ -40,14 +40,17 @@ import {
   Clock,
   Shield,
   RotateCcw,
-  CheckCircle2
+  CheckCircle2,
+  GitCompare
 } from 'lucide-react';
+import { DocumentComparisonStudio } from '@/components/matter/DocumentComparisonStudio';
 
 type TabType =
   | 'overview'
   | 'trust'
   | 'grounding'
   | 'deadlines'
+  | 'compare'
   | 'timeline'
   | 'activity'
   | 'risks'
@@ -272,6 +275,7 @@ export default function MatterDetailPage({
     { id: 'timeline' as const, label: 'Evidence Facts', icon: <Calendar className="w-4 h-4" /> },
     { id: 'risks' as const, label: 'Pay Attention (Risks)', icon: <ShieldAlert className="w-4 h-4" />, count: matter.risks.length },
     { id: 'drafts' as const, label: 'Drafts & Notices', icon: <FileText className="w-4 h-4" />, count: matter.drafts.length },
+    { id: 'compare' as const, label: 'Document & Clause Compare', icon: <GitCompare className="w-4 h-4" /> },
     { id: 'evidence' as const, label: 'Evidence Locker', icon: <FolderLock className="w-4 h-4" />, count: matter.documents.length },
     { id: 'brief' as const, label: 'Lawyer Brief', icon: <Briefcase className="w-4 h-4" /> },
     { id: 'escalate' as const, label: 'Escalation Routes', icon: <Scale className="w-4 h-4" /> },
@@ -555,6 +559,11 @@ export default function MatterDetailPage({
             matterId={matter.id}
             onNoticeDispatched={() => handleReanalyze('communication_recorded')}
           />
+        )}
+
+        {/* TAB 5.5: DOCUMENT & CLAUSE COMPARISON STUDIO */}
+        {activeTab === 'compare' && (
+          <DocumentComparisonStudio matter={matter} />
         )}
 
         {/* TAB 6: EVIDENCE LOCKER */}

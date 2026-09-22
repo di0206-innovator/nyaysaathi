@@ -72,7 +72,7 @@ async function verifyProduction() {
   console.log('5/10 Executing truthful AI reasoning, stale-law defense & evidence grounding suite...');
   const aiRes = runStep(
     'AI Evaluation',
-    'npx tsx --test tests/prompt2-ai-evaluation.test.ts tests/evidence-enforcement.test.ts tests/failure-paths.test.ts'
+    'npx tsx --test tests/prompt2-ai-evaluation.test.ts tests/evidence-enforcement.test.ts tests/failure-paths.test.ts tests/promptwars-evaluation-audit.test.ts'
   );
   results.push(aiRes);
   if (aiRes.status === 'FAIL') criticalIssues++;

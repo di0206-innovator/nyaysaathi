@@ -113,7 +113,7 @@ jobs:
         run: npm ci
 
       - name: Run AI Grounding & Anti-Hallucination Benchmarks
-        run: npx tsx --test tests/prompt2-ai-evaluation.test.ts tests/evidence-enforcement.test.ts tests/failure-paths.test.ts
+        run: npx tsx --test tests/prompt2-ai-evaluation.test.ts tests/evidence-enforcement.test.ts tests/failure-paths.test.ts tests/promptwars-evaluation-audit.test.ts
         env:
           NODE_ENV: test
 
