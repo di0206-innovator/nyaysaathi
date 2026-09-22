@@ -3,7 +3,8 @@ import type {
   LegalRetrievalCriteria,
   LegalRetrievalResult,
   LegalChunk,
-  EmbeddingProvider
+  EmbeddingProvider,
+  RAGRetrievalMode
 } from '@/lib/ai/types';
 import { StatuteRAGProvider } from '@/lib/ai/mock-providers';
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/db/supabase';
@@ -13,7 +14,7 @@ import { MatterCategory } from '@/types/matter';
 /**
  * Production-ready pgvector-backed Legal RAG Provider.
  * Queries Supabase `statutory_provisions` via pgvector similarity search with metadata filtering.
- * Automatically falls back to StatuteRAGProvider when offline or in unit tests.
+ * Explicitly tracks retrievalMode ('LIVE_RAG' | 'DEGRADED_RAG' | 'LOCAL_FALLBACK' | 'NO_RETRIEVAL').
  */
 export class PgVectorLegalRAGProvider implements LegalRAGProvider {
   public name = 'Supabase-pgvector-Statute-RAG';
@@ -38,13 +39,21 @@ export class PgVectorLegalRAGProvider implements LegalRAGProvider {
     criteria: LegalRetrievalCriteria
   ): Promise<LegalRetrievalResult[]> {
     if (!isSupabaseConfigured()) {
-      return this.fallbackProvider.searchStatutes(query, criteria);
+      const fallbackResults = await this.fallbackProvider.searchStatutes(query, criteria);
+      return fallbackResults.map(r => ({
+        ...r,
+        retrievalMode: 'LOCAL_FALLBACK' as RAGRetrievalMode
+      }));
     }
 
     try {
       const client = getSupabaseClient();
       if (!client) {
-        return this.fallbackProvider.searchStatutes(query, criteria);
+        const fallbackResults = await this.fallbackProvider.searchStatutes(query, criteria);
+        return fallbackResults.map(r => ({
+          ...r,
+          retrievalMode: 'LOCAL_FALLBACK' as RAGRetrievalMode
+        }));
       }
 
       // Generate query embedding vector
@@ -63,15 +72,19 @@ export class PgVectorLegalRAGProvider implements LegalRAGProvider {
       });
 
       if (error || !data || data.length === 0) {
-        Logger.warn('pgvector search returned empty or error, falling back to local corpus', {
+        Logger.warn('pgvector search returned empty or error, falling back to local corpus in DEGRADED_RAG mode', {
           error: error?.message,
           category: criteria.category,
           operation: 'pgvector_search'
         });
-        return this.fallbackProvider.searchStatutes(query, criteria);
+        const fallbackResults = await this.fallbackProvider.searchStatutes(query, criteria);
+        return fallbackResults.map(r => ({
+          ...r,
+          retrievalMode: 'DEGRADED_RAG' as RAGRetrievalMode
+        }));
       }
 
-      // Map database records to standardized LegalRetrievalResult
+      // Map database records to standardized LegalRetrievalResult with LIVE_RAG mode
       interface PgStatuteRecord {
         id: string;
         statute_name: string;
@@ -91,7 +104,7 @@ export class PgVectorLegalRAGProvider implements LegalRAGProvider {
         const score = Math.round((row.similarity || 0.5) * 100) / 100;
         const isStrong = score >= 0.65;
         const reasons: string[] = [
-          `Semantic cosine similarity: ${(score * 100).toFixed(0)}%`,
+          `Semantic cosine similarity: ${(score * 100).toFixed(0)}% (LIVE_RAG)`,
           row.category === criteria.category ? `Direct category match: ${row.category}` : 'General legal statute',
           row.jurisdiction_state ? `Jurisdiction: ${row.jurisdiction_state}` : 'Central / All India statute'
         ];
@@ -106,7 +119,6 @@ export class PgVectorLegalRAGProvider implements LegalRAGProvider {
             category: row.category as MatterCategory,
             forumOrAuthority: row.forum_authority || 'Competent Court / Tribunal',
             remedy: row.remedy_type || 'Civil / Statutory Remedy',
-            // Never fabricate a placeholder URL if not supported by source record
             sourceUrl: row.source_url || undefined,
             jurisdiction: row.jurisdiction_state || 'Central / All India',
             keywords: [
@@ -118,16 +130,21 @@ export class PgVectorLegalRAGProvider implements LegalRAGProvider {
           relevanceScore: score,
           isStrongMatch: isStrong,
           matchReasons: reasons,
-          suggestedTier: isStrong ? 'explanation' : 'possibility'
+          suggestedTier: isStrong ? 'explanation' : 'possibility',
+          retrievalMode: 'LIVE_RAG' as RAGRetrievalMode
         };
       });
 
       return results;
     } catch (err) {
-      Logger.error('pgvector retrieval threw exception, falling back gracefully', err, {
+      Logger.error('pgvector retrieval threw exception, falling back gracefully to DEGRADED_RAG', err, {
         operation: 'pgvector_search'
       });
-      return this.fallbackProvider.searchStatutes(query, criteria);
+      const fallbackResults = await this.fallbackProvider.searchStatutes(query, criteria);
+      return fallbackResults.map(r => ({
+        ...r,
+        retrievalMode: 'DEGRADED_RAG' as RAGRetrievalMode
+      }));
     }
   }
 }

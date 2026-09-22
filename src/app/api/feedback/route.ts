@@ -5,6 +5,7 @@ import { Logger } from '@/lib/observability/logger';
 import { getMatterService } from '@/lib/repository';
 import { AuthService } from '@/lib/auth/auth-service';
 import { PilotFeedback } from '@/lib/repository/types';
+import { apiError, getOrGenerateRequestId } from '@/lib/api/response';
 
 export interface PilotFeedbackPayload {
   matterId?: string;
@@ -36,17 +37,11 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as PilotFeedbackPayload;
 
     if (!body || typeof body.rating !== 'number' || body.rating < 1 || body.rating > 5) {
-      return NextResponse.json(
-        { error: 'Valid rating between 1 and 5 is required.' },
-        { status: 400 }
-      );
+      return apiError('Valid rating between 1 and 5 is required.', 400, 'INVALID_RATING');
     }
 
     if (!body.category || !body.feedbackText || body.feedbackText.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Category and feedback text are required.' },
-        { status: 400 }
-      );
+      return apiError('Category and feedback text are required.', 400, 'MISSING_FIELDS');
     }
 
     // Matter ownership verification if matterId is provided
@@ -54,10 +49,7 @@ export async function POST(req: NextRequest) {
     if (body.matterId && user) {
       const matter = await matterService.getMatterById(body.matterId);
       if (matter && matter.userId && matter.userId !== user.id && user.role !== 'admin' && user.role !== 'pilot_operator') {
-        return NextResponse.json(
-          { error: 'Forbidden: You do not have permission to submit feedback for this matter.' },
-          { status: 403 }
-        );
+        return apiError('Forbidden: You do not have permission to submit feedback for this matter.', 403, 'FORBIDDEN');
       }
     }
 
@@ -96,12 +88,17 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      data: {
+        feedbackId: saved.id,
+        message: 'Thank you. Your feedback helps calibrate NyaySaathi legal precision.'
+      },
+      feedbackId: saved.id,
       message: 'Thank you. Your feedback helps calibrate NyaySaathi legal precision.',
-      feedbackId: saved.id
-    });
+      requestId: getOrGenerateRequestId(req)
+    }, { status: 200 });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Invalid feedback payload';
-    return NextResponse.json({ error: errorMsg }, { status: 400 });
+    return apiError(errorMsg, 400, 'FEEDBACK_ERROR');
   }
 }
 
@@ -126,10 +123,7 @@ export async function GET(req?: NextRequest) {
       const metrics = await matterService.getPilotFeedbackMetrics();
       return NextResponse.json(metrics);
     }
-    return NextResponse.json(
-      { error: 'Authentication required to access pilot feedback metrics.' },
-      { status: 401 }
-    );
+    return apiError('Authentication required to access pilot feedback metrics.', 401, 'UNAUTHORIZED');
   }
 
   const matterService = getMatterService(user?.token);

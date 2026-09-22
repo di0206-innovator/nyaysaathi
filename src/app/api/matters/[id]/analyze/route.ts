@@ -47,6 +47,48 @@ export async function POST(
       );
     }
 
+    const url = new URL(req.url);
+    const isAsync =
+      req.headers.get('prefer') === 'respond-async' ||
+      url.searchParams.get('async') === 'true' ||
+      (typeof body === 'object' && body !== null && (body as Record<string, unknown>).async === true);
+
+    if (isAsync) {
+      const { DurableJobQueue } = await import('@/lib/jobs/durable-job-queue');
+      const job = await DurableJobQueue.createJob('deep_analysis', id, user.id, {
+        trigger: validation.trigger
+      });
+
+      // Execute asynchronously in background
+      (async () => {
+        try {
+          await DurableJobQueue.updateProgress(job.id, 25, 'processing');
+          const res = await service.reanalyzeMatter(id, validation.trigger, user.id);
+          if (res) {
+            await DurableJobQueue.completeJob(job.id, res);
+          } else {
+            await DurableJobQueue.failJob(job.id, 'ANALYSIS_FAILED', 'Analysis returned no matter');
+          }
+        } catch (err) {
+          await DurableJobQueue.failJob(job.id, 'ANALYSIS_ERROR', String(err));
+        }
+      })();
+
+      return apiSuccess(
+        {
+          jobId: job.id,
+          status: 'queued',
+          matterId: id,
+          pollUrl: `/api/jobs/${job.id}`
+        },
+        202,
+        {
+          message: 'Matter analysis has been queued for processing.',
+          status: 'queued'
+        }
+      );
+    }
+
     const reanalyzed = await service.reanalyzeMatter(id, validation.trigger, user.id);
     if (!reanalyzed) {
       return apiError('Failed to re-analyze matter', 500, 'REANALYZE_FAILED');

@@ -1,12 +1,13 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getMatterService } from '@/lib/repository';
 import { validateDocumentFile } from '@/lib/api/validation';
-import { apiSuccess, apiError } from '@/lib/api/response';
+import { apiSuccess, apiError, getOrGenerateRequestId } from '@/lib/api/response';
 import { DocumentEvidence } from '@/types/matter';
 import { AuthService } from '@/lib/auth/auth-service';
 import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
 import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
+import { IdempotencyManager, calculateSha256 } from '@/lib/api/idempotency';
 
 export async function GET(
   req: NextRequest,
@@ -64,6 +65,21 @@ export async function POST(
       return apiError('Access denied: You cannot upload evidence to this matter', 403, 'FORBIDDEN');
     }
 
+    // Idempotency replay check
+    const idempotencyKey = req.headers.get('idempotency-key');
+    if (idempotencyKey) {
+      const cached = await IdempotencyManager.getRecord(idempotencyKey, user.id, `/api/matters/${matterId}/documents`);
+      if (cached) {
+        return NextResponse.json(cached.responseBody, {
+          status: cached.responseStatus,
+          headers: {
+            'X-Idempotent-Replay': 'true',
+            'X-Request-ID': getOrGenerateRequestId(req)
+          }
+        });
+      }
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const title = (formData.get('title') as string | null) || undefined;
@@ -73,19 +89,20 @@ export async function POST(
       return apiError('No file provided in form data field "file".', 400, 'MISSING_FILE');
     }
 
-    // Validate file (10MB limit and format restrictions)
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Validate file (10MB limit, format restrictions, and magic bytes)
     const validation = validateDocumentFile({
       filename: file.name,
       mimeType: file.type || 'application/octet-stream',
-      sizeBytes: file.size
+      sizeBytes: file.size,
+      buffer
     });
 
     if (!validation.isValid) {
       return apiError(validation.error || 'Invalid file', 400, 'INVALID_FILE');
     }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
     const result = await service.uploadDocumentAndReanalyze(
       matterId,
@@ -116,6 +133,23 @@ export async function POST(
       title: result.document.title,
       operation: 'upload_document'
     });
+
+    const responsePayload = {
+      success: true,
+      data: result,
+      requestId: getOrGenerateRequestId(req)
+    };
+
+    if (idempotencyKey) {
+      await IdempotencyManager.saveRecord(
+        idempotencyKey,
+        user.id,
+        `/api/matters/${matterId}/documents`,
+        201,
+        responsePayload,
+        calculateSha256(buffer)
+      );
+    }
 
     return apiSuccess(result, 201, {
       message: `Document "${result.document.title}" uploaded and processed successfully. Matter re-analyzed with doc_uploaded.`

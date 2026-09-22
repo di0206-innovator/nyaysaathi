@@ -4,6 +4,7 @@ import { getMatterService } from '@/lib/repository';
 import { getStorageProvider } from '@/lib/storage/storage-provider';
 import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
+import { isStoragePathOwnedByUser } from '@/lib/storage/canonical-path';
 
 export async function GET(req: NextRequest) {
   try {
@@ -36,9 +37,8 @@ export async function GET(req: NextRequest) {
       return new NextResponse('Invalid document path: path traversal detected', { status: 400 });
     }
 
-    // Check user ownership prefix if path includes user/{userId}
-    const userMatch = decodedPath.match(/^user\/([^/]+)/);
-    if (userMatch && userMatch[1] !== user.id) {
+    // Check user ownership prefix: must belong strictly to authenticated user
+    if (!isStoragePathOwnedByUser(decodedPath, user.id)) {
       SecurityAuditLogger.log({
         action: 'unauthorized_access_blocked',
         userId: user.id,
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       return new NextResponse('Access denied: Unauthorized cross-tenant document path', { status: 403 });
     }
 
-    // Check matter ownership if path contains matter ID
+    // Check matter ownership and verify that path maps to an actual registered document record
     const matterMatch = decodedPath.match(/matters\/([^/]+)/);
     if (matterMatch && matterMatch[1]) {
       const matterId = matterMatch[1];
@@ -64,11 +64,32 @@ export async function GET(req: NextRequest) {
           status: 'denied',
           metadata: { path: decodedPath }
         });
-        return new NextResponse('Access denied or document not found', { status: 403 });
+        return new NextResponse('Access denied or matter not found', { status: 403 });
+      }
+
+      // Verify that this path maps to a registered document record in this matter
+      const docs = matter.documents || (await service.getAdapter().documents.listByMatter(matterId));
+      const hasMatchingDoc = docs.some(d =>
+        d.storagePath === decodedPath ||
+        (d.fileUrl && d.fileUrl.includes(encodeURIComponent(decodedPath))) ||
+        (d.storagePath && decodedPath.includes(d.id))
+      );
+
+      if (!hasMatchingDoc) {
+        SecurityAuditLogger.log({
+          action: 'unauthorized_access_blocked',
+          userId: user.id,
+          matterId,
+          resourceType: 'document',
+          status: 'denied',
+          metadata: { path: decodedPath, reason: 'unregistered_document_record' }
+        });
+        return new NextResponse('Document record not found for the specified path in this matter.', { status: 404 });
       }
     }
 
-    const storageProvider = getStorageProvider();
+    // Request-scoped storage provider using user's authentication token
+    const storageProvider = getStorageProvider(user.token);
 
     // 1. Attempt to stream file buffer directly
     if (storageProvider.getFile) {
@@ -86,9 +107,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2. Attempt to redirect to signed URL if available
+    // 2. Attempt to redirect to short-lived signed URL (15 minutes / 900s)
     if (storageProvider.getSignedUrl) {
-      const signedUrl = await storageProvider.getSignedUrl(decodedPath);
+      const signedUrl = await storageProvider.getSignedUrl(decodedPath, 900);
       if (signedUrl && !signedUrl.startsWith('/api/documents/raw')) {
         return NextResponse.redirect(signedUrl);
       }

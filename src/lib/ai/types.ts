@@ -70,12 +70,15 @@ export interface LegalRetrievalCriteria {
   limit?: number;
 }
 
+export type RAGRetrievalMode = 'LIVE_RAG' | 'DEGRADED_RAG' | 'LOCAL_FALLBACK' | 'NO_RETRIEVAL';
+
 export interface LegalRetrievalResult {
   chunk: LegalChunk;
   relevanceScore: number;
   isStrongMatch: boolean;
   matchReasons: string[];
   suggestedTier: TrustSafetyTier;
+  retrievalMode?: RAGRetrievalMode;
 }
 
 export interface LegalRAGProvider {

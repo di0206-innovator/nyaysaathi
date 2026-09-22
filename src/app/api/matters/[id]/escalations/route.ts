@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { AuthService } from '@/lib/auth/auth-service';
 import { getMatterService } from '@/lib/repository';
 import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
 import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
 import { EscalationWorkflowStatus } from '@/types/matter';
+import { apiSuccess, apiError } from '@/lib/api/response';
 
 export async function GET(
   req: NextRequest,
@@ -12,7 +13,7 @@ export async function GET(
 ) {
   const user = await AuthService.getAuthenticatedUser(req);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError('Authentication required', 401, 'UNAUTHORIZED');
   }
 
   const { id } = await params;
@@ -20,10 +21,10 @@ export async function GET(
   const matter = await matterService.getMatterById(id, user.id);
 
   if (!matter) {
-    return NextResponse.json({ error: 'Matter not found' }, { status: 404 });
+    return apiError('Matter not found or access denied', 404, 'NOT_FOUND');
   }
 
-  return NextResponse.json({
+  return apiSuccess({
     matterId: matter.id,
     escalationWorkflows: matter.escalationWorkflows || []
   });
@@ -35,7 +36,7 @@ export async function PATCH(
 ) {
   const user = await AuthService.getAuthenticatedUser(req);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError('Authentication required', 401, 'UNAUTHORIZED');
   }
 
   const rateLimitResponse = await enforceRateLimit(req, 'escalations', 30, 60, user.id);
@@ -55,20 +56,17 @@ export async function PATCH(
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    return apiError('Invalid JSON payload', 400, 'INVALID_PAYLOAD');
   }
 
   if (!body.routeId || !body.status) {
-    return NextResponse.json(
-      { error: 'Missing required fields: routeId, status' },
-      { status: 400 }
-    );
+    return apiError('Missing required fields: routeId, status', 400, 'MISSING_FIELDS');
   }
 
   const matterService = getMatterService(user.token);
   const matter = await matterService.getMatterById(id, user.id);
   if (!matter) {
-    return NextResponse.json({ error: 'Matter not found or access denied' }, { status: 404 });
+    return apiError('Matter not found or access denied', 404, 'NOT_FOUND');
   }
 
   try {
@@ -100,14 +98,13 @@ export async function PATCH(
       escalationStatus: body.status
     });
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       escalationWorkflows: updatedMatter.escalationWorkflows,
       matterStatus: updatedMatter.status
     });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
     Logger.error('Failed to update escalation', err, { matterId: id });
-    return NextResponse.json({ error: errMsg }, { status: 500 });
+    return apiError(errMsg, 500, 'UPDATE_ESCALATION_ERROR');
   }
 }

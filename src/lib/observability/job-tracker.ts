@@ -1,12 +1,15 @@
 /**
  * Clean Asynchronous Job Tracking Abstraction
  * 
- * Provides truthful status tracking (queued -> processing -> completed | failed)
- * for long-running analytical operations without synthetic timers or fake steppers.
+ * Backed by durable PostgreSQL job queue (`DurableJobQueue`) with graceful
+ * memory fallback for tests and local development.
+ * Provides truthful status tracking (queued -> processing -> completed | failed | retrying)
+ * without synthetic timers or fake steppers.
  */
 
-export type JobStatus = 'queued' | 'processing' | 'completed' | 'failed';
-export type JobType = 'deep_analysis' | 'ocr_processing' | 'advocate_pack_export' | 'rag_indexing';
+import { DurableJobQueue, JobStatus, JobType } from '@/lib/jobs/durable-job-queue';
+
+export type { JobStatus, JobType };
 
 export interface BackgroundJob<T = unknown> {
   id: string;
@@ -44,6 +47,10 @@ export class JobTracker {
       metadata
     };
     this.jobs.set(id, job as BackgroundJob);
+
+    // Asynchronously replicate to durable PostgreSQL queue if configured
+    DurableJobQueue.createJob(type, matterId, userId, metadata).catch(() => {});
+
     return job;
   }
 
@@ -70,6 +77,11 @@ export class JobTracker {
       job.completedAt = new Date().toISOString();
     }
 
+    // Update durable queue
+    if (progressPercent !== undefined) {
+      DurableJobQueue.updateProgress(id, progressPercent, status).catch(() => {});
+    }
+
     return job;
   }
 
@@ -81,6 +93,8 @@ export class JobTracker {
     job.progressPercent = 100;
     job.result = result;
     job.completedAt = new Date().toISOString();
+
+    DurableJobQueue.completeJob(id, result).catch(() => {});
 
     return job as BackgroundJob<T>;
   }
@@ -95,5 +109,6 @@ export class JobTracker {
 
   public static clear(): void {
     this.jobs.clear();
+    DurableJobQueue.clearMemory();
   }
 }

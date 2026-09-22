@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { AuthService } from '@/lib/auth/auth-service';
 import { getMatterService } from '@/lib/repository';
 import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
 import { ActionStep, ActionStatus, ActionResult } from '@/types/matter';
 import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
+import { apiSuccess, apiError } from '@/lib/api/response';
 
 export async function GET(
   req: NextRequest,
@@ -12,7 +13,7 @@ export async function GET(
 ) {
   const user = await AuthService.getAuthenticatedUser(req);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError('Authentication required', 401, 'UNAUTHORIZED');
   }
 
   const { id } = await params;
@@ -20,10 +21,10 @@ export async function GET(
   const matter = await matterService.getMatterById(id, user.id);
 
   if (!matter) {
-    return NextResponse.json({ error: 'Matter not found' }, { status: 404 });
+    return apiError('Matter not found or access denied', 404, 'NOT_FOUND');
   }
 
-  return NextResponse.json({
+  return apiSuccess({
     matterId: matter.id,
     actions: matter.actionPlan || []
   });
@@ -35,7 +36,7 @@ export async function PATCH(
 ) {
   const user = await AuthService.getAuthenticatedUser(req);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError('Authentication required', 401, 'UNAUTHORIZED');
   }
 
   const rateLimitRes = await enforceRateLimit(req, 'update_action', 45, 60, user.id);
@@ -56,11 +57,11 @@ export async function PATCH(
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    return apiError('Invalid JSON payload in request body', 400, 'INVALID_PAYLOAD');
   }
 
   if (!body.actionId) {
-    return NextResponse.json({ error: 'actionId is required' }, { status: 400 });
+    return apiError('actionId is required in request body', 400, 'MISSING_ACTION_ID');
   }
 
   try {
@@ -97,14 +98,13 @@ export async function PATCH(
       actionStatus: body.status
     });
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       action: updatedAction,
       matterStatus: updatedMatter.status
     });
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
+    const errMsg = err instanceof Error ? err.message : 'Failed to update action step';
     Logger.error('Failed to update action step', err, { matterId: id, actionId: body.actionId });
-    return NextResponse.json({ error: errMsg }, { status: 500 });
+    return apiError(errMsg, 500, 'UPDATE_ACTION_ERROR');
   }
 }

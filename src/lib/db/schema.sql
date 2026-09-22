@@ -230,3 +230,49 @@ CREATE INDEX IF NOT EXISTS idx_matter_docs_matter_id ON matter_documents(matter_
 CREATE INDEX IF NOT EXISTS idx_matter_facts_matter_id ON matter_facts(matter_id);
 CREATE INDEX IF NOT EXISTS idx_timeline_events_matter_id ON matter_timeline_events(matter_id);
 CREATE INDEX IF NOT EXISTS idx_matter_drafts_matter_id ON matter_drafts(matter_id);
+
+-- 13. Idempotency Keys (Distributed Request Deduplication)
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+    id VARCHAR(255) NOT NULL,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    endpoint VARCHAR(255) NOT NULL,
+    response_code INTEGER NOT NULL,
+    response_body JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (user_id, endpoint, id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_idempotency_lookup ON idempotency_keys(user_id, endpoint, id);
+CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON idempotency_keys(expires_at);
+
+-- 14. Distributed Durable Background Jobs
+CREATE TABLE IF NOT EXISTS background_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type VARCHAR(100) NOT NULL,
+    matter_id UUID REFERENCES matters(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    status VARCHAR(30) NOT NULL DEFAULT 'queued',
+    progress_percent INTEGER DEFAULT 0,
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 3,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    result JSONB,
+    error_code VARCHAR(100),
+    error_message TEXT,
+    locked_by VARCHAR(255),
+    locked_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_background_jobs_claim ON background_jobs(status, created_at) WHERE status IN ('queued', 'retrying');
+CREATE INDEX IF NOT EXISTS idx_background_jobs_user ON background_jobs(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_background_jobs_matter ON background_jobs(matter_id);
+
+-- Add content_hash to documents if not present
+ALTER TABLE matter_documents ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
+CREATE INDEX IF NOT EXISTS idx_documents_content_hash ON matter_documents(content_hash);
+

@@ -35,7 +35,7 @@ export function setStorageAdapter(adapter: IStorageAdapter): void {
 
 export function getMatterService(userToken?: string): MatterService {
   if (userToken && isSupabaseConfigured()) {
-    return new MatterService(getStorageAdapter(userToken));
+    return new MatterService(getStorageAdapter(userToken), userToken);
   }
   if (!activeService) {
     activeService = new MatterService(getStorageAdapter());

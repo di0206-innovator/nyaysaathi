@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { AuthService } from '@/lib/auth/auth-service';
 import { getMatterService } from '@/lib/repository';
 import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { Logger } from '@/lib/observability/logger';
 import { CommunicationType, CommunicationDirection } from '@/types/matter';
 import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
+import { apiSuccess, apiError } from '@/lib/api/response';
 
 export async function GET(
   req: NextRequest,
@@ -12,7 +13,7 @@ export async function GET(
 ) {
   const user = await AuthService.getAuthenticatedUser(req);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError('Authentication required', 401, 'UNAUTHORIZED');
   }
 
   const { id } = await params;
@@ -20,10 +21,10 @@ export async function GET(
   const matter = await matterService.getMatterById(id, user.id);
 
   if (!matter) {
-    return NextResponse.json({ error: 'Matter not found' }, { status: 404 });
+    return apiError('Matter not found or access denied', 404, 'NOT_FOUND');
   }
 
-  return NextResponse.json({
+  return apiSuccess({
     matterId: matter.id,
     communications: matter.communications || []
   });
@@ -35,7 +36,7 @@ export async function POST(
 ) {
   const user = await AuthService.getAuthenticatedUser(req);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError('Authentication required', 401, 'UNAUTHORIZED');
   }
 
   const rateLimitRes = await enforceRateLimit(req, 'record_communication', 30, 60, user.id);
@@ -59,20 +60,21 @@ export async function POST(
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    return apiError('Invalid JSON payload', 400, 'INVALID_PAYLOAD');
   }
 
   if (!body.type || !body.direction || !body.date || !body.counterparty || !body.summary) {
-    return NextResponse.json(
-      { error: 'Missing required fields: type, direction, date, counterparty, summary' },
-      { status: 400 }
+    return apiError(
+      'Missing required fields: type, direction, date, counterparty, summary',
+      400,
+      'MISSING_FIELDS'
     );
   }
 
   const matterService = getMatterService(user.token);
   const matter = await matterService.getMatterById(id, user.id);
   if (!matter) {
-    return NextResponse.json({ error: 'Matter not found or access denied' }, { status: 404 });
+    return apiError('Matter not found or access denied', 404, 'NOT_FOUND');
   }
 
   try {
@@ -109,15 +111,14 @@ export async function POST(
       direction: body.direction
     });
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       communications: updatedMatter.communications,
       matterStatus: updatedMatter.status,
       deadlines: updatedMatter.deadlines
-    });
+    }, 201);
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
     Logger.error('Failed to record communication', err, { matterId: id });
-    return NextResponse.json({ error: errMsg }, { status: 500 });
+    return apiError(errMsg, 500, 'RECORD_COMMUNICATION_ERROR');
   }
 }

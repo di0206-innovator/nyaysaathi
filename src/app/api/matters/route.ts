@@ -1,12 +1,13 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getMatterService } from '@/lib/repository';
 import { validateCreateMatter } from '@/lib/api/validation';
-import { apiSuccess, apiError } from '@/lib/api/response';
+import { apiSuccess, apiError, getOrGenerateRequestId } from '@/lib/api/response';
 import { MatterCategory, MatterStatus } from '@/types/matter';
 import { AuthService } from '@/lib/auth/auth-service';
 import { Logger } from '@/lib/observability/logger';
 import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
+import { IdempotencyManager, calculateSha256 } from '@/lib/api/idempotency';
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,6 +22,9 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status') || undefined;
     const search = searchParams.get('search') || undefined;
 
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
+
     const matters = await service.listMatters({
       userId: user.id,
       category: category as MatterCategory | undefined,
@@ -28,13 +32,24 @@ export async function GET(req: NextRequest) {
       search
     });
 
+    const offset = (page - 1) * limit;
+    const paginated = matters.slice(offset, offset + limit);
+
     Logger.info('Listed user matters successfully', {
       userId: user.id,
-      count: matters.length,
+      count: paginated.length,
+      total: matters.length,
+      page,
       operation: 'list_matters'
     });
 
-    return apiSuccess(matters, 200, { count: matters.length });
+    return apiSuccess(paginated, 200, {
+      count: paginated.length,
+      total: matters.length,
+      page,
+      limit,
+      hasMore: offset + limit < matters.length
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch matters';
     Logger.error('Failed to fetch matters', error, { operation: 'list_matters' });
@@ -53,6 +68,22 @@ export async function POST(req: NextRequest) {
     if (rateLimitRes) return rateLimitRes;
 
     const body = await req.json();
+
+    // Durable Idempotency Check
+    const idempotencyKey = req.headers.get('idempotency-key');
+    if (idempotencyKey) {
+      const cached = await IdempotencyManager.getRecord(idempotencyKey, user.id, '/api/matters');
+      if (cached) {
+        return NextResponse.json(cached.responseBody, {
+          status: cached.responseStatus,
+          headers: {
+            'X-Idempotent-Replay': 'true',
+            'X-Request-ID': getOrGenerateRequestId(req)
+          }
+        });
+      }
+    }
+
     const validation = validateCreateMatter(body);
 
     if (!validation.isValid || !validation.data) {
@@ -84,6 +115,23 @@ export async function POST(req: NextRequest) {
       category: created.category,
       operation: 'create_matter'
     });
+
+    const responsePayload = {
+      success: true,
+      data: created,
+      requestId: getOrGenerateRequestId(req)
+    };
+
+    if (idempotencyKey) {
+      await IdempotencyManager.saveRecord(
+        idempotencyKey,
+        user.id,
+        '/api/matters',
+        201,
+        responsePayload,
+        calculateSha256(JSON.stringify(body))
+      );
+    }
 
     return apiSuccess(created, 201);
   } catch (error: unknown) {

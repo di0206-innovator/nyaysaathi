@@ -54,13 +54,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Explicitly purge all uploaded document files from storage
+    // 2. Explicitly purge all uploaded document files from storage recursively
     const { getStorageProvider } = await import('@/lib/storage/storage-provider');
-    const storage = getStorageProvider();
+    const storage = getStorageProvider(user.token);
     let deletedFilesCount = 0;
     if (storage.deleteUserFiles) {
       const fileCleanupRes = await storage.deleteUserFiles(user.id);
-      deletedFilesCount = fileCleanupRes.deletedCount;
+      deletedFilesCount = fileCleanupRes.deleted;
+      if (!fileCleanupRes.success && fileCleanupRes.discovered > fileCleanupRes.deleted) {
+        return apiError(
+          `Storage deletion incomplete: ${fileCleanupRes.failed} files failed to delete.`,
+          500,
+          'STORAGE_PURGE_FAILURE'
+        );
+      }
     }
 
     // 3. Audit log retention (Preserve security audit record for statutory compliance under IT Act & DPDP Act)

@@ -17,6 +17,7 @@ import { getStorageProvider } from '@/lib/storage/storage-provider';
 import { getDocumentParser } from '@/lib/parsing/document-parser';
 import { DeadlineEngine } from '@/lib/deadlines/deadline-engine';
 import { getInAppNotificationProvider } from '@/lib/notifications/notification-provider';
+import { calculateSha256 } from '@/lib/api/idempotency';
 
 export interface AdvocateCasePack {
   matterId: string;
@@ -41,9 +42,11 @@ export interface AdvocateCasePack {
 export class MatterService {
   private adapter: IStorageAdapter;
   private orchestrator = new MatterOrchestrator();
+  private userToken?: string;
 
-  constructor(adapter: IStorageAdapter) {
+  constructor(adapter: IStorageAdapter, userToken?: string) {
     this.adapter = adapter;
+    this.userToken = userToken;
   }
 
   public getAdapter(): IStorageAdapter {
@@ -742,12 +745,22 @@ export class MatterService {
       throw new Error(`Cannot upload documents to a resolved matter. Reopen the matter first.`);
     }
 
+    const nodeBuf = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer);
+    const contentHash = calculateSha256(nodeBuf);
+
+    // Idempotent duplicate check: If file with identical content hash exists for this matter, return it
+    const existingDocs = existing.documents || [];
+    const duplicate = existingDocs.find(d => d.contentHash === contentHash);
+    if (duplicate) {
+      return { document: duplicate, matter: existing };
+    }
+
     const docId = `doc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-    // Upload to private storage
-    const storageProvider = getStorageProvider();
+    // Upload to private request-scoped storage
+    const storageProvider = getStorageProvider(this.userToken);
     const stored = await storageProvider.uploadFile({
-      buffer: file.buffer,
+      buffer: nodeBuf,
       filename: file.filename,
       mimeType: file.mimeType,
       matterId,
@@ -757,7 +770,6 @@ export class MatterService {
 
     try {
       // Parse document content
-      const nodeBuf = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer);
       const arrayBuffer = nodeBuf.buffer.slice(
         nodeBuf.byteOffset,
         nodeBuf.byteOffset + nodeBuf.byteLength
@@ -772,7 +784,7 @@ export class MatterService {
 
       const isVerified = parsed.extractionStatus === 'verified_extraction' || parsed.extractionStatus === 'partial_extraction';
 
-      // Construct DocumentEvidence record
+      // Construct DocumentEvidence record with content hash
       const newDoc: DocumentEvidence = {
         id: docId,
         title: file.title || file.filename,
@@ -780,6 +792,7 @@ export class MatterService {
         fileUrl: stored.fileUrl,
         storagePath: stored.storagePath || stored.fileUrl,
         fileSize: stored.fileSize,
+        contentHash,
         uploadedAt: new Date().toISOString().split('T')[0],
         extractedText: parsed.extractedText,
         classification: parsed.classification || 'Uploaded Document Evidence',

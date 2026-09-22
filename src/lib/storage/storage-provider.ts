@@ -1,4 +1,6 @@
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/db/supabase';
+import { buildDocumentStoragePath, sanitizeFilename } from '@/lib/storage/canonical-path';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface StoredFile {
   fileUrl: string;
@@ -17,10 +19,17 @@ export interface UploadFileInput {
   documentId?: string;
 }
 
+export interface DeleteUserFilesResult {
+  discovered: number;
+  deleted: number;
+  failed: number;
+  success: boolean;
+}
+
 export interface IStorageProvider {
   uploadFile(file: UploadFileInput): Promise<StoredFile>;
-  deleteFile(fileUrl: string): Promise<boolean>;
-  deleteUserFiles?(userId: string): Promise<{ deletedCount: number; success: boolean }>;
+  deleteFile(fileUrlOrPath: string): Promise<boolean>;
+  deleteUserFiles?(userId: string): Promise<DeleteUserFilesResult>;
   getSignedUrl?(storagePath: string, expiresInSeconds?: number): Promise<string | null>;
   getFile?(storagePath: string): Promise<{ buffer: Buffer; mimeType: string } | null>;
 }
@@ -50,10 +59,12 @@ export class LocalStorageProvider implements IStorageProvider {
     }
 
     const sizeStr = formatBytes(nodeBuf.byteLength);
-    const safeFilename = `${Date.now()}-${file.filename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const userId = file.userId || 'anonymous';
     const docId = file.documentId || `doc-${Date.now()}`;
-    const storagePath = `user/${userId}/matters/${file.matterId}/documents/${docId}/${safeFilename}`;
+    const safeFilename = `${Date.now()}-${sanitizeFilename(file.filename)}`;
+    
+    // Deterministic canonical path
+    const storagePath = buildDocumentStoragePath(userId, file.matterId, docId, safeFilename);
 
     this.files.set(storagePath, { buffer: nodeBuf, mimeType: file.mimeType });
 
@@ -69,25 +80,38 @@ export class LocalStorageProvider implements IStorageProvider {
     };
   }
 
-  public async deleteFile(fileUrl: string): Promise<boolean> {
-    const match = fileUrl.match(/path=([^&]+)/);
+  public async deleteFile(fileUrlOrPath: string): Promise<boolean> {
+    let path = fileUrlOrPath;
+    const match = fileUrlOrPath.match(/path=([^&]+)/);
     if (match && match[1]) {
-      const decoded = decodeURIComponent(match[1]);
-      return this.files.delete(decoded);
+      path = decodeURIComponent(match[1]);
     }
-    return false;
+    return this.files.delete(path);
   }
 
-  public async deleteUserFiles(userId: string): Promise<{ deletedCount: number; success: boolean }> {
-    let deletedCount = 0;
+  public async deleteUserFiles(userId: string): Promise<DeleteUserFilesResult> {
     const prefix = `user/${userId}/`;
+    const toDelete: string[] = [];
     for (const path of Array.from(this.files.keys())) {
       if (path.startsWith(prefix)) {
-        this.files.delete(path);
-        deletedCount++;
+        toDelete.push(path);
       }
     }
-    return { deletedCount, success: true };
+
+    const discovered = toDelete.length;
+    let deleted = 0;
+    for (const p of toDelete) {
+      if (this.files.delete(p)) {
+        deleted++;
+      }
+    }
+
+    return {
+      discovered,
+      deleted,
+      failed: discovered - deleted,
+      success: discovered === deleted
+    };
   }
 
   public async getSignedUrl(storagePath: string): Promise<string | null> {
@@ -102,13 +126,23 @@ export class LocalStorageProvider implements IStorageProvider {
 
 /**
  * Supabase Storage Provider for production bucket uploads.
- * Enforces private bucket access, deterministic paths, and signed URLs.
+ * Enforces request-scoped user authorization context, private bucket access,
+ * canonical paths, and signed URLs.
  */
 export class SupabaseStorageProvider implements IStorageProvider {
   private bucketName = 'evidence-documents';
+  private userToken?: string;
+
+  constructor(userToken?: string) {
+    this.userToken = userToken;
+  }
+
+  private getClient(): SupabaseClient | null {
+    return getSupabaseClient(this.userToken);
+  }
 
   public async uploadFile(file: UploadFileInput): Promise<StoredFile> {
-    const client = getSupabaseClient();
+    const client = this.getClient();
     if (!client) {
       throw new Error('Supabase client is not configured.');
     }
@@ -121,12 +155,12 @@ export class SupabaseStorageProvider implements IStorageProvider {
     }
 
     const sizeStr = formatBytes(nodeBuf.byteLength);
-    const safeFilename = `${Date.now()}-${file.filename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const userId = file.userId || 'anonymous';
     const docId = file.documentId || `doc-${Date.now()}`;
+    const safeFilename = `${Date.now()}-${sanitizeFilename(file.filename)}`;
 
-    // Deterministic scoped private path
-    const storagePath = `user/${userId}/matters/${file.matterId}/documents/${docId}/${safeFilename}`;
+    // Deterministic canonical path
+    const storagePath = buildDocumentStoragePath(userId, file.matterId, docId, safeFilename);
 
     const { error } = await client.storage
       .from(this.bucketName)
@@ -157,16 +191,16 @@ export class SupabaseStorageProvider implements IStorageProvider {
     };
   }
 
-  public async deleteFile(fileUrl: string): Promise<boolean> {
-    const client = getSupabaseClient();
+  public async deleteFile(fileUrlOrPath: string): Promise<boolean> {
+    const client = this.getClient();
     if (!client) return false;
 
-    let path = '';
-    if (fileUrl.includes(`/${this.bucketName}/`)) {
-      const parts = fileUrl.split(`/${this.bucketName}/`);
+    let path = fileUrlOrPath;
+    if (path.includes(`/${this.bucketName}/`)) {
+      const parts = path.split(`/${this.bucketName}/`);
       path = parts[1]?.split('?')[0] || '';
     } else {
-      const match = fileUrl.match(/path=([^&]+)/);
+      const match = path.match(/path=([^&]+)/);
       if (match && match[1]) {
         path = decodeURIComponent(match[1]);
       }
@@ -181,33 +215,75 @@ export class SupabaseStorageProvider implements IStorageProvider {
     return !error;
   }
 
-  public async deleteUserFiles(userId: string): Promise<{ deletedCount: number; success: boolean }> {
-    const client = getSupabaseClient();
-    if (!client) return { deletedCount: 0, success: false };
+  /**
+   * Recursively discovers all nested objects under `user/{userId}/` and purges them.
+   * Architecture: user -> matters -> documents -> files
+   */
+  public async deleteUserFiles(userId: string): Promise<DeleteUserFilesResult> {
+    const client = this.getClient();
+    if (!client) {
+      return { discovered: 0, deleted: 0, failed: 0, success: false };
+    }
 
     try {
-      const prefix = `user/${userId}`;
-      const { data: listData, error: listError } = await client.storage
-        .from(this.bucketName)
-        .list(prefix, { limit: 100 });
+      const allPaths: string[] = [];
+      const queue: string[] = [`user/${userId}`];
 
-      if (listError || !listData || listData.length === 0) {
-        return { deletedCount: 0, success: true };
+      while (queue.length > 0) {
+        const currentPrefix = queue.shift()!;
+        const { data: listData, error: listError } = await client.storage
+          .from(this.bucketName)
+          .list(currentPrefix, { limit: 100 });
+
+        if (listError || !listData) continue;
+
+        for (const item of listData) {
+          const fullItemPath = `${currentPrefix}/${item.name}`;
+          // In Supabase storage, folders have id === null or no metadata/mimetype
+          if (item.id === null || !item.metadata) {
+            queue.push(fullItemPath);
+          } else {
+            allPaths.push(fullItemPath);
+          }
+        }
       }
 
-      const paths = listData.map(item => `${prefix}/${item.name}`);
-      const { error: removeError } = await client.storage
-        .from(this.bucketName)
-        .remove(paths);
+      const discovered = allPaths.length;
+      if (discovered === 0) {
+        return { discovered: 0, deleted: 0, failed: 0, success: true };
+      }
 
-      return { deletedCount: paths.length, success: !removeError };
+      // Batch removal (in chunks of 100)
+      let deleted = 0;
+      let failed = 0;
+      const chunkSize = 100;
+
+      for (let i = 0; i < allPaths.length; i += chunkSize) {
+        const chunk = allPaths.slice(i, i + chunkSize);
+        const { data: removeData, error: removeError } = await client.storage
+          .from(this.bucketName)
+          .remove(chunk);
+
+        if (removeError) {
+          failed += chunk.length;
+        } else {
+          deleted += removeData?.length || chunk.length;
+        }
+      }
+
+      return {
+        discovered,
+        deleted,
+        failed,
+        success: failed === 0 && deleted === discovered
+      };
     } catch {
-      return { deletedCount: 0, success: false };
+      return { discovered: 0, deleted: 0, failed: 0, success: false };
     }
   }
 
   public async getSignedUrl(storagePath: string, expiresInSeconds: number = 3600): Promise<string | null> {
-    const client = getSupabaseClient();
+    const client = this.getClient();
     if (!client) return null;
 
     const { data, error } = await client.storage
@@ -218,7 +294,7 @@ export class SupabaseStorageProvider implements IStorageProvider {
   }
 
   public async getFile(storagePath: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
-    const client = getSupabaseClient();
+    const client = this.getClient();
     if (!client) return null;
 
     const { data, error } = await client.storage
@@ -237,17 +313,23 @@ export class SupabaseStorageProvider implements IStorageProvider {
 
 let activeStorageProvider: IStorageProvider | null = null;
 
-export function getStorageProvider(): IStorageProvider {
-  if (!activeStorageProvider) {
-    if (isSupabaseConfigured()) {
-      activeStorageProvider = new SupabaseStorageProvider();
-    } else {
-      activeStorageProvider = new LocalStorageProvider();
-    }
+/**
+ * Request-scoped storage provider factory.
+ * If userToken is supplied, binds storage requests to authenticated user context.
+ */
+export function getStorageProvider(userToken?: string): IStorageProvider {
+  if (userToken && isSupabaseConfigured()) {
+    return new SupabaseStorageProvider(userToken);
   }
-  return activeStorageProvider;
+  if (activeStorageProvider) {
+    return activeStorageProvider;
+  }
+  if (isSupabaseConfigured()) {
+    return new SupabaseStorageProvider();
+  }
+  return new LocalStorageProvider();
 }
 
-export function setStorageProvider(provider: IStorageProvider) {
+export function setStorageProvider(provider: IStorageProvider): void {
   activeStorageProvider = provider;
 }

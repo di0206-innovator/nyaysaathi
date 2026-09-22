@@ -61,6 +61,9 @@ export async function GET(req: NextRequest) {
     const resolvedMatters = mattersList.filter(m => m.resolution && !m.resolution.isReopened);
     const totalRecovered = resolvedMatters.reduce((acc, m) => acc + (m.resolution?.amountRecovered || 0), 0);
 
+    const { Metrics } = await import('@/lib/observability/metrics');
+    const operational = Metrics.getProductionTelemetry();
+
     return apiSuccess({
       scope: isGlobal ? 'pilot_aggregate' : 'user',
       funnel,
@@ -71,7 +74,8 @@ export async function GET(req: NextRequest) {
         totalRecovered,
         resolvedCount: resolvedMatters.length,
         sampleSize: mattersList.length
-      }
+      },
+      operational: isInternalAdmin ? operational : undefined
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Failed to generate analytics';

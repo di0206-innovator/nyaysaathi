@@ -76,6 +76,7 @@ export interface DocumentEvidence {
   status: 'processing' | 'verified' | 'unverified';
   storagePath?: string;
   mimeType?: string;
+  contentHash?: string;
   extractionStatus?: 'verified_extraction' | 'partial_extraction' | 'needs_review' | 'needs_ocr' | 'extraction_failed' | 'raw_uploaded';
   provenanceRecords?: Array<{
     documentId: string;
