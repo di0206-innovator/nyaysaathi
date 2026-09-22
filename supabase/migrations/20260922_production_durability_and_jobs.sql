@@ -32,19 +32,32 @@ DROP POLICY IF EXISTS "Users can view their own background jobs" ON public.backg
 CREATE POLICY "Users can view their own background jobs"
     ON public.background_jobs
     FOR SELECT
-    USING (auth.uid() = user_id OR user_id IS NULL);
+    TO authenticated
+    USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert background jobs for their matters" ON public.background_jobs;
 CREATE POLICY "Users can insert background jobs for their matters"
     ON public.background_jobs
     FOR INSERT
-    WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
+    TO authenticated
+    WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update their own background jobs" ON public.background_jobs;
 CREATE POLICY "Users can update their own background jobs"
     ON public.background_jobs
     FOR UPDATE
-    USING (auth.uid() = user_id);
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- System / worker service role policy for durable job claiming & processing
+DROP POLICY IF EXISTS "Service role can manage all background jobs" ON public.background_jobs;
+CREATE POLICY "Service role can manage all background jobs"
+    ON public.background_jobs
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
 
 -- Concurrency-safe atomic job claiming function with FOR UPDATE SKIP LOCKED
 CREATE OR REPLACE FUNCTION public.claim_background_job(
@@ -55,6 +68,7 @@ CREATE OR REPLACE FUNCTION public.claim_background_job(
 RETURNS SETOF public.background_jobs
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_job_id TEXT;
@@ -88,6 +102,10 @@ BEGIN
     END IF;
 END;
 $$;
+
+-- Restrict worker claim execution to service_role only (never callable by end users)
+REVOKE EXECUTE ON FUNCTION public.claim_background_job FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_background_job TO service_role;
 
 -- 2. IDEMPOTENCY KEYS TABLE
 CREATE TABLE IF NOT EXISTS public.idempotency_keys (
@@ -178,6 +196,7 @@ CREATE OR REPLACE FUNCTION public.create_matter_atomic(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_matter_id UUID;

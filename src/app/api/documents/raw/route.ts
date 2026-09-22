@@ -4,7 +4,6 @@ import { getMatterService } from '@/lib/repository';
 import { getStorageProvider } from '@/lib/storage/storage-provider';
 import { enforceRateLimit } from '@/lib/security/rate-limiter';
 import { SecurityAuditLogger } from '@/lib/observability/audit-logger';
-import { isStoragePathOwnedByUser } from '@/lib/storage/canonical-path';
 
 export async function GET(req: NextRequest) {
   try {
@@ -37,55 +36,63 @@ export async function GET(req: NextRequest) {
       return new NextResponse('Invalid document path: path traversal detected', { status: 400 });
     }
 
-    // Check user ownership prefix: must belong strictly to authenticated user
-    if (!isStoragePathOwnedByUser(decodedPath, user.id)) {
+    // Parse canonical path into exact segments
+    const { parseAndValidateStoragePath } = await import('@/lib/storage/canonical-path');
+    let pathSegments: { userId: string; matterId: string; documentId: string; safeFilename: string };
+    try {
+      pathSegments = parseAndValidateStoragePath(decodedPath);
+    } catch {
       SecurityAuditLogger.log({
         action: 'unauthorized_access_blocked',
         userId: user.id,
         resourceType: 'document',
         status: 'denied',
-        metadata: { path: decodedPath, reason: 'cross_tenant_user_mismatch' }
+        metadata: { path: decodedPath, reason: 'malformed_canonical_path' }
+      });
+      return new NextResponse('Invalid or malformed document storage path', { status: 400 });
+    }
+
+    // 1. Strict User Isolation: Must match authenticated user ID
+    if (pathSegments.userId !== user.id) {
+      SecurityAuditLogger.log({
+        action: 'unauthorized_access_blocked',
+        userId: user.id,
+        resourceType: 'document',
+        status: 'denied',
+        metadata: { path: decodedPath, targetUser: pathSegments.userId, reason: 'cross_tenant_user_mismatch' }
       });
       return new NextResponse('Access denied: Unauthorized cross-tenant document path', { status: 403 });
     }
 
-    // Check matter ownership and verify that path maps to an actual registered document record
-    const matterMatch = decodedPath.match(/matters\/([^/]+)/);
-    if (matterMatch && matterMatch[1]) {
-      const matterId = matterMatch[1];
-      const service = getMatterService(user.token);
-      const matter = await service.getMatterById(matterId, user.id);
-      if (!matter) {
-        SecurityAuditLogger.log({
-          action: 'unauthorized_access_blocked',
-          userId: user.id,
-          matterId,
-          resourceType: 'document',
-          status: 'denied',
-          metadata: { path: decodedPath }
-        });
-        return new NextResponse('Access denied or matter not found', { status: 403 });
-      }
+    // 2. Strict Matter Isolation: Matter must exist and belong to user
+    const service = getMatterService(user.token);
+    const matter = await service.getMatterById(pathSegments.matterId, user.id);
+    if (!matter) {
+      SecurityAuditLogger.log({
+        action: 'unauthorized_access_blocked',
+        userId: user.id,
+        matterId: pathSegments.matterId,
+        resourceType: 'document',
+        status: 'denied',
+        metadata: { path: decodedPath, reason: 'matter_not_found_or_unowned' }
+      });
+      return new NextResponse('Access denied or matter not found', { status: 403 });
+    }
 
-      // Verify that this path maps to a registered document record in this matter
-      const docs = matter.documents || (await service.getAdapter().documents.listByMatter(matterId));
-      const hasMatchingDoc = docs.some(d =>
-        d.storagePath === decodedPath ||
-        (d.fileUrl && d.fileUrl.includes(encodeURIComponent(decodedPath))) ||
-        (d.storagePath && decodedPath.includes(d.id))
-      );
+    // 3. Exact Document Record Match: Must map to an actual document record in this matter
+    const docs = matter.documents || (await service.getAdapter().documents.listByMatter(pathSegments.matterId));
+    const matchingDoc = docs.find(d => d.id === pathSegments.documentId);
 
-      if (!hasMatchingDoc) {
-        SecurityAuditLogger.log({
-          action: 'unauthorized_access_blocked',
-          userId: user.id,
-          matterId,
-          resourceType: 'document',
-          status: 'denied',
-          metadata: { path: decodedPath, reason: 'unregistered_document_record' }
-        });
-        return new NextResponse('Document record not found for the specified path in this matter.', { status: 404 });
-      }
+    if (!matchingDoc) {
+      SecurityAuditLogger.log({
+        action: 'unauthorized_access_blocked',
+        userId: user.id,
+        matterId: pathSegments.matterId,
+        resourceType: 'document',
+        status: 'denied',
+        metadata: { path: decodedPath, documentId: pathSegments.documentId, reason: 'unregistered_document_record' }
+      });
+      return new NextResponse('Document record not found for the specified path in this matter.', { status: 404 });
     }
 
     // Request-scoped storage provider using user's authentication token

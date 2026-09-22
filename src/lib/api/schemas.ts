@@ -126,10 +126,37 @@ export const TranslationRequestSchema = z.object({
   fields: z.array(z.string()).optional()
 });
 
-export const QAPayloadSchema = z.object({
-  question: z.string().min(5, 'Question must be at least 5 characters long'),
-  conversationHistory: z.array(z.object({
-    role: z.enum(['user', 'assistant']),
-    content: z.string()
-  })).optional().default([])
+export const NotificationPatchSchema = z.object({
+  notificationId: z.string().min(3).optional(),
+  markAllRead: z.boolean().optional()
+}).refine(data => data.notificationId !== undefined || data.markAllRead === true, {
+  message: 'Must provide notificationId or markAllRead: true'
 });
+
+export const DocumentCompareSchema = z.object({
+  sourceDocumentId: z.string().min(1).optional(),
+  baseDocumentId: z.string().min(1).optional(),
+  targetDocumentId: z.string().min(1, 'Target document ID is required'),
+  comparisonFocus: z.enum(['tenancy_clauses', 'liability_terms', 'financial_claims', 'notice_timelines', 'general']).optional().default('general'),
+  comparisonType: z.enum(['agreement_vs_notice', 'clause_vs_statute', 'general_diff']).optional().default('agreement_vs_notice')
+}).refine(data => Boolean(data.sourceDocumentId || data.baseDocumentId), {
+  message: 'Must provide sourceDocumentId or baseDocumentId'
+});
+
+export async function parseRequestBody<T>(
+  req: Request,
+  schema: z.ZodType<T>
+): Promise<{ success: true; data: T } | { success: false; error: string; issues: z.ZodIssue[] }> {
+  try {
+    const raw = await req.json();
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) {
+      const errorMsg = parsed.error.issues.map(i => `${i.path.join('.') || 'root'}: ${i.message}`).join('; ');
+      return { success: false, error: errorMsg, issues: parsed.error.issues };
+    }
+    return { success: true, data: parsed.data };
+  } catch {
+    return { success: false, error: 'Invalid JSON request payload', issues: [] };
+  }
+}
+

@@ -103,7 +103,7 @@ ${claimant}`,
         matterId: input.matterId,
         type: 'legal_notice',
         communicationTier: 'lawyer_ready',
-        title: '⚖️ Statutory Legal Notice (Registered Speed Post RPAD)',
+        title: '⚖️ Formal Legal Demand Notice (Registered Speed Post RPAD)',
         recipientName: respondent,
         subject: `LEGAL NOTICE UNDER INDIAN CONTRACT ACT 1872 & RENT CONTROL LAWS`,
         content: `BY REGISTERED POST WITH ACKNOWLEDGEMENT DUE / SPEED POST & EMAIL
@@ -118,7 +118,7 @@ FROM:
 ${claimant}
 [Tenant Address & Contact]
 
-SUBJECT: STATUTORY LEGAL NOTICE FOR WRONGFUL WITHHOLDING OF SECURITY DEPOSIT OF ${claimAmountStr}
+SUBJECT: LEGAL NOTICE FOR WRONGFUL WITHHOLDING OF SECURITY DEPOSIT OF ${claimAmountStr}
 
 Sir/Madam,
 
@@ -136,7 +136,7 @@ Yours sincerely,
 
 ${claimant}`,
         statutoryReference: 'Indian Contract Act 1872 & State Tenancy / Rent Control Laws',
-        disclaimer: 'Formal statutory notice for Speed Post dispatch with postal tracking proof.',
+        disclaimer: 'Formal demand notice for Speed Post dispatch with postal tracking proof.',
         createdAt: today,
         status: 'ready_to_send',
         groundingRefIds: ['narrative-user']
@@ -273,7 +273,7 @@ Complainant in Person`,
         recipientName: respondent,
         subject: `FORMAL DEMAND FOR PAYMENT OF ${claimAmountStr}`,
         content: `Date: ${today}\n\nTO: ${respondent}\nFROM: ${claimant}\n\nSir/Madam,\n\nThis is a formal demand for settlement of ${claimAmountStr} within 10 days.\n\n${claimant}`,
-        disclaimer: 'Formal demand before statutory legal notice.',
+        disclaimer: 'Formal demand before legal notice.',
         createdAt: today,
         status: 'ready_to_send',
         groundingRefIds: ['narrative-user']
@@ -284,12 +284,12 @@ Complainant in Person`,
         matterId: input.matterId,
         type: 'legal_notice',
         communicationTier: 'lawyer_ready',
-        title: '⚖️ Statutory Legal Notice',
+        title: '⚖️ Formal Legal Demand Notice',
         recipientName: respondent,
-        subject: `STATUTORY LEGAL NOTICE FOR RECOVERY OF ${claimAmountStr}`,
+        subject: `LEGAL NOTICE FOR RECOVERY OF ${claimAmountStr}`,
         content: `BY SPEED POST RPAD\n\nDate: ${today}\n\nTO: ${respondent}\nFROM: ${claimant}\n\nCalling upon you to settle ${claimAmountStr} within 15 days failing which civil recovery proceedings will be instituted.\n\n${claimant}`,
         statutoryReference: 'Indian Contract Act 1872',
-        disclaimer: 'Statutory 15-day notice format.',
+        disclaimer: 'Formal 15-day demand notice format.',
         createdAt: today,
         status: 'ready_to_send',
         groundingRefIds: ['narrative-user']

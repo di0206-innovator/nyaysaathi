@@ -1,5 +1,4 @@
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/db/supabase';
-import { Logger } from '@/lib/observability/logger';
 
 export type JobStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'retrying';
 export type JobType = 'deep_analysis' | 'ocr_processing' | 'advocate_pack_export' | 'rag_indexing';
@@ -13,6 +12,7 @@ export interface BackgroundJob<T = unknown> {
   progressPercent: number;
   attempts: number;
   maxAttempts: number;
+  lockedBy?: string;
   payload?: Record<string, unknown>;
   result?: T;
   errorCode?: string;
@@ -55,31 +55,39 @@ export class DurableJobQueue {
       const client = getSupabaseClient();
       if (client) {
         try {
-          const { error } = await client.from('background_jobs').insert({
-            id: job.id,
-            type: job.type,
-            matter_id: job.matterId,
-            user_id: job.userId || null,
-            status: job.status,
-            progress_percent: job.progressPercent,
-            attempts: job.attempts,
-            max_attempts: job.maxAttempts,
-            payload: job.payload || {},
-            created_at: job.createdAt,
-            updated_at: job.updatedAt
-          });
+          const { data, error } = await client
+            .from('background_jobs')
+            .insert({
+              id,
+              type,
+              matter_id: matterId,
+              user_id: userId,
+              status: 'queued',
+              progress_percent: 0,
+              attempts: 0,
+              max_attempts: 3,
+              payload
+            })
+            .select()
+            .single();
 
-          if (error) {
-            Logger.warn('Failed to insert background job to Postgres, saving to local fallback', {
-              jobId: id,
-              error: error.message
-            });
+          if (!error && data) {
+            return {
+              id: data.id,
+              type: data.type,
+              matterId: data.matter_id,
+              userId: data.user_id,
+              status: data.status,
+              progressPercent: data.progress_percent,
+              attempts: data.attempts,
+              maxAttempts: data.max_attempts,
+              payload: data.payload,
+              createdAt: data.created_at,
+              updatedAt: data.updated_at
+            };
           }
-        } catch (err) {
-          Logger.warn('Supabase job enqueue error, keeping in local memory', {
-            jobId: id,
-            error: String(err)
-          });
+        } catch {
+          // Fall back to memory
         }
       }
     }
@@ -89,8 +97,8 @@ export class DurableJobQueue {
   }
 
   /**
-   * Concurrency-safe atomic job claim.
-   * Uses Postgres RPC `claim_background_job` with `FOR UPDATE SKIP LOCKED`.
+   * Atomically claim a pending job for internal worker execution.
+   * Uses FOR UPDATE SKIP LOCKED via RPC in Postgres, or memory queue in local dev.
    */
   public static async claimJob(
     workerId: string,
@@ -118,6 +126,7 @@ export class DurableJobQueue {
               progressPercent: row.progress_percent,
               attempts: row.attempts,
               maxAttempts: row.max_attempts,
+              lockedBy: workerId,
               payload: row.payload,
               result: row.result,
               errorCode: row.error_code,
@@ -133,11 +142,15 @@ export class DurableJobQueue {
       }
     }
 
+    // In-memory stale recovery before claiming
+    this.recoverStaleJobsInMemory(staleTimeoutSeconds);
+
     // In-memory atomic simulation
     for (const [id, job] of memoryJobs.entries()) {
       if (job.status === 'queued' || (job.status === 'retrying' && job.attempts < job.maxAttempts)) {
         if (!jobTypes || jobTypes.includes(job.type)) {
           job.status = 'processing';
+          job.lockedBy = workerId;
           job.attempts += 1;
           job.startedAt = new Date().toISOString();
           job.updatedAt = new Date().toISOString();
@@ -148,6 +161,65 @@ export class DurableJobQueue {
     }
 
     return null;
+  }
+
+  /**
+   * Recovers stale jobs whose execution lease exceeded timeout without completing.
+   */
+  public static async recoverStaleJobs(staleTimeoutSeconds: number = 300): Promise<number> {
+    let recoveredCount = 0;
+
+    if (isSupabaseConfigured()) {
+      const client = getSupabaseClient();
+      if (client) {
+        try {
+          const cutoff = new Date(Date.now() - staleTimeoutSeconds * 1000).toISOString();
+          const { data } = await client
+            .from('background_jobs')
+            .update({
+              status: 'queued',
+              locked_by: null,
+              locked_until: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('status', 'processing')
+            .lt('started_at', cutoff)
+            .select('id');
+          recoveredCount = data?.length || 0;
+        } catch {
+          // Fall back to memory
+        }
+      }
+    }
+
+    recoveredCount += this.recoverStaleJobsInMemory(staleTimeoutSeconds);
+    return recoveredCount;
+  }
+
+  private static recoverStaleJobsInMemory(staleTimeoutSeconds: number): number {
+    let count = 0;
+    const now = Date.now();
+    for (const [id, job] of memoryJobs.entries()) {
+      if (job.status === 'processing' && job.startedAt) {
+        const startedTime = new Date(job.startedAt).getTime();
+        if (now - startedTime >= staleTimeoutSeconds * 1000) {
+          if (job.attempts < job.maxAttempts) {
+            job.status = 'queued';
+            job.lockedBy = undefined;
+            job.updatedAt = new Date().toISOString();
+          } else {
+            job.status = 'failed';
+            job.errorCode = 'STALE_LEASE_TIMEOUT';
+            job.lockedBy = undefined;
+            job.completedAt = new Date().toISOString();
+            job.updatedAt = new Date().toISOString();
+          }
+          memoryJobs.set(id, job);
+          count++;
+        }
+      }
+    }
+    return count;
   }
 
   /**

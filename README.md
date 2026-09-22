@@ -377,8 +377,9 @@ Generates a comprehensive, printable brief for advocate consultation or DLSA leg
 | **Document Extraction & OCR Provenance** | **Implemented with Degraded Fallback** | `DocumentExtractionProvider` extracts text PDFs and plain text with page/clause provenance. Truthfully flags images as `needs_ocr` when OCR credentials are unconfigured. Neutralizes adversarial prompt injections. |
 | **Browser-Level E2E Testing** | **Implemented** | Playwright test suite (`tests/e2e/core-journey.spec.ts`) validating end-to-end user navigation and mobile viewports (320px to 1440px). |
 | **Accessibility (WCAG 2.2 AA & axe-core)** | **Implemented** | Automated `axe-core` accessibility test suite (`tests/accessibility-axe.test.ts`) validating landmarks, heading hierarchy, contrast, and form control labeling. |
-| **DPDP Act 2023 Privacy Lifecycle** | **Implemented** | Full `/account` governance portal supporting portable JSON data export (`/api/account/export`) and irreversible account erasure (`/api/account/delete`) with statutory audit log retention. |
-| **Empirical Pilot Analytics** | **Implemented** | Zero hardcoded default claims (displays *"No pilot evaluations yet"* on $n = 0$). Every metric accompanied by denominator, measurement period, and definition. |
+| **Durable Background Job Worker** | **Implemented** | PostgreSQL `background_jobs` source of truth with atomic `claim_background_job` (`FOR UPDATE SKIP LOCKED`), lease recovery, internal worker route (`/api/jobs/worker`), and Vercel Cron dispatch. |
+| **GenAI Document & Clause Comparator** | **Implemented** | Clause-by-clause comparison engine (`DocumentComparator`, `/api/matters/[id]/compare`) detecting conflicting terms, unilateral variations, arbitrary wear-and-tear deductions, and statutory violations. |
+| **Storage Security & Scalable Purge** | **Implemented** | Canonical exact segment validation (`parseAndValidateStoragePath`), IDOR defense, and paginated recursive deletion handling >100 files per user. |
 
 ---
 
@@ -394,8 +395,8 @@ npm run verify:production
 This validates:
 1. **Lint**: ESLint static code inspection (0 errors, 0 warnings)
 2. **Typecheck**: TypeScript strict compiler verification (`npx tsc --noEmit`)
-3. **Unit Tests**: Core repository & statutory unit test suites (145 tests)
-4. **Security & Concurrency**: IDOR defense, path traversal prevention, and 100-request atomic rate limiter concurrency
+3. **Unit Tests**: Core repository, statutory & durability test suites (187 tests across 70 suites)
+4. **Security & Concurrency**: IDOR defense, exact path traversal prevention, and 100-request atomic rate limiter concurrency
 5. **AI Evaluation**: Truthful reasoning, evidence grounding, anti-hallucination benchmarks
 6. **Supabase RLS Integration**: Alice vs Bob multi-tenant isolation
 7. **Accessibility**: axe-core & WCAG 2.2 AA landmark/hierarchy checks

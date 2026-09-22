@@ -28,6 +28,11 @@ export class InAppNotificationProvider implements INotificationProvider {
   public name = 'InAppNotificationService';
   public channel = 'in_app' as const;
   private notifications: MatterNotification[] = [];
+  private userToken?: string;
+
+  constructor(userToken?: string) {
+    this.userToken = userToken;
+  }
 
   public async send(payload: NotificationPayload): Promise<{
     success: boolean;
@@ -48,10 +53,10 @@ export class InAppNotificationProvider implements INotificationProvider {
       metadata: payload.metadata
     };
 
-    // Authoritative persistence
+    // Authoritative persistence via request-scoped storage adapter
     try {
       const { getStorageAdapter } = await import('@/lib/repository');
-      const adapter = getStorageAdapter();
+      const adapter = getStorageAdapter(this.userToken);
       if (adapter.notifications) {
         await adapter.notifications.create(notification);
       }
@@ -88,21 +93,37 @@ export class InAppNotificationProvider implements INotificationProvider {
     return this.notifications.filter(n => n.userId === userId);
   }
 
-  public markAsRead(notificationId: string, userId?: string): boolean {
+  public async markAsRead(notificationId: string, userId?: string): Promise<boolean> {
     const notif = this.notifications.find(n => n.id === notificationId);
     if (notif) {
       notif.isRead = true;
     }
-    // Sync to adapter repository
-    import('@/lib/repository').then(({ getStorageAdapter }) => {
-      const adapter = getStorageAdapter();
+
+    try {
+      const { getStorageAdapter } = await import('@/lib/repository');
+      const adapter = getStorageAdapter(this.userToken);
       if (adapter.notifications) {
-        adapter.notifications.markRead(notificationId, userId).catch(() => {});
+        return await adapter.notifications.markRead(notificationId, userId);
       }
-    }).catch(() => {});
+    } catch (err) {
+      Logger.error('Failed to persist notification read state to database', err, {
+        notificationId,
+        userId
+      });
+      if (isSupabaseConfigured()) {
+        return false;
+      }
+    }
 
     return !!notif;
   }
+}
+
+/**
+ * Factory creating request-scoped notification provider with authenticated caller token
+ */
+export function getNotificationProvider(userToken?: string): InAppNotificationProvider {
+  return new InAppNotificationProvider(userToken);
 }
 
 /**

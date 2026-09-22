@@ -22,6 +22,7 @@ import {
 } from '../src/lib/jobs/durable-job-queue';
 import { InAppNotificationProvider } from '../src/lib/notifications/notification-provider';
 import { sanitizeErrorMessage, getOrGenerateRequestId } from '../src/lib/api/response';
+import { Matter } from '../src/types/matter';
 
 describe('PROMPT 6: Production Durability, Storage RLS, Idempotency & Job Queue', () => {
   beforeEach(() => {
@@ -262,4 +263,256 @@ describe('PROMPT 6: Production Durability, Storage RLS, Idempotency & Job Queue'
       assert.ok(!sanitizedPath.includes('/Users/'));
     });
   });
+
+  describe('8. Scalable Storage Discovery & Purge (>100 files)', () => {
+    it('discovers and deletes more than 100 files across multiple matters with pagination', async () => {
+      const storage = new LocalStorageProvider();
+      const targetUserId = 'user_bulk_delete';
+
+      // Seed 110 files to exceed default page size
+      const uploadPromises: Promise<unknown>[] = [];
+      for (let i = 0; i < 110; i++) {
+        uploadPromises.push(
+          storage.uploadFile({
+            buffer: Buffer.from(`%PDF-1.4 file content ${i}`),
+            filename: `document_${i}.pdf`,
+            mimeType: 'application/pdf',
+            matterId: `matter_${Math.floor(i / 20)}`,
+            userId: targetUserId,
+            documentId: `doc_${i}`
+          })
+        );
+      }
+      await Promise.all(uploadPromises);
+
+      const purgeRes = await storage.deleteUserFiles(targetUserId);
+      assert.strictEqual(purgeRes.discovered, 110);
+      assert.strictEqual(purgeRes.deleted, 110);
+      assert.strictEqual(purgeRes.failed, 0);
+      assert.strictEqual(purgeRes.success, true);
+
+      // Verify idempotent second call finds 0 files
+      const secondPurge = await storage.deleteUserFiles(targetUserId);
+      assert.strictEqual(secondPurge.discovered, 0);
+      assert.strictEqual(secondPurge.deleted, 0);
+    });
+  });
+
+  describe('9. Concurrent Job Claiming & Stale Job Recovery', () => {
+    it('guarantees only one worker can claim a job when two workers race concurrently', async () => {
+      const job = await DurableJobQueue.createJob(
+        'deep_analysis',
+        'matter_race_1',
+        'user_race_1',
+        { prompt: 'test' }
+      );
+
+      // Two workers attempt to claim the job simultaneously
+      const [claim1, claim2] = await Promise.all([
+        DurableJobQueue.claimJob('worker_1', ['deep_analysis']),
+        DurableJobQueue.claimJob('worker_2', ['deep_analysis'])
+      ]);
+
+      const claimedCount = [claim1, claim2].filter(c => c !== null).length;
+      assert.strictEqual(claimedCount, 1, 'Only one worker must win the claim');
+
+      const winningWorker = claim1 ? 'worker_1' : 'worker_2';
+      const claimedJob = claim1 || claim2;
+      assert.strictEqual(claimedJob?.id, job.id);
+      assert.strictEqual(claimedJob?.lockedBy, winningWorker);
+    });
+
+    it('recovers stale processing jobs when lease expires', async () => {
+      const job = await DurableJobQueue.createJob(
+        'deep_analysis',
+        'matter_stale_1',
+        'user_stale_1',
+        { prompt: 'stale test' }
+      );
+
+      // Worker 1 claims job
+      const claimed = await DurableJobQueue.claimJob('worker_crash', ['deep_analysis']);
+      assert.ok(claimed);
+      assert.strictEqual(claimed.status, 'processing');
+
+      // Fast forward time by recovering stale jobs with timeout 0
+      const recovered = await DurableJobQueue.recoverStaleJobs(0);
+      assert.ok(recovered >= 1);
+
+      // Job should now be back in queued status with released lock
+      const recoveredJob = await DurableJobQueue.getJob(job.id);
+      assert.strictEqual(recoveredJob?.status, 'queued');
+      assert.strictEqual(recoveredJob?.lockedBy, undefined);
+
+      // Another worker can now claim it
+      const secondClaim = await DurableJobQueue.claimJob('worker_survivor', ['deep_analysis']);
+      assert.ok(secondClaim);
+      assert.strictEqual(secondClaim.id, job.id);
+      assert.strictEqual(secondClaim.lockedBy, 'worker_survivor');
+    });
+  });
+
+  describe('10. Mock Storage Multi-Tenant Isolation Security Fix', () => {
+    it('strictly isolates matters by userId without || true leak', async () => {
+      const { MockMatterStorageProvider } = await import('../src/lib/future/providers');
+      const mockStorage = new MockMatterStorageProvider();
+
+      const userAMatter = {
+        id: 'matter_alice_1',
+        userId: 'alice',
+        title: 'Alice Security Deposit',
+        category: 'tenancy_security_deposit' as const,
+        description: 'Tenancy deposit dispute',
+        status: 'open' as const,
+        timeline: [],
+        deadlines: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const userBMatter = {
+        id: 'matter_bob_1',
+        userId: 'bob',
+        title: 'Bob Consumer Dispute',
+        category: 'consumer_dispute' as const,
+        description: 'E-commerce dispute',
+        status: 'open' as const,
+        timeline: [],
+        deadlines: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      await mockStorage.saveMatter(userAMatter as unknown as Matter);
+      await mockStorage.saveMatter(userBMatter as unknown as Matter);
+
+      // When listing matters for Alice, Bob's matter MUST NOT be returned
+      const aliceMatters = await mockStorage.listMatters('alice');
+      assert.strictEqual(aliceMatters.length, 1);
+      assert.strictEqual(aliceMatters[0].id, 'matter_alice_1');
+
+      // When listing matters for Bob, Alice's matter MUST NOT be returned
+      const bobMatters = await mockStorage.listMatters('bob');
+      assert.strictEqual(bobMatters.length, 1);
+      assert.strictEqual(bobMatters[0].id, 'matter_bob_1');
+    });
+  });
+
+  describe('11. GenAI Document & Clause Comparator (Problem Statement Alignment)', () => {
+    it('compares agreement against notice and flags unilateral wear-and-tear deductions and forfeiture', async () => {
+      const { DocumentComparator } = await import('../src/lib/legal/document-comparator');
+
+      const agreementDoc = {
+        id: 'doc_agree_1',
+        title: 'Residential Tenancy Agreement',
+        type: 'rental_agreement' as const,
+        extractedText: 'Tenancy Deposit ₹50,000 paid. Normal wear and tear excepted. Landlord shall refund deposit within 15 days of peaceful handover of premises. 30 days notice required.',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+        uploadedAt: new Date().toISOString(),
+        status: 'verified' as const
+      };
+
+      const disputeNoticeDoc = {
+        id: 'doc_notice_1',
+        title: 'Landlord Deduction & Forfeiture Notice',
+        type: 'notice_copy' as const,
+        extractedText: 'We are withholding ₹45,000 for full house repainting, repair, and deep cleaning. Entire caution deposit is forfeited if tenant disputes. Required notice was 60 days.',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+        uploadedAt: new Date().toISOString(),
+        status: 'verified' as const
+      };
+
+      const comparison = DocumentComparator.compare(
+        'matter_comp_1',
+        agreementDoc,
+        disputeNoticeDoc,
+        'agreement_vs_notice'
+      );
+
+      assert.strictEqual(comparison.matterId, 'matter_comp_1');
+      assert.ok(comparison.conflictingClausesCount >= 1, 'Must detect conflicting clauses');
+      assert.ok(comparison.unilateralVariationsCount >= 1, 'Must detect unilateral forfeiture');
+      assert.ok(comparison.overallAlignmentScore < 60, 'Discrepancy must reduce alignment score');
+      assert.ok(comparison.statutoryProtectionsApplied.length >= 1);
+      assert.ok(comparison.statutoryProtectionsApplied.some(s => s.includes('TPA') || s.includes('Wear and Tear')));
+
+      // Verify plain language explanation is present
+      const depositClause = comparison.clauseComparisons.find(c => c.clauseTitle.includes('Deposit'));
+      assert.ok(depositClause);
+      assert.strictEqual(depositClause.comparisonStatus, 'conflicting');
+      assert.ok(depositClause.plainLanguageExplanation.length > 20);
+      assert.ok(depositClause.actionableGuidance.includes('GST invoices'));
+    });
+  });
+
+  describe('12. Legal Statutory vs Formal Notice Timelines', () => {
+    it('preserves Section 138 NI Act mandatory 15-day statutory cure window', async () => {
+      const { DeadlineEngine } = await import('../src/lib/deadlines/deadline-engine');
+
+      const chequeMatter = {
+        id: 'matter_cheque_1',
+        title: 'Bounced Cheque Recovery',
+        category: 'financial_cheque_bounce' as const,
+        description: 'Cheque bounced for insufficient funds',
+        status: 'open' as const,
+        timeline: [],
+        deadlines: [],
+        communications: [
+          {
+            id: 'comm_1',
+            type: 'legal_notice' as const,
+            direction: 'outgoing' as const,
+            status: 'sent' as const,
+            title: 'Statutory Notice under Sec 138',
+            createdAt: new Date().toISOString(),
+            date: new Date().toISOString()
+          }
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const deadlines = DeadlineEngine.calculateDeadlines(chequeMatter as unknown as Matter);
+      const noticeDeadline = deadlines.find(d => d.title.includes('15-Day'));
+      assert.ok(noticeDeadline);
+      assert.ok(noticeDeadline.title.includes('Sec 138 NI Act'));
+      assert.ok(noticeDeadline.statuteBasis.includes('138(c)'));
+    });
+
+    it('labels tenancy deposit notice response window as formal demand, not unconditional statute', async () => {
+      const { DeadlineEngine } = await import('../src/lib/deadlines/deadline-engine');
+
+      const tenancyMatter = {
+        id: 'matter_tenancy_1',
+        title: 'Security Deposit Recovery',
+        category: 'tenancy_security_deposit' as const,
+        description: 'Unlawful withholding of security deposit',
+        status: 'open' as const,
+        timeline: [],
+        deadlines: [],
+        communications: [
+          {
+            id: 'comm_2',
+            type: 'legal_notice' as const,
+            direction: 'outgoing' as const,
+            status: 'sent' as const,
+            title: 'Formal Demand Notice',
+            createdAt: new Date().toISOString(),
+            date: new Date().toISOString()
+          }
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const deadlines = DeadlineEngine.calculateDeadlines(tenancyMatter as unknown as Matter);
+      const noticeDeadline = deadlines.find(d => d.title.includes('15-Day'));
+      assert.ok(noticeDeadline);
+      assert.ok(!noticeDeadline.title.includes('Statutory'));
+      assert.strictEqual(noticeDeadline.title, '15-Day Formal Notice Response & Cure Window');
+    });
+  });
 });
+

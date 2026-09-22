@@ -59,20 +59,17 @@ export async function POST(
         trigger: validation.trigger
       });
 
-      // Execute asynchronously in background
-      (async () => {
-        try {
-          await DurableJobQueue.updateProgress(job.id, 25, 'processing');
-          const res = await service.reanalyzeMatter(id, validation.trigger, user.id);
-          if (res) {
-            await DurableJobQueue.completeJob(job.id, res);
-          } else {
-            await DurableJobQueue.failJob(job.id, 'ANALYSIS_FAILED', 'Analysis returned no matter');
-          }
-        } catch (err) {
-          await DurableJobQueue.failJob(job.id, 'ANALYSIS_ERROR', String(err));
+      // Dispatch worker trigger asynchronously to start processing the queued durable job
+      const workerUrl = new URL('/api/jobs/worker', req.url).toString();
+      const workerSecret = process.env.INTERNAL_WORKER_KEY || process.env.CRON_SECRET || 'dev-internal-worker-secret';
+      fetch(workerUrl, {
+        method: 'POST',
+        headers: {
+          'authorization': `Bearer ${workerSecret}`
         }
-      })();
+      }).catch(err => {
+        Logger.info('Worker trigger dispatched asynchronously', { errorCategory: String(err) });
+      });
 
       return apiSuccess(
         {

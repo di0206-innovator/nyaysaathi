@@ -114,7 +114,7 @@ export class MockMatterStorageProvider implements MatterStorageProvider {
   public async listMatters(userId?: string): Promise<Matter[]> {
     if (userId) {
       // Future Supabase RLS integration filters by user identifier
-      return Array.from(this.memoryStore.values()).filter(m => (m as { userId?: string }).userId === userId || true);
+      return Array.from(this.memoryStore.values()).filter(m => (m as { userId?: string }).userId === userId);
     }
     return Array.from(this.memoryStore.values());
   }

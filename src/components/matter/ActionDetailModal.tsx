@@ -141,7 +141,7 @@ export function ActionDetailModal({
               <li>Verify recipient addresses and legal entity registrations.</li>
               <li>Dispatch via India Post Registered Post with Acknowledgment Due (RPAD) or Speed Post.</li>
               <li>Record India Post consignment tracking number and upload dispatch receipt.</li>
-              <li>Mark action as completed to track the statutory 15-day cure window.</li>
+              <li>Mark action as completed to track the 15-day notice response window.</li>
             </ol>
           </div>
 

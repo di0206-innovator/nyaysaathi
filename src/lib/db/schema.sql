@@ -246,9 +246,9 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
 CREATE INDEX IF NOT EXISTS idx_idempotency_lookup ON idempotency_keys(user_id, endpoint, id);
 CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON idempotency_keys(expires_at);
 
--- 14. Distributed Durable Background Jobs
+-- 14. Distributed Durable Background Jobs (Reference representation: authoritative source is supabase/migrations)
 CREATE TABLE IF NOT EXISTS background_jobs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     type VARCHAR(100) NOT NULL,
     matter_id UUID REFERENCES matters(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,

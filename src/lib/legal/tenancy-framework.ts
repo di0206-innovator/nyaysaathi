@@ -123,7 +123,7 @@ export class TenancyFramework {
         recommendedLegalGrounding: [
           'Ordinary wear and tear defense under TPA §108(m)',
           'Strict requirement for itemized GST contractor invoices for any alleged repair deductions',
-          '15-day statutory formal demand notice prior to filing recovery suit or consumer complaint'
+          '15-day formal demand notice prior to filing recovery suit or consumer complaint'
         ],
         evidentiaryRequirements: [
           'Signed rental agreement with deposit clause',

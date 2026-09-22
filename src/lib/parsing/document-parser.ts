@@ -285,6 +285,8 @@ export class ProductionDocumentParser implements DocumentParserProvider {
     let extractedText = '';
     let pageCount = 1;
 
+    let isHeuristic = false;
+
     if (buffer) {
       const nodeBuf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
       const str = nodeBuf.toString('binary');
@@ -295,7 +297,7 @@ export class ProductionDocumentParser implements DocumentParserProvider {
         pageCount = pageMatches.length;
       }
 
-      // Extract text segments from PDF streams
+      // Extract text segments from PDF streams (standard PDF operators)
       const textMatches = str.match(/\(([^()]{2,})\)Tj/g) || str.match(/\[([^\]]+)\]TJ/g);
       if (textMatches && textMatches.length > 0) {
         extractedText = textMatches
@@ -325,29 +327,32 @@ export class ProductionDocumentParser implements DocumentParserProvider {
           }
           if (printableChunks.length > 0) {
             extractedText = printableChunks.join('\n').trim();
+            isHeuristic = true;
           }
         }
       }
     }
 
-    // If digital text stream exists and is substantial, return verified PDF extraction
+    // If digital text stream exists and is substantial, return verified or partial PDF extraction
     if (extractedText && extractedText.length >= 10) {
       const { cleanedText, injectionDetected } = sanitizeAdversarialText(extractedText);
       const entities = this.extractEntities(cleanedText, 1);
       const clauses = this.extractClauses(cleanedText, 1);
-      const provenanceRecords = this.buildProvenance(entities, clauses, filename, 'pdf_stream');
+      const provenanceRecords = this.buildProvenance(entities, clauses, filename, isHeuristic ? 'heuristic_stream' : 'pdf_stream');
 
       return {
         extractedText: cleanedText,
-        confidence: 0.88,
+        confidence: isHeuristic ? 0.55 : 0.90,
         detectedPages: pageCount,
         clauses,
         entities,
         provenanceRecords,
-        classification: 'PDF Legal Evidence',
-        extractionStatus: 'verified_extraction',
+        classification: isHeuristic ? 'PDF Heuristic Stream Extraction' : 'PDF Legal Evidence',
+        extractionStatus: isHeuristic ? 'partial_extraction' : 'verified_extraction',
         sanitizedForPromptInjection: injectionDetected,
-        relevanceSummary: `PDF parsed (${pageCount} page(s)) with ${clauses.length} extracted clauses and ${entities.length} detected entities.`
+        relevanceSummary: isHeuristic
+          ? `PDF partial extraction (${pageCount} page(s)) via stream heuristic. ${clauses.length} extracted clauses; human review recommended.`
+          : `PDF parsed (${pageCount} page(s)) with ${clauses.length} extracted clauses and ${entities.length} detected entities.`
       };
     }
 

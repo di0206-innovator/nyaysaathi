@@ -231,19 +231,34 @@ export class SupabaseStorageProvider implements IStorageProvider {
 
       while (queue.length > 0) {
         const currentPrefix = queue.shift()!;
-        const { data: listData, error: listError } = await client.storage
-          .from(this.bucketName)
-          .list(currentPrefix, { limit: 100 });
+        let offset = 0;
+        const pageSize = 100;
+        let hasMore = true;
 
-        if (listError || !listData) continue;
+        while (hasMore) {
+          const { data: listData, error: listError } = await client.storage
+            .from(this.bucketName)
+            .list(currentPrefix, { limit: pageSize, offset });
 
-        for (const item of listData) {
-          const fullItemPath = `${currentPrefix}/${item.name}`;
-          // In Supabase storage, folders have id === null or no metadata/mimetype
-          if (item.id === null || !item.metadata) {
-            queue.push(fullItemPath);
+          if (listError || !listData || listData.length === 0) {
+            hasMore = false;
+            break;
+          }
+
+          for (const item of listData) {
+            const fullItemPath = `${currentPrefix}/${item.name}`;
+            // In Supabase storage, folders have id === null or no metadata/mimetype
+            if (item.id === null || !item.metadata) {
+              queue.push(fullItemPath);
+            } else {
+              allPaths.push(fullItemPath);
+            }
+          }
+
+          if (listData.length < pageSize) {
+            hasMore = false;
           } else {
-            allPaths.push(fullItemPath);
+            offset += pageSize;
           }
         }
       }

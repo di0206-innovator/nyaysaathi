@@ -339,7 +339,7 @@ export function DraftStudio({ drafts, onNoticeDispatched }: DraftStudioProps) {
           ) : (
             <div className="pt-1 text-[11px] text-emerald-800 font-semibold flex items-center space-x-1.5">
               <Check className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Notice dispatched externally. Statutory 15-day cure window active in deadline tracker.</span>
+              <span>Notice dispatched externally. 15-day response & cure window active in deadline tracker.</span>
             </div>
           )}
         </div>

@@ -1,0 +1,17 @@
+# Schema Authority & Migration Policy
+
+## 1. Single Source of Truth
+The canonical source of truth for the NyaySaathi database schema is **`supabase/migrations/`**.
+Any DDL changes (tables, indexes, constraints, RLS policies, or stored functions) must be committed as sequentially ordered SQL files in `supabase/migrations/`.
+
+## 2. Reference Schema Representation
+The file `src/lib/db/schema.sql` serves as a consolidated reference and developer cheatsheet representation of the schema.
+- It must **never** conflict with migrations.
+- `id` for `background_jobs` is `TEXT` (`job_<timestamp>_<hash>`).
+- RLS policies and `SECURITY DEFINER` functions defined in migrations govern all production environments.
+
+## 3. Migration Ordering
+1. Base schemas and core relational tables (`matters`, `parties`, `documents`, `facts`, `timeline_events`, `actions`).
+2. Row Level Security policies (`auth.uid() = user_id`).
+3. Vector extension and statutory provisions table for pgvector RAG.
+4. Production durability, distributed jobs (`background_jobs`), atomic matter creation (`create_matter_atomic`), idempotency keys (`idempotency_keys`), and storage policies.

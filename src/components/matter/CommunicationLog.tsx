@@ -290,7 +290,7 @@ export function CommunicationLog({
                   rows={2}
                   value={summary}
                   onChange={e => setSummary(e.target.value)}
-                  placeholder="e.g. Sent 15-day statutory demand notice requesting refund of security deposit via Speed Post."
+                  placeholder="e.g. Sent 15-day formal demand notice requesting refund of security deposit via Speed Post."
                   className="w-full text-xs p-2.5 bg-white border border-stone-200 rounded-lg"
                 />
               </div>
