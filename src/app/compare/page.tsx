@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -20,6 +20,10 @@ import {
   Send,
   Loader2,
   Sparkles,
+  Upload,
+  CheckCircle,
+  Hash,
+  ShieldCheck,
 } from 'lucide-react';
 import { DEMO_DOCUMENT_SETS } from '@/lib/demo/demo-documents';
 import type {
@@ -28,6 +32,7 @@ import type {
   ClauseCategory,
   ClauseChangeStatus,
   DocumentQAAnswer,
+  DocumentProcessingMode,
 } from '@/types/document-comparison';
 
 // ---------------------------------------------------------------------------
@@ -49,6 +54,16 @@ function CategoryLabel({ category }: { category: ClauseCategory }) {
   );
 }
 
+interface UploadedDocState {
+  fileId: string;
+  filename: string;
+  mimeType: string;
+  fileSize: string;
+  contentHash: string;
+  extractedText: string;
+  extractionStatus: 'full' | 'partial' | 'needs_ocr' | 'failed';
+}
+
 // ---------------------------------------------------------------------------
 // Main Compare Page
 // ---------------------------------------------------------------------------
@@ -61,6 +76,22 @@ export default function ComparePage() {
   const [statusFilter, setStatusFilter] = useState<ClauseChangeStatus | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState<ClauseCategory | 'all'>('all');
   const [expandedClauseId, setExpandedClauseId] = useState<string | null>(null);
+
+  // Upload vs Paste mode
+  const [inputMode, setInputMode] = useState<'upload' | 'paste'>('upload');
+
+  // File Upload states
+  const [fileA, setFileA] = useState<UploadedDocState | null>(null);
+  const [fileB, setFileB] = useState<UploadedDocState | null>(null);
+  const [uploadingA, setUploadingA] = useState(false);
+  const [uploadingB, setUploadingB] = useState(false);
+  const [uploadErrorA, setUploadErrorA] = useState<string | null>(null);
+  const [uploadErrorB, setUploadErrorB] = useState<string | null>(null);
+
+  const fileInputARef = useRef<HTMLInputElement>(null);
+  const fileInputBRef = useRef<HTMLInputElement>(null);
+
+  // Paste fallback states
   const [textA, setTextA] = useState('');
   const [textB, setTextB] = useState('');
   const [titleA, setTitleA] = useState('');
@@ -70,6 +101,61 @@ export default function ComparePage() {
   const [qaQuestion, setQaQuestion] = useState('');
   const [qaAnswer, setQaAnswer] = useState<DocumentQAAnswer | null>(null);
   const [qaLoading, setQaLoading] = useState(false);
+
+  // Upload handler for Doc A or Doc B
+  const uploadDocument = async (file: File, docTarget: 'A' | 'B') => {
+    const isDocA = docTarget === 'A';
+    if (isDocA) {
+      setUploadingA(true);
+      setUploadErrorA(null);
+    } else {
+      setUploadingB(true);
+      setUploadErrorB(null);
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('documentTitle', file.name.replace(/\.[^/.]+$/, ''));
+
+      const res = await fetch('/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message || 'File upload failed.');
+      }
+
+      const uploaded: UploadedDocState = {
+        fileId: json.data.fileId,
+        filename: json.data.filename,
+        mimeType: json.data.mimeType,
+        fileSize: json.data.fileSize,
+        contentHash: json.data.contentHash,
+        extractedText: json.data.extractedText,
+        extractionStatus: json.data.extractionStatus,
+      };
+
+      if (isDocA) {
+        setFileA(uploaded);
+        setTitleA(uploaded.filename);
+        setTextA(uploaded.extractedText);
+      } else {
+        setFileB(uploaded);
+        setTitleB(uploaded.filename);
+        setTextB(uploaded.extractedText);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Upload failed.';
+      if (isDocA) setUploadErrorA(msg);
+      else setUploadErrorB(msg);
+    } finally {
+      if (isDocA) setUploadingA(false);
+      else setUploadingB(false);
+    }
+  };
 
   const runDemoComparison = useCallback(async (demoId: string) => {
     setLoading(true);
@@ -87,6 +173,7 @@ export default function ComparePage() {
           documentAId: `${demoId}-v1`,
           documentBId: `${demoId}-v2`,
           demoSetId: demoId,
+          processingMode: 'SYNTHETIC_DEMO_MODE',
         }),
       });
       const json = await res.json();
@@ -102,11 +189,20 @@ export default function ComparePage() {
     }
   }, []);
 
-  const runCustomComparison = useCallback(async () => {
-    if (!textA.trim() || !textB.trim()) {
-      setError('Please paste text for both documents.');
+  const runComparison = useCallback(async () => {
+    const docAText = inputMode === 'upload' && fileA ? fileA.extractedText : textA;
+    const docBText = inputMode === 'upload' && fileB ? fileB.extractedText : textB;
+    const docATitle = inputMode === 'upload' && fileA ? fileA.filename : (titleA || 'Document A');
+    const docBTitle = inputMode === 'upload' && fileB ? fileB.filename : (titleB || 'Document B');
+    const processingMode: DocumentProcessingMode = (inputMode === 'upload' && fileA && fileB)
+      ? 'VERIFIED_DOCUMENT_MODE'
+      : 'PASTED_TEXT_MODE';
+
+    if (!docAText.trim() || !docBText.trim()) {
+      setError('Please provide content for both documents before comparing.');
       return;
     }
+
     setLoading(true);
     setError(null);
     setSelectedDemoId(null);
@@ -115,17 +211,23 @@ export default function ComparePage() {
     setQaAnswer(null);
 
     try {
+      const payload: Record<string, unknown> = {
+        documentAId: fileA?.fileId || 'doc-a',
+        documentBId: fileB?.fileId || 'doc-b',
+        documentAText: docAText,
+        documentBText: docBText,
+        documentATitle: docATitle,
+        documentBTitle: docBTitle,
+        processingMode,
+      };
+
+      if (fileA?.contentHash) payload.contentHashA = fileA.contentHash;
+      if (fileB?.contentHash) payload.contentHashB = fileB.contentHash;
+
       const res = await fetch('/api/documents/compare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          documentAId: 'custom-a',
-          documentBId: 'custom-b',
-          documentAText: textA,
-          documentBText: textB,
-          documentATitle: titleA || 'Document A',
-          documentBTitle: titleB || 'Document B',
-        }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (json.success) {
@@ -138,7 +240,7 @@ export default function ComparePage() {
     } finally {
       setLoading(false);
     }
-  }, [textA, textB, titleA, titleB]);
+  }, [inputMode, fileA, fileB, textA, textB, titleA, titleB]);
 
   const askQuestion = useCallback(async () => {
     if (!qaQuestion.trim() || !comparison) return;
@@ -146,6 +248,8 @@ export default function ComparePage() {
     setQaAnswer(null);
 
     const demoSet = selectedDemoId ? DEMO_DOCUMENT_SETS.find(s => s.id === selectedDemoId) : null;
+    const docAText = demoSet ? demoSet.documentA.text : (fileA?.extractedText || textA);
+    const docBText = demoSet ? demoSet.documentB.text : (fileB?.extractedText || textB);
 
     try {
       const res = await fetch('/api/documents/ask', {
@@ -154,11 +258,12 @@ export default function ComparePage() {
         body: JSON.stringify({
           question: qaQuestion,
           documentAId: comparison.documentAId,
-          documentAText: demoSet ? demoSet.documentA.text : textA,
+          documentAText: docAText,
           documentATitle: comparison.documentATitle,
           documentBId: comparison.documentBId,
-          documentBText: demoSet ? demoSet.documentB.text : textB,
+          documentBText: docBText,
           documentBTitle: comparison.documentBTitle,
+          processingMode: comparison.processingMode || 'VERIFIED_DOCUMENT_MODE',
         }),
       });
       const json = await res.json();
@@ -166,11 +271,11 @@ export default function ComparePage() {
         setQaAnswer(json.data);
       }
     } catch {
-      // Silent fail
+      // Handled silently
     } finally {
       setQaLoading(false);
     }
-  }, [qaQuestion, comparison, selectedDemoId, textA, textB]);
+  }, [qaQuestion, comparison, selectedDemoId, fileA, fileB, textA, textB]);
 
   // Filtered clauses
   const filteredClauses = comparison?.clauses.filter(c => {
@@ -198,18 +303,269 @@ export default function ComparePage() {
             <span className="text-rose-500">Documents Side by Side</span>
           </h1>
           <p className="text-sm text-stone-300 max-w-2xl font-mono uppercase leading-relaxed">
-            Upload two versions of a legal document or try a sample comparison. NyaySaathi identifies every clause change, explains what it means in plain language, and flags what you should verify.
+            Upload real PDF/image documents or try a sample comparison. NyaySaathi validates cryptographic content hashes, extracts clauses, matches deterministic and semantic differences, and cites verifiable sources.
           </p>
         </div>
       </section>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
-        {/* Demo Document Sets */}
+        {/* Upload / Custom Document Input */}
         {!comparison && (
           <>
-            <section aria-label="Sample comparisons" className="space-y-4">
+            {/* Primary: Real Document Upload */}
+            <section aria-label="Document comparison input" className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b-2 border-[#0A0A0A] pb-3 gap-2">
+                <h2 className="text-lg font-black uppercase tracking-tight">
+                  {inputMode === 'upload' ? 'Upload Two Documents for Comparison' : 'Paste Document Texts'}
+                </h2>
+                <button
+                  onClick={() => setInputMode(inputMode === 'upload' ? 'paste' : 'upload')}
+                  className="font-mono text-xs text-stone-600 hover:text-rose-600 underline uppercase tracking-wider text-left sm:text-right"
+                >
+                  {inputMode === 'upload' ? 'Paste text instead' : 'Upload files instead (PDF, PNG, JPG)'}
+                </button>
+              </div>
+
+              {inputMode === 'upload' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Dropzone A */}
+                  <div className="space-y-3">
+                    <span className="font-mono text-xs font-bold uppercase text-stone-700 block">
+                      Document A (Original / Previous Version)
+                    </span>
+                    {!fileA ? (
+                      <div
+                        onClick={() => fileInputARef.current?.click()}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={e => {
+                          e.preventDefault();
+                          const f = e.dataTransfer.files[0];
+                          if (f) uploadDocument(f, 'A');
+                        }}
+                        className="border-2 border-dashed border-stone-300 hover:border-stone-900 bg-white p-6 text-center cursor-pointer transition-colors space-y-2 min-h-[180px] flex flex-col items-center justify-center"
+                      >
+                        <input
+                          id="file-upload-a"
+                          aria-label="Upload Document A"
+                          ref={fileInputARef}
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.webp"
+                          className="hidden"
+                          onChange={e => {
+                            const f = e.target.files?.[0];
+                            if (f) uploadDocument(f, 'A');
+                          }}
+                        />
+                        {uploadingA ? (
+                          <div className="flex flex-col items-center space-y-2">
+                            <Loader2 className="w-6 h-6 animate-spin text-rose-600" />
+                            <span className="font-mono text-xs text-stone-600 uppercase">Extracting Document A...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="w-8 h-8 text-stone-400" />
+                            <div className="font-mono text-xs font-bold uppercase text-stone-800">
+                              Upload Document A (PDF, PNG, JPG)
+                            </div>
+                            <p className="font-mono text-[10px] text-stone-500 uppercase">
+                              Drag and drop or click to browse (Max 10MB)
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="border border-stone-300 bg-white p-4 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span className="font-bold text-sm truncate max-w-[200px]">{fileA.filename}</span>
+                          </div>
+                          <button
+                            onClick={() => setFileA(null)}
+                            className="font-mono text-[10px] text-stone-400 hover:text-rose-600 uppercase"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-[10px] font-mono">
+                          <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase flex items-center space-x-1">
+                            <ShieldCheck className="w-3 h-3 inline mr-1" />
+                            VERIFIED_DOCUMENT_MODE
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-stone-100 text-stone-600 border border-stone-200">
+                            {fileA.fileSize}
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-stone-100 text-stone-600 border border-stone-200">
+                            Status: {fileA.extractionStatus}
+                          </span>
+                        </div>
+                        <div className="font-mono text-[9px] text-stone-400 truncate flex items-center space-x-1">
+                          <Hash className="w-3 h-3 inline" />
+                          <span>SHA-256: {fileA.contentHash}</span>
+                        </div>
+                        <div className="text-[11px] text-stone-500 bg-stone-50 p-2 border border-stone-100 line-clamp-3 font-mono">
+                          {fileA.extractedText.slice(0, 180)}...
+                        </div>
+                      </div>
+                    )}
+                    {uploadErrorA && (
+                      <div className="text-xs text-rose-600 font-mono flex items-center space-x-1">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{uploadErrorA}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dropzone B */}
+                  <div className="space-y-3">
+                    <span className="font-mono text-xs font-bold uppercase text-stone-700 block">
+                      Document B (New / Revised Version)
+                    </span>
+                    {!fileB ? (
+                      <div
+                        onClick={() => fileInputBRef.current?.click()}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={e => {
+                          e.preventDefault();
+                          const f = e.dataTransfer.files[0];
+                          if (f) uploadDocument(f, 'B');
+                        }}
+                        className="border-2 border-dashed border-stone-300 hover:border-stone-900 bg-white p-6 text-center cursor-pointer transition-colors space-y-2 min-h-[180px] flex flex-col items-center justify-center"
+                      >
+                        <input
+                          id="file-upload-b"
+                          aria-label="Upload Document B"
+                          ref={fileInputBRef}
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.webp"
+                          className="hidden"
+                          onChange={e => {
+                            const f = e.target.files?.[0];
+                            if (f) uploadDocument(f, 'B');
+                          }}
+                        />
+                        {uploadingB ? (
+                          <div className="flex flex-col items-center space-y-2">
+                            <Loader2 className="w-6 h-6 animate-spin text-rose-600" />
+                            <span className="font-mono text-xs text-stone-600 uppercase">Extracting Document B...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="w-8 h-8 text-stone-400" />
+                            <div className="font-mono text-xs font-bold uppercase text-stone-800">
+                              Upload Document B (PDF, PNG, JPG)
+                            </div>
+                            <p className="font-mono text-[10px] text-stone-500 uppercase">
+                              Drag and drop or click to browse (Max 10MB)
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="border border-stone-300 bg-white p-4 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span className="font-bold text-sm truncate max-w-[200px]">{fileB.filename}</span>
+                          </div>
+                          <button
+                            onClick={() => setFileB(null)}
+                            className="font-mono text-[10px] text-stone-400 hover:text-rose-600 uppercase"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-[10px] font-mono">
+                          <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase flex items-center space-x-1">
+                            <ShieldCheck className="w-3 h-3 inline mr-1" />
+                            VERIFIED_DOCUMENT_MODE
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-stone-100 text-stone-600 border border-stone-200">
+                            {fileB.fileSize}
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-stone-100 text-stone-600 border border-stone-200">
+                            Status: {fileB.extractionStatus}
+                          </span>
+                        </div>
+                        <div className="font-mono text-[9px] text-stone-400 truncate flex items-center space-x-1">
+                          <Hash className="w-3 h-3 inline" />
+                          <span>SHA-256: {fileB.contentHash}</span>
+                        </div>
+                        <div className="text-[11px] text-stone-500 bg-stone-50 p-2 border border-stone-100 line-clamp-3 font-mono">
+                          {fileB.extractedText.slice(0, 180)}...
+                        </div>
+                      </div>
+                    )}
+                    {uploadErrorB && (
+                      <div className="text-xs text-rose-600 font-mono flex items-center space-x-1">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{uploadErrorB}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Fallback Paste View */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="title-a" className="font-mono text-xs font-bold uppercase text-stone-700">Document A (Old Version)</label>
+                    <input
+                      id="title-a"
+                      type="text"
+                      placeholder="Document title..."
+                      value={titleA}
+                      onChange={e => setTitleA(e.target.value)}
+                      className="w-full px-3 py-2 border border-stone-300 text-sm font-mono bg-white focus:outline-none focus:border-rose-600"
+                    />
+                    <textarea
+                      id="text-a"
+                      aria-label="Document A text"
+                      placeholder="Paste the text of the old/original document..."
+                      value={textA}
+                      onChange={e => setTextA(e.target.value)}
+                      rows={8}
+                      className="w-full px-3 py-2 border border-stone-300 text-xs font-mono bg-white focus:outline-none focus:border-rose-600 resize-y"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="title-b" className="font-mono text-xs font-bold uppercase text-stone-700">Document B (New Version)</label>
+                    <input
+                      id="title-b"
+                      type="text"
+                      placeholder="Document title..."
+                      value={titleB}
+                      onChange={e => setTitleB(e.target.value)}
+                      className="w-full px-3 py-2 border border-stone-300 text-sm font-mono bg-white focus:outline-none focus:border-rose-600"
+                    />
+                    <textarea
+                      id="text-b"
+                      aria-label="Document B text"
+                      placeholder="Paste the text of the new/revised document..."
+                      value={textB}
+                      onChange={e => setTextB(e.target.value)}
+                      rows={8}
+                      className="w-full px-3 py-2 border border-stone-300 text-xs font-mono bg-white focus:outline-none focus:border-rose-600 resize-y"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <button
+                  onClick={runComparison}
+                  disabled={loading || (inputMode === 'upload' ? (!fileA || !fileB) : (!textA.trim() || !textB.trim()))}
+                  className="px-6 py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeftRight className="w-4 h-4" />}
+                  <span>Compare Documents</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Demo Document Sets */}
+            <section aria-label="Sample comparisons" className="space-y-4 pt-4 border-t border-stone-200">
               <h2 className="text-lg font-black uppercase tracking-tight border-b-2 border-[#0A0A0A] pb-2">
-                Try a Sample Comparison
+                Or Try a Sample Comparison
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {DEMO_DOCUMENT_SETS.map(set => (
@@ -241,63 +597,6 @@ export default function ComparePage() {
                 Synthetic demo documents. No real person or legal matter.
               </p>
             </section>
-
-            {/* Custom Document Input */}
-            <section aria-label="Custom document comparison" className="space-y-4">
-              <h2 className="text-lg font-black uppercase tracking-tight border-b-2 border-[#0A0A0A] pb-2">
-                Or Compare Your Own Documents
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="title-a" className="font-mono text-xs font-bold uppercase text-stone-700">Document A (Old Version)</label>
-                  <input
-                    id="title-a"
-                    type="text"
-                    placeholder="Document title..."
-                    value={titleA}
-                    onChange={e => setTitleA(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 text-sm font-mono bg-white focus:outline-none focus:border-rose-600"
-                  />
-                  <textarea
-                    id="text-a"
-                    aria-label="Document A text"
-                    placeholder="Paste the text of the old/original document..."
-                    value={textA}
-                    onChange={e => setTextA(e.target.value)}
-                    rows={8}
-                    className="w-full px-3 py-2 border border-stone-300 text-xs font-mono bg-white focus:outline-none focus:border-rose-600 resize-y"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="title-b" className="font-mono text-xs font-bold uppercase text-stone-700">Document B (New Version)</label>
-                  <input
-                    id="title-b"
-                    type="text"
-                    placeholder="Document title..."
-                    value={titleB}
-                    onChange={e => setTitleB(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 text-sm font-mono bg-white focus:outline-none focus:border-rose-600"
-                  />
-                  <textarea
-                    id="text-b"
-                    aria-label="Document B text"
-                    placeholder="Paste the text of the new/revised document..."
-                    value={textB}
-                    onChange={e => setTextB(e.target.value)}
-                    rows={8}
-                    className="w-full px-3 py-2 border border-stone-300 text-xs font-mono bg-white focus:outline-none focus:border-rose-600 resize-y"
-                  />
-                </div>
-              </div>
-              <button
-                onClick={runCustomComparison}
-                disabled={loading || !textA.trim() || !textB.trim()}
-                className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeftRight className="w-4 h-4" />}
-                <span>Compare Documents</span>
-              </button>
-            </section>
           </>
         )}
 
@@ -306,7 +605,7 @@ export default function ComparePage() {
           <div className="flex items-center justify-center py-16">
             <div className="text-center space-y-3">
               <Loader2 className="w-8 h-8 animate-spin text-rose-600 mx-auto" />
-              <p className="font-mono text-xs text-stone-500 uppercase">Analyzing clauses...</p>
+              <p className="font-mono text-xs text-stone-500 uppercase">Executing Deterministic & Semantic Analysis...</p>
             </div>
           </div>
         )}
@@ -322,12 +621,30 @@ export default function ComparePage() {
         {/* Comparison Results */}
         {comparison && !loading && (
           <div className="space-y-8">
-            {/* Demo disclaimer */}
-            {comparison.isDemo && comparison.demoDisclaimer && (
-              <div className="p-3 border border-amber-300 bg-amber-50 font-mono text-xs text-amber-800 uppercase tracking-wider">
-                ⚠ {comparison.demoDisclaimer}
+            {/* Mode & Trust Banner */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-stone-200">
+              <div className="flex items-center space-x-2 font-mono text-xs">
+                <span className={`px-2 py-0.5 border text-[10px] uppercase font-bold ${
+                  comparison.processingMode === 'VERIFIED_DOCUMENT_MODE'
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                    : comparison.processingMode === 'SYNTHETIC_DEMO_MODE'
+                    ? 'bg-amber-50 border-amber-300 text-amber-800'
+                    : 'bg-stone-50 border-stone-300 text-stone-700'
+                }`}>
+                  {comparison.processingMode || 'VERIFIED_DOCUMENT_MODE'}
+                </span>
+                {comparison.contentHashA && (
+                  <span className="text-[10px] text-stone-500 hidden md:inline">
+                    SHA-256 A: {comparison.contentHashA.slice(0, 10)}... | B: {comparison.contentHashB?.slice(0, 10)}...
+                  </span>
+                )}
               </div>
-            )}
+              {comparison.isDemo && comparison.demoDisclaimer && (
+                <div className="font-mono text-[10px] text-amber-700 uppercase">
+                  ⚠ {comparison.demoDisclaimer}
+                </div>
+              )}
+            </div>
 
             {/* Summary Header */}
             <section aria-label="Comparison summary" className="border border-[#0A0A0A] bg-white">
@@ -447,10 +764,15 @@ export default function ComparePage() {
 
             {/* Document-Grounded Q&A */}
             <section aria-label="Ask about documents" className="border border-[#0A0A0A] bg-white p-5 space-y-4">
-              <h3 className="font-black text-sm uppercase tracking-tight flex items-center space-x-2">
-                <MessageSquare className="w-4 h-4 text-rose-600" />
-                <span>Ask About These Documents</span>
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-black text-sm uppercase tracking-tight flex items-center space-x-2">
+                  <MessageSquare className="w-4 h-4 text-rose-600" />
+                  <span>Ask About These Documents</span>
+                </h3>
+                <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 bg-stone-100 border border-stone-200 text-stone-600">
+                  GenAI Clause-Grounded
+                </span>
+              </div>
               <div className="flex items-center space-x-2">
                 <input
                   type="text"
@@ -473,7 +795,37 @@ export default function ComparePage() {
               </div>
               {qaAnswer && (
                 <div className="p-4 bg-stone-50 border border-stone-200 space-y-3">
+                  <div className="flex items-center justify-between border-b border-stone-200 pb-2">
+                    <span className={`font-mono text-[10px] font-bold uppercase px-1.5 py-0.5 border ${
+                      qaAnswer.isGrounded ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'
+                    }`}>
+                      {qaAnswer.isGrounded ? 'Verified Grounded' : 'Unverified Query'}
+                    </span>
+                    <span className="font-mono text-[9px] text-stone-500 uppercase">
+                      Mode: {qaAnswer.retrievalMode || 'semantic_rag'}
+                    </span>
+                  </div>
                   <div className="text-sm whitespace-pre-line leading-relaxed">{qaAnswer.answer}</div>
+                  
+                  {qaAnswer.claims && qaAnswer.claims.length > 0 && (
+                    <div className="border-t border-stone-200 pt-2 space-y-1.5">
+                      <div className="font-mono text-[10px] text-stone-500 uppercase tracking-wider">Verifiable Claims</div>
+                      {qaAnswer.claims.map((claim, ci) => (
+                        <div key={ci} className="text-xs bg-white p-2 border border-stone-200 space-y-1">
+                          <div className="flex items-start space-x-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                            <span>{claim.text}</span>
+                          </div>
+                          {claim.sourceRefs.length > 0 && (
+                            <div className="font-mono text-[9px] text-stone-500 pl-5">
+                              Sources: {claim.sourceRefs.join(', ')}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {qaAnswer.sourceRefs.length > 0 && (
                     <div className="border-t border-stone-200 pt-2 space-y-1">
                       <div className="font-mono text-[10px] text-stone-500 uppercase tracking-wider">Sources</div>
@@ -485,6 +837,7 @@ export default function ComparePage() {
                       ))}
                     </div>
                   )}
+
                   {qaAnswer.whyThisMatters && (
                     <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 p-2">
                       <strong>Why this matters:</strong> {qaAnswer.whyThisMatters}
@@ -560,6 +913,11 @@ function ClauseCard({
           </span>
         </div>
         <div className="flex items-center space-x-2 shrink-0">
+          {clause.semanticAnalysis && (
+            <span className="px-1.5 py-0.5 bg-sky-50 border border-sky-300 text-sky-700 font-mono text-[9px] uppercase">
+              Semantic: {clause.semanticAnalysis.matchType}
+            </span>
+          )}
           {clause.requiresCounselReview && (
             <span className="px-1.5 py-0.5 bg-rose-100 border border-rose-300 text-rose-700 font-mono text-[9px] uppercase">
               Counsel Review
@@ -614,6 +972,15 @@ function ClauseCard({
               <div className="font-mono text-[10px] font-bold text-sky-700 uppercase tracking-wider mb-1">Plain Language</div>
               <p className="text-stone-800">{clause.plainLanguageExplanation}</p>
             </div>
+
+            {clause.semanticAnalysis && (
+              <div className="p-3 border-l-2 border-indigo-600 bg-indigo-50">
+                <div className="font-mono text-[10px] font-bold text-indigo-700 uppercase tracking-wider mb-1">
+                  Semantic Reasoning ({clause.semanticAnalysis.matchType})
+                </div>
+                <p className="text-stone-800">{clause.semanticAnalysis.explanation}</p>
+              </div>
+            )}
 
             {clause.whyItMayMatter && (
               <div className="p-3 border-l-2 border-amber-500 bg-amber-50">

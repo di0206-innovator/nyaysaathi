@@ -30,8 +30,12 @@ export class GeminiLLMProvider implements LLMProvider {
     prompt: string,
     options?: LLMGenerationOptions
   ): Promise<LLMResponse<string>> {
+    const isProd = process.env.NODE_ENV === 'production';
     if (!this.apiKey) {
-      Logger.info('Gemini API key not configured, executing with deterministic mock', {
+      if (isProd) {
+        throw new Error('AI service temporarily unavailable: GEMINI_API_KEY is not configured in production.');
+      }
+      Logger.info('Gemini API key not configured, executing with deterministic test provider', {
         provider: 'deterministic_mock',
         isFallback: true
       });
@@ -72,19 +76,25 @@ export class GeminiLLMProvider implements LLMProvider {
             await new Promise(r => setTimeout(r, attempt * 500));
             continue;
           }
-          Logger.warn(`Gemini API returned status ${res.status}, falling back to deterministic mock`, {
+          Logger.warn(`Gemini API returned status ${res.status}`, {
             httpStatus: res.status,
             attempt,
-            isFallback: true
+            isFallback: !isProd
           });
+          if (isProd) {
+            throw new Error(`AI service temporarily unavailable (status ${res.status}). The deterministic document analysis remains available.`);
+          }
           return this.fallback.generateText(prompt, options);
         }
 
         if (!res.ok) {
-          Logger.warn(`Gemini API error ${res.status}: ${res.statusText}, falling back`, {
+          Logger.warn(`Gemini API error ${res.status}: ${res.statusText}`, {
             httpStatus: res.status,
-            isFallback: true
+            isFallback: !isProd
           });
+          if (isProd) {
+            throw new Error(`AI service temporarily unavailable (error ${res.status}). The deterministic document analysis remains available.`);
+          }
           return this.fallback.generateText(prompt, options);
         }
 
@@ -123,7 +133,11 @@ export class GeminiLLMProvider implements LLMProvider {
     schema: StructuredGenerationSchema<T>,
     options?: LLMGenerationOptions
   ): Promise<LLMResponse<T>> {
+    const isProd = process.env.NODE_ENV === 'production';
     if (!this.apiKey) {
+      if (isProd) {
+        throw new Error('AI service temporarily unavailable: GEMINI_API_KEY is not configured in production.');
+      }
       return this.fallback.generateStructured(prompt, schema, options);
     }
 
@@ -158,14 +172,20 @@ export class GeminiLLMProvider implements LLMProvider {
             await new Promise(r => setTimeout(r, attempt * 500));
             continue;
           }
-          Logger.warn(`Gemini structured API returned ${res.status}, engaging fallback`, {
+          Logger.warn(`Gemini structured API returned ${res.status}`, {
             httpStatus: res.status,
-            isFallback: true
+            isFallback: !isProd
           });
+          if (isProd) {
+            throw new Error(`AI service temporarily unavailable (status ${res.status}). The deterministic document analysis remains available.`);
+          }
           return this.fallback.generateStructured(prompt, schema, options);
         }
 
         if (!res.ok) {
+          if (isProd) {
+            throw new Error(`AI service temporarily unavailable (error ${res.status}). The deterministic document analysis remains available.`);
+          }
           return this.fallback.generateStructured(prompt, schema, options);
         }
 
@@ -174,10 +194,13 @@ export class GeminiLLMProvider implements LLMProvider {
         const parsed = this.cleanAndParseJSON<T>(text);
 
         if (!parsed || !this.validateAgainstSchema(parsed, schema.example)) {
-          Logger.warn('Gemini structured response failed schema validation or JSON parsing, falling back', {
+          Logger.warn('Gemini structured response failed schema validation or JSON parsing', {
             rawLength: text.length,
-            isFallback: true
+            isFallback: !isProd
           });
+          if (isProd) {
+            throw new Error('AI service returned invalid structured format. The deterministic document analysis remains available.');
+          }
           return this.fallback.generateStructured(prompt, schema, options);
         }
 
@@ -193,16 +216,22 @@ export class GeminiLLMProvider implements LLMProvider {
       } catch (err) {
         clearTimeout(timeoutId);
         if (attempt === maxRetries) {
-          Logger.warn('Gemini structured request failed or timed out, engaging fallback', {
-            error: err instanceof Error ? err.message : String(err),
-            isFallback: true
+          Logger.warn('Gemini structured request failed or timed out', {
+            error: err instanceof Error ? err.message : 'timeout',
+            isFallback: !isProd
           });
+          if (isProd) {
+            throw new Error('AI service temporarily unavailable or timed out. The deterministic document analysis remains available.');
+          }
           return this.fallback.generateStructured(prompt, schema, options);
         }
         await new Promise(r => setTimeout(r, 400));
       }
     }
 
+    if (isProd) {
+      throw new Error('AI service temporarily unavailable. The deterministic document analysis remains available.');
+    }
     return this.fallback.generateStructured(prompt, schema, options);
   }
 

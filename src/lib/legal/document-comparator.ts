@@ -1,4 +1,9 @@
 import { DocumentEvidence } from '@/types/matter';
+import {
+  DocumentComparison,
+  ClauseComparison
+} from '@/types/document-comparison';
+import { compareDocuments } from './clause-comparison-engine';
 
 export interface ClauseComparisonResult {
   clauseTitle: string;
@@ -24,13 +29,19 @@ export interface DocumentComparisonSummary {
   clauseComparisons: ClauseComparisonResult[];
   recommendedStrategy: string;
   statutoryProtectionsApplied: string[];
+  canonicalComparison?: DocumentComparison;
 }
 
+/**
+ * DocumentComparator — Unified Document Comparison Adapter
+ * Serves matter-specific workflows while aligning with the canonical comparison domain model.
+ */
 export class DocumentComparator {
   /**
-   * Compares two legal documents (e.g. Agreement vs Notice/Demand) clause by clause,
-   * highlighting unilateral variations, conflicting timelines, arbitrary deductions,
-   * and statutory protections.
+   * Compares two legal documents clause by clause.
+   * If comparisonType === 'general_diff', uses the generalized clause segmentation pipeline.
+   * If comparisonType === 'agreement_vs_notice', applies high-precision legal conflict detection
+   * (ICA §74 forfeiture, TPA §108(m) wear-and-tear, ICA §37 notice covenants).
    */
   public static compare(
     matterId: string,
@@ -44,7 +55,7 @@ export class DocumentComparator {
     const comparisons: ClauseComparisonResult[] = [];
     const statutoryProtections: string[] = [];
 
-    // 1. Security Deposit / Refund Clause
+    // 1. Security Deposit / Deductions Clause
     const baseHasDeposit = /deposit|security|caution money/i.test(baseText);
     const targetHasDeposit = /deposit|security|deduct|withhold|painting|damage/i.test(targetText);
 
@@ -57,12 +68,12 @@ export class DocumentComparator {
           clauseTitle: 'Security Deposit & Wear-and-Tear Deductions',
           baseClauseText: baseHasWearProtection
             ? 'Agreement protects tenant against normal wear and tear deductions.'
-            : 'Agreement mandates refund of security deposit upon peaceful vacation.',
+            : (baseText.slice(0, 160) || 'Agreement mandates refund of security deposit upon peaceful vacation.'),
           targetClauseText: 'Notice/Communication asserts unilateral deductions for repairs, painting, or alleged damages.',
           comparisonStatus: 'conflicting',
           riskLevel: 'high',
           plainLanguageExplanation:
-            'The landlord or counterparty is attempting to deduct charges not expressly authorized in the original agreement or prohibited by common-law wear-and-tear covenants.',
+            'The landlord or counterparty is attempting to deduct charges not expressly authorized in the original agreement or prohibited by statutory wear-and-tear covenants.',
           statutoryAnchor: 'Transfer of Property Act 1882 §108(m) & Indian Contract Act 1872 §73',
           actionableGuidance:
             'Demand original GST invoices, contractor receipts, and move-in inspection proof before accepting any unilateral deductions.',
@@ -115,7 +126,7 @@ export class DocumentComparator {
       }
     }
 
-    // 3. Forfeiture vs Proportional Rent
+    // 3. Forfeiture vs Proportional Rent (ICA §74)
     if (/forfeit|forfeiture/i.test(targetText)) {
       comparisons.push({
         clauseTitle: 'Deposit Forfeiture Clause',
@@ -153,23 +164,39 @@ export class DocumentComparator {
       }
     }
 
-    // Fallback if no specific clauses triggered
-    if (comparisons.length === 0) {
-      comparisons.push({
-        clauseTitle: 'General Evidentiary Alignment',
-        baseClauseText: baseText.slice(0, 200) || 'Primary contractual documentation',
-        targetClauseText: targetText.slice(0, 200) || 'Subsequent communication / notice',
-        comparisonStatus: 'aligned',
-        riskLevel: 'low',
-        plainLanguageExplanation: 'No direct textual conflicts or unilateral forfeiture variations were detected between these two records.',
-        statutoryAnchor: 'Indian Contract Act 1872',
-        actionableGuidance: 'Maintain chronological records of all communications.',
-      });
+    // If general_diff requested or no specialized clauses found, run canonical engine
+    if (comparisonType === 'general_diff' || comparisons.length === 0) {
+      const canonical = compareDocuments(
+        baseDoc.id,
+        baseDoc.title || 'Base Document',
+        baseText,
+        targetDoc.id,
+        targetDoc.title || 'Target Document',
+        targetText
+      );
+
+      for (const c of canonical.clauses) {
+        if (c.status !== 'unchanged' || comparisons.length === 0) {
+          comparisons.push({
+            clauseTitle: c.newClause?.heading || c.oldClause?.heading || c.category,
+            baseClauseText: c.oldClause?.text || 'Clause not present in original document.',
+            targetClauseText: c.newClause?.text || 'Clause removed in target document.',
+            comparisonStatus: c.status === 'unchanged' ? 'aligned' : (c.status === 'added' ? 'unilateral_variation' : (c.status === 'removed' ? 'missing_in_target' : 'conflicting')),
+            riskLevel: c.requiresCounselReview ? 'high' : (c.status === 'modified' ? 'medium' : 'low'),
+            plainLanguageExplanation: c.plainLanguageExplanation,
+            statutoryAnchor: c.legalContext ? `${c.legalContext.actName} ${c.legalContext.section || ''}`.trim() : undefined,
+            actionableGuidance: c.whyItMayMatter || 'Review contractual terms.'
+          });
+          if (c.legalContext) {
+            statutoryProtections.push(`${c.legalContext.actName} ${c.legalContext.section || ''}`.trim());
+          }
+        }
+      }
     }
 
     const total = comparisons.length;
     const conflicting = comparisons.filter(c => c.comparisonStatus === 'conflicting').length;
-    const variations = comparisons.filter(c => c.comparisonStatus === 'unilateral_variation').length;
+    const variations = comparisons.filter(c => c.comparisonStatus === 'unilateral_variation' || c.comparisonStatus === 'missing_in_target').length;
     const overallScore = Math.max(10, Math.round(100 - (conflicting * 35 + variations * 25)));
 
     let executiveSummary = '';
@@ -178,6 +205,59 @@ export class DocumentComparator {
     } else {
       executiveSummary = `The clauses in "${targetDoc.title}" substantially conform to the terms agreed in "${baseDoc.title}". No critical contractual contradictions were discovered.`;
     }
+
+    // Build canonical DocumentComparison representation
+    const canonicalClauses: ClauseComparison[] = comparisons.map((c, idx) => ({
+      id: `clause-comp-${idx + 1}`,
+      category: 'other',
+      status: c.comparisonStatus === 'aligned' ? 'unchanged' : (c.comparisonStatus === 'unilateral_variation' ? 'added' : (c.comparisonStatus === 'missing_in_target' ? 'removed' : 'modified')),
+      oldClause: {
+        id: `${baseDoc.id}-clause-${idx + 1}`,
+        documentId: baseDoc.id,
+        heading: c.clauseTitle,
+        text: c.baseClauseText,
+        category: 'other',
+        sourceRefs: [{ documentId: baseDoc.id, documentTitle: baseDoc.title || 'Base Document', snippet: c.baseClauseText.slice(0, 100) }]
+      },
+      newClause: c.targetClauseText ? {
+        id: `${targetDoc.id}-clause-${idx + 1}`,
+        documentId: targetDoc.id,
+        heading: c.clauseTitle,
+        text: c.targetClauseText,
+        category: 'other',
+        sourceRefs: [{ documentId: targetDoc.id, documentTitle: targetDoc.title || 'Target Document', snippet: c.targetClauseText.slice(0, 100) }]
+      } : undefined,
+      changeSummary: c.plainLanguageExplanation,
+      plainLanguageExplanation: c.plainLanguageExplanation,
+      whyItMayMatter: c.actionableGuidance,
+      sourceRefs: [{ documentId: baseDoc.id, documentTitle: baseDoc.title || 'Base Document', snippet: c.baseClauseText.slice(0, 100) }],
+      legalContext: c.statutoryAnchor ? {
+        sourceId: 'statute-anchor',
+        actName: c.statutoryAnchor,
+        bindingNature: 'statutory'
+      } : undefined,
+      requiresCounselReview: c.riskLevel === 'high'
+    }));
+
+    const canonicalComparison: DocumentComparison = {
+      id: `comp-${matterId}-${Date.now()}`,
+      documentAId: baseDoc.id,
+      documentBId: targetDoc.id,
+      documentATitle: baseDoc.title || 'Base Document',
+      documentBTitle: targetDoc.title || 'Target Document',
+      comparedAt: new Date().toISOString(),
+      summary: {
+        totalClauses: total,
+        added: canonicalClauses.filter(c => c.status === 'added').length,
+        removed: canonicalClauses.filter(c => c.status === 'removed').length,
+        modified: canonicalClauses.filter(c => c.status === 'modified').length,
+        unchanged: canonicalClauses.filter(c => c.status === 'unchanged').length,
+      },
+      clauses: canonicalClauses,
+      unresolvedQuestions: conflicting > 0 ? ['Whether counterparty provided statutory justification for deductions.'] : [],
+      processingMode: (baseDoc.status === 'verified' && targetDoc.status === 'verified') ? 'VERIFIED_DOCUMENT_MODE' : 'PASTED_TEXT_MODE',
+      isDemo: false
+    };
 
     return {
       matterId,
@@ -195,6 +275,7 @@ export class DocumentComparator {
           ? 'Dispatch formal demand letter citing exact base agreement clauses to refute unilateral variations before counterparty claims solidify.'
           : 'Proceed with structured resolution roadmap based on agreed contractual timelines.',
       statutoryProtectionsApplied: Array.from(new Set(statutoryProtections)),
+      canonicalComparison
     };
   }
 }

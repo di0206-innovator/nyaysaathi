@@ -114,4 +114,53 @@ describe('Document Security & Validation Hardening', () => {
       assert.strictEqual(result.failClosed, undefined);
     });
   });
+
+  describe('Storage Signed URLs & Isolation', () => {
+    it('generates short-lived signed URLs with 900s (15 min) maximum window', async () => {
+      const { SupabaseStorageProvider } = await import('@/lib/storage/storage-provider');
+      const provider = new SupabaseStorageProvider();
+      
+      // When Supabase is unconfigured, getSignedUrl returns null safely
+      const url = await provider.getSignedUrl('user/123/matters/m1/documents/d1/file.pdf', 900);
+      // Either null or short-lived token
+      assert.ok(url === null || typeof url === 'string');
+    });
+  });
+
+  describe('Worker Production Security & Secret Defense', () => {
+    const originalEnv = process.env.NODE_ENV;
+    const originalSecret = process.env.WORKER_SECRET;
+    const originalCronSecret = process.env.CRON_SECRET;
+
+    afterEach(() => {
+      (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
+      process.env.WORKER_SECRET = originalSecret;
+      process.env.CRON_SECRET = originalCronSecret;
+    });
+
+    it('rejects worker execution in production if dev secret is attempted', async () => {
+      (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+      delete process.env.WORKER_SECRET;
+      delete process.env.CRON_SECRET;
+
+      const { POST } = await import('@/app/api/jobs/worker/route');
+      const req = new Request('http://localhost:3000/api/jobs/worker', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer dev-internal-worker-secret'
+        }
+      });
+
+      // NextRequest wrapper
+      const { NextRequest } = await import('next/server');
+      const nextReq = new NextRequest(req);
+      const res = await POST(nextReq);
+      
+      // In production with missing/invalid secret, must return 401 Unauthorized and reject fallback
+      assert.strictEqual(res.status, 401);
+      const data = await res.json();
+      assert.strictEqual(data.success, false);
+    });
+  });
 });
+

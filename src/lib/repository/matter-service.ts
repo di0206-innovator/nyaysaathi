@@ -415,7 +415,7 @@ export class MatterService {
     await this.adapter.matters.update(matterId, updatedMatter, userId);
 
     // Notify user in-app
-    const notifProvider = getInAppNotificationProvider();
+    const notifProvider = getInAppNotificationProvider(this.userToken);
     await notifProvider.send({
       matterId,
       userId,

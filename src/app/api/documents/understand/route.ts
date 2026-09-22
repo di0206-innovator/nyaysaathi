@@ -8,9 +8,12 @@ import { AuthService } from '@/lib/auth/auth-service';
 
 const UnderstandRequestSchema = z.object({
   documentId: z.string().min(1, 'documentId is required'),
-  documentText: z.string().min(1, 'documentText is required'),
-  documentTitle: z.string().optional(),
+  documentText: z.string().min(1, 'documentText is required').max(250000, 'Document text exceeds maximum size limit'),
+  documentTitle: z.string().max(250).optional(),
   isDemo: z.boolean().optional(),
+  processingMode: z.enum(['VERIFIED_DOCUMENT_MODE', 'PASTED_TEXT_MODE', 'SYNTHETIC_DEMO_MODE']).optional(),
+  contentHash: z.string().optional(),
+  extractionStatus: z.enum(['complete', 'partial', 'needs_review', 'needs_ocr']).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -34,13 +37,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { documentId, documentText, documentTitle, isDemo } = parsed.data;
+    const {
+      documentId,
+      documentText,
+      documentTitle,
+      isDemo,
+      processingMode,
+      contentHash,
+      extractionStatus
+    } = parsed.data;
 
     const result = understandDocument(
       documentId,
       documentTitle || 'Uploaded Document',
       documentText,
-      { isDemo: isDemo ?? false }
+      {
+        isDemo: isDemo ?? false,
+        processingMode,
+        contentHash,
+        extractionStatus
+      }
     );
 
     return apiSuccess(result, 200, undefined, requestId);

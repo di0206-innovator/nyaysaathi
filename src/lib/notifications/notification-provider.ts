@@ -197,22 +197,24 @@ export class EmailNotificationProvider implements INotificationProvider {
         notificationId: data.id || `email-${Date.now()}`,
         status: 'sent'
       };
-    } catch (err) {
+    } catch (err: unknown) {
+      Logger.error('Email dispatch failed', err, {
+        matterId: payload.matterId,
+        recipient
+      });
       return {
         success: false,
-        error: `Email delivery failed: ${String(err)}`,
+        error: 'Email delivery failed due to transport error.',
         status: 'failed'
       };
     }
   }
 }
 
-// Global notification singleton
-let globalInAppProvider: InAppNotificationProvider | null = null;
-
-export function getInAppNotificationProvider(): InAppNotificationProvider {
-  if (!globalInAppProvider) {
-    globalInAppProvider = new InAppNotificationProvider();
-  }
-  return globalInAppProvider;
+/**
+ * Factory creating request-scoped in-app notification provider.
+ * Eliminates global mutable singleton and strictly binds to caller token.
+ */
+export function getInAppNotificationProvider(userToken?: string): InAppNotificationProvider {
+  return new InAppNotificationProvider(userToken);
 }

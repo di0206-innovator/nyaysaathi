@@ -61,15 +61,18 @@ export async function POST(
 
       // Dispatch worker trigger asynchronously to start processing the queued durable job
       const workerUrl = new URL('/api/jobs/worker', req.url).toString();
-      const workerSecret = process.env.INTERNAL_WORKER_KEY || process.env.CRON_SECRET || 'dev-internal-worker-secret';
-      fetch(workerUrl, {
-        method: 'POST',
-        headers: {
-          'authorization': `Bearer ${workerSecret}`
-        }
-      }).catch(err => {
-        Logger.info('Worker trigger dispatched asynchronously', { errorCategory: String(err) });
-      });
+      const isProd = process.env.NODE_ENV === 'production';
+      const workerSecret = process.env.INTERNAL_WORKER_KEY || process.env.CRON_SECRET || (isProd ? undefined : 'dev-internal-worker-secret');
+      if (workerSecret) {
+        fetch(workerUrl, {
+          method: 'POST',
+          headers: {
+            'authorization': `Bearer ${workerSecret}`
+          }
+        }).catch(err => {
+          Logger.info('Worker trigger dispatched asynchronously', { errorCategory: err instanceof Error ? err.message : 'dispatch_error' });
+        });
+      }
 
       return apiSuccess(
         {

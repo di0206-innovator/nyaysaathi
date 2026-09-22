@@ -29,6 +29,11 @@ export type ClauseCategory =
 
 export type ClauseChangeStatus = 'added' | 'removed' | 'modified' | 'unchanged';
 
+export type DocumentProcessingMode =
+  | 'VERIFIED_DOCUMENT_MODE'
+  | 'PASTED_TEXT_MODE'
+  | 'SYNTHETIC_DEMO_MODE';
+
 export type LegalBindingClassification =
   | 'statutory'
   | 'contractual'
@@ -54,6 +59,7 @@ export interface DocumentClause {
   pageNumber?: number;
   category: ClauseCategory;
   sourceRefs: SourceRef[];
+  processingMode?: DocumentProcessingMode;
 }
 
 export interface ClauseComparison {
@@ -79,6 +85,14 @@ export interface ClauseComparison {
   };
 
   requiresCounselReview: boolean;
+  semanticAnalysis?: {
+    isEquivalent?: boolean;
+    isConflict?: boolean;
+    matchType?: 'semantic_equivalent' | 'conflict' | 'nuance' | 'none';
+    confidence: number;
+    explanation?: string;
+    reasoning?: string;
+  };
 }
 
 export interface DocumentComparisonSummary {
@@ -101,9 +115,16 @@ export interface DocumentComparison {
   clauses: ClauseComparison[];
   unresolvedQuestions: string[];
 
+  processingMode: DocumentProcessingMode;
+  contentHashA?: string;
+  contentHashB?: string;
+
   isDemo: boolean;
   demoDisclaimer?: string;
 }
+
+/** Canonical alias for DocumentComparison */
+export type ComparisonResult = DocumentComparison;
 
 // =============================================================================
 // Document Understanding Types
@@ -146,6 +167,9 @@ export interface DocumentUnderstanding {
   extractionStatus: 'complete' | 'partial' | 'needs_review' | 'needs_ocr';
   warnings: string[];
 
+  processingMode: DocumentProcessingMode;
+  contentHash?: string;
+
   isDemo: boolean;
   demoDisclaimer?: string;
 }
@@ -162,14 +186,24 @@ export interface DocumentQARequest {
   documentBText?: string;
   documentATitle?: string;
   documentBTitle?: string;
+  processingMode?: DocumentProcessingMode;
+}
+
+export interface QAClaim {
+  text: string;
+  sourceRefs: SourceRef[];
 }
 
 export interface DocumentQAAnswer {
   answer: string;
   isGrounded: boolean;
+  claims: QAClaim[];
   sourceRefs: SourceRef[];
+  uncertainty?: string[];
   whyThisMatters?: string;
   whatToVerify?: string[];
   counselRequired: boolean;
+  retrievalMode?: 'semantic_rag' | 'deterministic_search';
   cannotVerifyDisclaimer?: string;
+  processingMode?: DocumentProcessingMode;
 }

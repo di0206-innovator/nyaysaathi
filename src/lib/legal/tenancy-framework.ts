@@ -200,8 +200,8 @@ export class TenancyFramework {
         },
         {
           actName: 'Model Tenancy Act 2021',
-          section: 'Section 13 (Model Provision)',
-          description: 'Advisory guidance recommending security deposit return upon vacation, subject to state adoption.',
+          section: 'Section 11 (Model Provision - Security Deposit)',
+          description: 'Advisory model provision recommending security deposit return upon vacation and 2-month residential cap, subject to state enactment.',
           status: 'advisory_guideline'
         }
       ],

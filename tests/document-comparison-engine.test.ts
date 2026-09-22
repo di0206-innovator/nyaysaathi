@@ -157,6 +157,30 @@ describe('GenAI Legal Document Understanding & Clause Comparison Engine', () => 
       assert.ok(result.clauses.length >= 5);
       assert.ok(result.summary.modified >= 2);
     });
+
+    it('identifies semantic equivalence for notice durations (30 days vs 1 month)', () => {
+      const textA = '3. Notice: Either party shall provide notice no later than thirty days prior to vacating.';
+      const textB = '3. Notice: Either party must give at least one month\'s prior written notice prior to vacating.';
+
+      const result = compareDocuments('doc-a', 'Doc A', textA, 'doc-b', 'Doc B', textB);
+      assert.equal(result.clauses.length, 1);
+      assert.equal(result.clauses[0].status, 'modified');
+      assert.ok(result.clauses[0].semanticAnalysis);
+      assert.equal(result.clauses[0].semanticAnalysis?.matchType, 'semantic_equivalent');
+      assert.ok(result.clauses[0].semanticAnalysis?.explanation?.includes('30-day'));
+    });
+
+    it('identifies semantic conflict when maintenance obligation shifts', () => {
+      const textA = '4. Upkeep: Tenant is responsible for routine upkeep and repairs.';
+      const textB = '4. Upkeep: Landlord shall bear all ordinary maintenance costs and upkeep.';
+
+      const result = compareDocuments('doc-a', 'Doc A', textA, 'doc-b', 'Doc B', textB);
+      assert.equal(result.clauses.length, 1);
+      assert.equal(result.clauses[0].status, 'modified');
+      assert.ok(result.clauses[0].semanticAnalysis);
+      assert.equal(result.clauses[0].semanticAnalysis?.matchType, 'conflict');
+      assert.ok(result.clauses[0].semanticAnalysis?.explanation?.includes('responsibility shifted'));
+    });
   });
 
   describe('Document Understanding & Overview Extraction', () => {

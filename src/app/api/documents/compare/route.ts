@@ -12,15 +12,21 @@ import { DocumentEvidence } from '@/types/matter';
 const CompareRequestSchema = z.object({
   documentAId: z.string().min(1, 'documentAId is required'),
   documentBId: z.string().min(1, 'documentBId is required'),
-  documentAText: z.string().optional(),
-  documentBText: z.string().optional(),
-  documentATitle: z.string().optional(),
-  documentBTitle: z.string().optional(),
+  documentAText: z.string().max(250000, 'Document A text exceeds maximum size limit').optional(),
+  documentBText: z.string().max(250000, 'Document B text exceeds maximum size limit').optional(),
+  documentATitle: z.string().max(250).optional(),
+  documentBTitle: z.string().max(250).optional(),
   matterId: z.string().optional(),
   matterIdA: z.string().optional(),
   matterIdB: z.string().optional(),
   demoSetId: z.string().optional(),
-});
+  processingMode: z.enum(['VERIFIED_DOCUMENT_MODE', 'PASTED_TEXT_MODE', 'SYNTHETIC_DEMO_MODE']).optional(),
+  contentHashA: z.string().optional(),
+  contentHashB: z.string().optional(),
+}).refine(
+  data => ((data.documentAText?.length || 0) + (data.documentBText?.length || 0)) <= 400000,
+  { message: 'Combined comparison payload cannot exceed 400,000 characters' }
+);
 
 export async function POST(req: NextRequest) {
   const requestId = getOrGenerateRequestId(req);
@@ -152,7 +158,12 @@ export async function POST(req: NextRequest) {
         documentBId,
         titleB || 'Document B',
         textB,
-        { isDemo: false }
+        {
+          isDemo: false,
+          processingMode: parsed.data.processingMode || 'PASTED_TEXT_MODE',
+          contentHashA: parsed.data.contentHashA,
+          contentHashB: parsed.data.contentHashB
+        }
       );
       return apiSuccess(result, 200, undefined, requestId);
     }

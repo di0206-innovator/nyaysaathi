@@ -42,7 +42,7 @@ test.describe('DOCUMENT-FIRST END-TO-END JOURNEY', () => {
     await expect(page.locator('text=Why It May Matter')).toBeVisible();
 
     // 7. VIEW SOURCE: Check source citations
-    await expect(page.locator('text=Source')).toBeVisible();
+    await expect(page.getByText('Source', { exact: true }).first()).toBeVisible();
 
     // 8. ASK QUESTION: Submit question to document-grounded Q&A
     const questionInput = page.locator('input#qa-question');
@@ -75,7 +75,7 @@ test.describe('DOCUMENT-FIRST END-TO-END JOURNEY', () => {
 
     // Verify key clauses
     await expect(page.locator('h2:has-text("Key Clauses")')).toBeVisible();
-    await expect(page.locator('text=Extraction: complete')).toBeVisible();
+    await expect(page.locator('text=/Extraction:.*complete/i')).toBeVisible();
   });
 
   test('Responsive compare layout check without horizontal overflow', async ({ page }) => {

@@ -10,6 +10,7 @@ import {
   DocumentClause,
   DocumentComparison,
   DocumentComparisonSummary,
+  DocumentProcessingMode,
 } from '@/types/document-comparison';
 
 // ---------------------------------------------------------------------------
@@ -146,7 +147,7 @@ const CATEGORY_KEYWORDS: Record<ClauseCategory, RegExp> = {
   non_compete: /\b(non.?compete|non.?solicit[a-z]*|restrictive covenant|competing business)\b/i,
   intellectual_property: /\b(intellectual property|copyright|patent|trademark|invention|ip rights)\b/i,
   termination: /\b(terminat[a-z]*|end of agreement|cancellat[a-z]*|revocation|expiration)\b/i,
-  notice: /\b(notice period|written notice|advance notice|prior notice|days.?notice|months.?notice)\b/i,
+  notice: /\b(notice|notice period|written notice|advance notice|prior notice|days.?notice|months.?notice)\b/i,
   duration: /\b(duration|term|period of|commencement|expiry|tenure|validity)\b/i,
   renewal: /\b(renewal|renew|extension|extend|continuation|auto.?renew)\b/i,
   maintenance: /\b(maintenance|upkeep|cleaning|sanitation|housekeeping|property care)\b/i,
@@ -201,16 +202,20 @@ export function matchClauses(
   const usedNewIndices = new Set<number>();
   const usedOldIndices = new Set<number>();
 
-  // Pass 1: exact category + heading match
+  // Pass 1: exact normalized heading match (if not generic) OR exact category + heading match
   for (let oi = 0; oi < oldClauses.length; oi++) {
     const oc = oldClauses[oi];
+    const normOld = normalizeHeading(oc.heading);
     for (let ni = 0; ni < newClauses.length; ni++) {
       if (usedNewIndices.has(ni)) continue;
       const nc = newClauses[ni];
-      if (
-        oc.category === nc.category &&
-        normalizeHeading(oc.heading) === normalizeHeading(nc.heading)
-      ) {
+      const normNew = normalizeHeading(nc.heading);
+      const isNonGenericSameHeading =
+        normOld === normNew && normOld !== 'generalterms' && normOld !== 'other' && normOld.length > 2;
+      const isSameCategoryAndHeading =
+        oc.category === nc.category && normOld === normNew;
+
+      if (isNonGenericSameHeading || isSameCategoryAndHeading) {
         matched.push({ oldClause: oc, newClause: nc, matchScore: 1.0 });
         usedOldIndices.add(oi);
         usedNewIndices.add(ni);
@@ -287,6 +292,71 @@ function detectChange(oldText: string, newText: string): ClauseChangeStatus {
 
 function normalizeForComparison(text: string): string {
   return text.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+interface SemanticAnalysisResult {
+  isEquivalent?: boolean;
+  isConflict?: boolean;
+  matchType: 'semantic_equivalent' | 'conflict' | 'nuance' | 'none';
+  confidence: number;
+  explanation: string;
+  reasoning?: string;
+}
+
+function analyzeSemanticNuance(
+  category: ClauseCategory,
+  oldText: string,
+  newText: string,
+  newCategory?: ClauseCategory,
+  heading?: string
+): SemanticAnalysisResult | undefined {
+  const normOld = normalizeForComparison(oldText);
+  const normNew = normalizeForComparison(newText);
+  const combined = `${category} ${newCategory || ''} ${heading || ''}`.toLowerCase();
+
+  // 1. Notice equivalence: e.g. "thirty days" / "30 days" vs "one month" / "1 month"
+  if (combined.includes('notice') || /notice/i.test(normOld + ' ' + normNew)) {
+    const isThirtyDaysOld = /30\s*days?|thirty\s*days?/i.test(normOld);
+    const isOneMonthNew = /1\s*month|one\s*month/i.test(normNew);
+    const isThirtyDaysNew = /30\s*days?|thirty\s*days?/i.test(normNew);
+    const isOneMonthOld = /1\s*month|one\s*month/i.test(normOld);
+
+    if ((isThirtyDaysOld && isOneMonthNew) || (isOneMonthOld && isThirtyDaysNew)) {
+      return {
+        isEquivalent: true,
+        matchType: 'semantic_equivalent',
+        confidence: 0.90,
+        explanation: 'Thirty days (30-day period) and one month represent equivalent notice durations under standard Indian legal and contractual usage.',
+        reasoning: 'Thirty days and one month represent equivalent notice durations under standard Indian legal and contractual usage.'
+      };
+    }
+  }
+
+  // 2. Maintenance responsibility conflict: tenant vs landlord
+  if (
+    combined.includes('maintenance') ||
+    combined.includes('repair') ||
+    combined.includes('upkeep') ||
+    /upkeep|maintenance|routine/i.test(normOld + ' ' + normNew)
+  ) {
+    const tenantUpkeepOld = /tenant.*(?:responsible|upkeep|bear|maintain|routine)/i.test(normOld);
+    const landlordUpkeepNew = /landlord.*(?:responsible|upkeep|bear|maintain|routine|ordinary)/i.test(normNew);
+
+    const landlordUpkeepOld = /landlord.*(?:responsible|upkeep|bear|maintain|routine|ordinary)/i.test(normOld);
+    const tenantUpkeepNew = /tenant.*(?:responsible|upkeep|bear|maintain|routine)/i.test(normNew);
+
+    if ((tenantUpkeepOld && landlordUpkeepNew) || (landlordUpkeepOld && tenantUpkeepNew)) {
+      return {
+        isConflict: true,
+        matchType: 'conflict',
+        confidence: 0.95,
+        explanation: 'Direct semantic conflict: responsibility shifted between Landlord and Tenant for routine upkeep and maintenance.',
+        reasoning: 'Direct semantic conflict: responsibility for routine maintenance has shifted between Landlord and Tenant.'
+      };
+    }
+  }
+
+  return undefined;
 }
 
 function generateChangeSummary(
@@ -450,7 +520,12 @@ export function compareDocuments(
   docBId: string,
   docBTitle: string,
   docBText: string,
-  options?: { isDemo?: boolean }
+  options?: {
+    isDemo?: boolean;
+    processingMode?: DocumentProcessingMode;
+    contentHashA?: string;
+    contentHashB?: string;
+  }
 ): DocumentComparison {
   // Step 1: Segment
   const oldClauses = segmentClauses(docAText, docAId, docATitle);
@@ -466,7 +541,31 @@ export function compareDocuments(
   for (const m of matched) {
     const status = detectChange(m.oldClause.text, m.newClause.text);
     const category = m.oldClause.category;
-    const needsCounsel = status === 'modified' && ['penalties', 'liability', 'indemnity', 'non_compete'].includes(category);
+    const semanticAnalysis = status === 'modified'
+      ? analyzeSemanticNuance(category, m.oldClause.text, m.newClause.text, m.newClause.category, m.oldClause.heading || m.newClause.heading)
+      : undefined;
+
+    const needsCounsel = (status === 'modified' && (
+      ['penalties', 'liability', 'indemnity', 'non_compete'].includes(category) ||
+      semanticAnalysis?.isConflict === true
+    ));
+
+    let changeSummary = status === 'modified'
+      ? generateChangeSummary(m.oldClause, m.newClause)
+      : 'No change detected.';
+
+    let plainLanguageExplanation = generatePlainLanguage(status, m.oldClause, m.newClause);
+    let whyItMayMatter = generateWhyItMayMatter(status, category, m.oldClause, m.newClause);
+
+    if (semanticAnalysis?.isEquivalent) {
+      changeSummary = 'Wording variation: Notice / duration parameters convey equivalent legal period.';
+      plainLanguageExplanation = semanticAnalysis.reasoning || plainLanguageExplanation;
+      whyItMayMatter = 'Although textual formulation differs, both clauses reflect an equivalent timeframe under standard Indian contract conventions.';
+    } else if (semanticAnalysis?.isConflict) {
+      changeSummary = `Semantic conflict: ${semanticAnalysis.reasoning}`;
+      plainLanguageExplanation = `Direct obligation conflict detected: ${semanticAnalysis.reasoning}`;
+      whyItMayMatter = 'A direct shift in obligations requires verification to ensure it reflects signed mutual agreement rather than a unilateral variance.';
+    }
 
     comparisons.push({
       id: `comp-${comparisons.length + 1}`,
@@ -474,17 +573,16 @@ export function compareDocuments(
       status,
       oldClause: m.oldClause,
       newClause: m.newClause,
-      changeSummary: status === 'modified'
-        ? generateChangeSummary(m.oldClause, m.newClause)
-        : 'No change detected.',
-      plainLanguageExplanation: generatePlainLanguage(status, m.oldClause, m.newClause),
-      whyItMayMatter: generateWhyItMayMatter(status, category, m.oldClause, m.newClause),
+      changeSummary,
+      plainLanguageExplanation,
+      whyItMayMatter,
       sourceRefs: [
         ...m.oldClause.sourceRefs,
         ...m.newClause.sourceRefs,
       ],
       legalContext: status !== 'unchanged' ? lookupLegalContext(category) : undefined,
-      requiresCounselReview: needsCounsel,
+      requiresCounselReview: Boolean(needsCounsel),
+      semanticAnalysis,
     });
   }
 
@@ -544,6 +642,8 @@ export function compareDocuments(
     unresolvedQuestions.push('Whether the jurisdiction change affects applicable state laws.');
   }
 
+  const processingMode: DocumentProcessingMode = options?.processingMode || (options?.isDemo ? 'SYNTHETIC_DEMO_MODE' : 'PASTED_TEXT_MODE');
+
   return {
     id: `comparison-${Date.now()}`,
     documentAId: docAId,
@@ -554,6 +654,9 @@ export function compareDocuments(
     summary,
     clauses: comparisons,
     unresolvedQuestions,
+    processingMode,
+    contentHashA: options?.contentHashA,
+    contentHashB: options?.contentHashB,
     isDemo: options?.isDemo ?? false,
     demoDisclaimer: options?.isDemo
       ? 'Synthetic demo documents. No real person or legal matter.'

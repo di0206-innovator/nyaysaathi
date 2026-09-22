@@ -8,6 +8,7 @@ import {
   DocumentUnderstanding,
   ExtractedClause,
   SourceRef,
+  DocumentProcessingMode,
 } from '@/types/document-comparison';
 import { segmentClauses } from './clause-comparison-engine';
 
@@ -123,7 +124,12 @@ export function understandDocument(
   documentId: string,
   documentTitle: string,
   documentText: string,
-  options?: { isDemo?: boolean }
+  options?: {
+    isDemo?: boolean;
+    processingMode?: DocumentProcessingMode;
+    contentHash?: string;
+    extractionStatus?: 'complete' | 'partial' | 'needs_review' | 'needs_ocr';
+  }
 ): DocumentUnderstanding {
   const text = documentText || '';
   const trimmed = text.trim();
@@ -145,6 +151,8 @@ export function understandDocument(
       extractionConfidence: 0,
       extractionStatus: 'needs_review',
       warnings: ['No text content available for analysis. Please upload a document with extractable text.'],
+      processingMode: options?.processingMode || (options?.isDemo ? 'SYNTHETIC_DEMO_MODE' : 'PASTED_TEXT_MODE'),
+      contentHash: options?.contentHash,
       isDemo: options?.isDemo ?? false,
     };
   }
@@ -198,6 +206,8 @@ export function understandDocument(
   if (!hasParties) warnings.push('Could not automatically identify parties. Manual review recommended.');
   if (!hasDates) warnings.push('No dates were automatically extracted.');
 
+  const processingMode: DocumentProcessingMode = options?.processingMode || (options?.isDemo ? 'SYNTHETIC_DEMO_MODE' : 'PASTED_TEXT_MODE');
+
   return {
     id: `understanding-${Date.now()}`,
     documentId,
@@ -206,8 +216,10 @@ export function understandDocument(
     overview,
     keyClauses,
     extractionConfidence: confidence,
-    extractionStatus: confidence >= 0.7 ? 'complete' : confidence >= 0.5 ? 'partial' : 'needs_review',
+    extractionStatus: options?.extractionStatus || (confidence >= 0.7 ? 'complete' : confidence >= 0.5 ? 'partial' : 'needs_review'),
     warnings,
+    processingMode,
+    contentHash: options?.contentHash,
     isDemo: options?.isDemo ?? false,
     demoDisclaimer: options?.isDemo
       ? 'Synthetic demo document. No real person or legal matter.'

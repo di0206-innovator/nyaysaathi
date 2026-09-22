@@ -174,10 +174,10 @@ export class SupabaseStorageProvider implements IStorageProvider {
       throw new Error(`Supabase Storage upload failed: ${error.message}`);
     }
 
-    // Generate a private signed URL valid for 1 hour (3600 seconds)
+    // Generate a private short-lived signed URL valid for 15 minutes (900 seconds)
     const { data: signedData, error: signedError } = await client.storage
       .from(this.bucketName)
-      .createSignedUrl(storagePath, 3600);
+      .createSignedUrl(storagePath, 900);
 
     const fileUrl = !signedError && signedData?.signedUrl
       ? signedData.signedUrl
@@ -299,7 +299,7 @@ export class SupabaseStorageProvider implements IStorageProvider {
     }
   }
 
-  public async getSignedUrl(storagePath: string, expiresInSeconds: number = 3600): Promise<string | null> {
+  public async getSignedUrl(storagePath: string, expiresInSeconds: number = 900): Promise<string | null> {
     const client = this.getClient();
     if (!client) return null;
 

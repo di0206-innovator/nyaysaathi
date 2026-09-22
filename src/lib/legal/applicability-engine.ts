@@ -240,7 +240,7 @@ export const LEGAL_SOURCE_REGISTRY: LegalSource[] = [
     effectiveFrom: '2021-06-02',
     status: 'active',
     actName: 'Model Tenancy Act, 2021',
-    section: 'Model Reference / Section 13 (Advisory Only)',
+    section: 'Section 11 (Model Provision - Security Deposit, Advisory Only)',
     version: '2021.1',
     sourceURL: 'https://mohua.gov.in/upload/uploadfiles/files/Model_Tenancy_Act_English.pdf',
     description: 'Central advisory guideline suggesting 2-month deposit caps and tenancy authorities.',

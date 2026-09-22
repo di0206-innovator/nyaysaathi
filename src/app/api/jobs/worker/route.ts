@@ -9,11 +9,19 @@ import { ReanalysisTrigger } from '@/lib/agents/types';
  * Internal Durable Background Worker Route.
  * Invoked by Vercel Cron or secure internal dispatch to atomically claim and process queued jobs.
  */
-export async function POST(req: NextRequest) {
+async function handleWorkerExecution(req: NextRequest) {
   // 1. Authenticate worker caller
   const authHeader = req.headers.get('authorization');
   const cronHeader = req.headers.get('x-vercel-cron');
-  const configuredSecret = process.env.INTERNAL_WORKER_KEY || process.env.CRON_SECRET || 'dev-internal-worker-secret';
+  const isProd = process.env.NODE_ENV === 'production';
+  const configuredSecret = process.env.INTERNAL_WORKER_KEY || process.env.CRON_SECRET || (isProd ? undefined : 'dev-internal-worker-secret');
+
+  if (!configuredSecret) {
+    Logger.warn('Unauthorized background worker invocation: worker secret not configured in production', {
+      ip: req.headers.get('x-forwarded-for') || 'unknown'
+    });
+    return apiError('Unauthorized internal worker invocation: worker secret not configured', 401, 'UNAUTHORIZED');
+  }
 
   const isBearerValid = authHeader === `Bearer ${configuredSecret}`;
   const isCronValid = cronHeader === '1' && (!process.env.CRON_SECRET || authHeader === `Bearer ${process.env.CRON_SECRET}`);
@@ -95,7 +103,7 @@ export async function POST(req: NextRequest) {
       workerId
     });
   } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
+    const errorMsg = err instanceof Error ? err.message : 'Job execution failed';
     Logger.error('Worker failed while executing background job', err, {
       jobId: job.id,
       workerId
@@ -105,4 +113,18 @@ export async function POST(req: NextRequest) {
 
     return apiError('Background job execution encountered an error.', 500, 'JOB_EXECUTION_ERROR');
   }
+}
+
+/**
+ * Handle POST invocation (internal dispatch or manual worker trigger)
+ */
+export async function POST(req: NextRequest) {
+  return handleWorkerExecution(req);
+}
+
+/**
+ * Handle GET invocation (Vercel Cron scheduler makes HTTP GET requests)
+ */
+export async function GET(req: NextRequest) {
+  return handleWorkerExecution(req);
 }
