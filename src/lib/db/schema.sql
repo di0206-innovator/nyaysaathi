@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS matter_documents (
     confidence_score NUMERIC(5, 4),
     relevance_summary TEXT,
     status VARCHAR(50) DEFAULT 'verified',
-    embedding vector(1536), -- Vector embedding of extracted text for RAG retrieval
+    embedding vector(768), -- Vector embedding of extracted text for RAG retrieval (Google text-embedding-004)
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -218,7 +218,7 @@ CREATE TABLE IF NOT EXISTS statutory_provisions (
     category VARCHAR(100),
     limitation_period_months INTEGER,
     remedy_type VARCHAR(100),
-    embedding vector(1536),
+    embedding vector(768),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

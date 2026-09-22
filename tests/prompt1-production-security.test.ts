@@ -222,4 +222,54 @@ describe('PROMPT 1: Production Security, Auth, Data Isolation & Integrity', () =
       assert.ok(logs[0].timestamp);
     });
   });
+
+  describe('7. AI Provider Production Fail-Closed Boundary', () => {
+    it('strictly fails closed in production when Gemini API key is missing without quiet fallback', async () => {
+      const prevEnv = process.env.NODE_ENV;
+      const prevKey = process.env.GEMINI_API_KEY;
+      try {
+        (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+        delete process.env.GEMINI_API_KEY;
+
+        const { GeminiLLMProvider } = await import('../src/lib/ai/gemini-provider');
+        const provider = new GeminiLLMProvider(undefined);
+
+        await assert.rejects(
+          async () => provider.generateText('Explain tenancy eviction law in Karnataka'),
+          /AI service temporarily unavailable/
+        );
+
+        await assert.rejects(
+          async () => provider.generateStructured('Extract facts', {
+            name: 'facts',
+            description: 'extract facts',
+            example: { facts: [] }
+          }),
+          /AI service temporarily unavailable/
+        );
+      } finally {
+        (process.env as Record<string, string | undefined>).NODE_ENV = prevEnv;
+        process.env.GEMINI_API_KEY = prevKey;
+      }
+    });
+
+    it('allows deterministic fallback in development/test environment for developer velocity', async () => {
+      const prevEnv = process.env.NODE_ENV;
+      const prevKey = process.env.GEMINI_API_KEY;
+      try {
+        (process.env as Record<string, string | undefined>).NODE_ENV = 'development';
+        delete process.env.GEMINI_API_KEY;
+
+        const { GeminiLLMProvider } = await import('../src/lib/ai/gemini-provider');
+        const provider = new GeminiLLMProvider(undefined);
+
+        const res = await provider.generateText('Explain tenancy eviction law');
+        assert.ok(res.content);
+        assert.equal(res.isFallback, true);
+      } finally {
+        (process.env as Record<string, string | undefined>).NODE_ENV = prevEnv;
+        process.env.GEMINI_API_KEY = prevKey;
+      }
+    });
+  });
 });

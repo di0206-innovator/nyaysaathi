@@ -10,6 +10,8 @@
 
 NyaySaathi is a legal document intelligence platform built to parse, compare, and explain legal agreements under Indian law. The architecture follows a strict deterministic-first design: file parsing, cryptographic hashing, clause segmentation, exact diffing, and legal statutory cross-referencing run deterministically, while Generative AI (Gemini 2.5 Flash) is called selectively for semantic nuance analysis and evidence-grounded Q&A.
 
+> **Canonical Capability Matrix**: See [`docs/CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md) for the single authoritative register of deployment maturity, live status, and external dependencies.
+
 ### Verification Status Matrix
 
 | Component | Architecture / Implementation | Automated Verification Suite | Result |

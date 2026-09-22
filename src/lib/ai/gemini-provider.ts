@@ -115,16 +115,22 @@ export class GeminiLLMProvider implements LLMProvider {
       } catch (err) {
         clearTimeout(timeoutId);
         if (attempt === maxRetries) {
-          Logger.warn('Gemini request failed or timed out after retries, engaging fallback', {
+          Logger.warn('Gemini request failed or timed out after retries', {
             error: err instanceof Error ? err.message : String(err),
-            isFallback: true
+            isFallback: !isProd
           });
+          if (isProd) {
+            throw new Error(`AI service temporarily unavailable (${err instanceof Error ? err.message : 'timeout'}). The deterministic document analysis remains available.`);
+          }
           return this.fallback.generateText(prompt, options);
         }
         await new Promise(r => setTimeout(r, 400));
       }
     }
 
+    if (isProd) {
+      throw new Error('AI service temporarily unavailable. The deterministic document analysis remains available.');
+    }
     return this.fallback.generateText(prompt, options);
   }
 
