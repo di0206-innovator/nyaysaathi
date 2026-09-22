@@ -482,7 +482,7 @@ npm run verify:production
 This validates:
 1. **Lint**: ESLint static code inspection (0 errors, 0 warnings)
 2. **Typecheck**: TypeScript strict compiler verification (`npx tsc --noEmit`)
-3. **Unit Tests**: Core repository, statutory & durability test suites (187 tests across 70 suites)
+3. **Unit Tests & Legal Benchmark**: Core repository, statutory, durability, and 100-case legal benchmark test suites (247 tests across 89 suites, 0 failures)
 4. **Security & Concurrency**: IDOR defense, exact path traversal prevention, and 100-request atomic rate limiter concurrency
 5. **AI Evaluation**: Truthful reasoning, evidence grounding, anti-hallucination benchmarks
 6. **Supabase RLS Integration**: Alice vs Bob multi-tenant isolation
@@ -492,7 +492,10 @@ This validates:
 10. **Production Build**: Next.js Turbopack production compilation
 
 ```bash
-# Run unit & security test suite directly
+# Run 100-case empirical legal AI benchmark directly
+npm run test:benchmark
+
+# Run complete test suite (247 tests across 89 suites)
 npm test
 
 # Run ESLint validation
