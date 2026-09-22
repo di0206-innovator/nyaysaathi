@@ -50,7 +50,7 @@ export class ActionPlannerAgent {
             id: 'act-tenancy-legal-notice',
             title: 'Serve Registered Speed Post Legal Notice (RPAD)',
             phase: 'short_term_14d',
-            description: 'Serve statutory legal notice calling upon landlord to refund deposit with 12% interest within 15 days.',
+            description: 'Serve formal legal notice (contractual/recommended pre-litigation cure period) calling upon landlord to refund deposit with 12% interest within 15 days.',
             estimatedTurnaround: '2-3 days',
             status: 'pending',
             priority: 'recommended',

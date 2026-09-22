@@ -103,6 +103,6 @@ export async function POST(req: NextRequest) {
 
     await DurableJobQueue.failJob(job.id, 'EXECUTION_FAILURE', errorMsg);
 
-    return apiError(`Background job execution failed: ${errorMsg}`, 500, 'JOB_EXECUTION_ERROR');
+    return apiError('Background job execution encountered an error.', 500, 'JOB_EXECUTION_ERROR');
   }
 }

@@ -73,7 +73,7 @@ describe('Phase 6: Productionization, Real Data Security, AI Hardening & Demo Re
     it('accepts valid evidence files and constructs deterministic scoped private paths', async () => {
       const storage = new LocalStorageProvider();
       const stored = await storage.uploadFile({
-        buffer: Buffer.from('Rental Agreement Clause 14: Refund within 30 days.'),
+        buffer: Buffer.from('%PDF-1.4\nRental Agreement Clause 14: Refund within 30 days.'),
         filename: 'rental_agreement_2026.pdf',
         mimeType: 'application/pdf',
         matterId: 'matter-storage-test-01',

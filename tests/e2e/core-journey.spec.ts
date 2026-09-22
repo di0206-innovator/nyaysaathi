@@ -6,7 +6,7 @@ test.describe('NYAYSAATHI — REAL BROWSER E2E VERIFICATION', () => {
     await page.goto('/');
 
     // Check main title
-    await expect(page.locator('h1')).toContainText(/CLEAR CONFUSION|MATTER-BASED LEGAL ACTION/i);
+    await expect(page.locator('h1')).toContainText(/UNDERSTAND CONTRACTS|COMPARE REVISIONS|CLEAR CONFUSION|MATTER-BASED LEGAL ACTION/i);
 
     // Verify key action links exist (hero action triggers)
     const pilotButton = page.locator('a[href="/pilot"]:visible').first();

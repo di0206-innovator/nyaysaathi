@@ -54,7 +54,7 @@ async function verifyProduction() {
   console.log('3/10 Running core repository, OCR provenance & statutory unit tests...');
   const unitRes = runStep(
     'Unit Tests',
-    'npx tsx --test tests/persistence-and-intake.test.ts tests/ai-rag-multilingual.test.ts tests/prompt4-performance-contracts.test.ts tests/prompt5-gtm-wedge.test.ts tests/phase7-action-lifecycle.test.ts tests/ocr-extraction.test.ts'
+    'npx tsx --test tests/document-comparison-engine.test.ts tests/persistence-and-intake.test.ts tests/ai-rag-multilingual.test.ts tests/prompt4-performance-contracts.test.ts tests/prompt5-gtm-wedge.test.ts tests/phase7-action-lifecycle.test.ts tests/ocr-extraction.test.ts'
   );
   results.push(unitRes);
   if (unitRes.status === 'FAIL') criticalIssues++;
@@ -63,7 +63,7 @@ async function verifyProduction() {
   console.log('4/10 Executing production security, authorization & atomic rate limiter suite...');
   const secRes = runStep(
     'Security & Concurrency',
-    'npx tsx --test tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts tests/production-durability-and-storage.test.ts tests/adversarial-security-and-quality.test.ts'
+    'npx tsx --test tests/document-comparison-security.test.ts tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts tests/production-durability-and-storage.test.ts tests/adversarial-security-and-quality.test.ts'
   );
   results.push(secRes);
   if (secRes.status === 'FAIL') criticalIssues++;

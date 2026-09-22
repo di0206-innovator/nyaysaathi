@@ -154,7 +154,7 @@ export class MatterQAService {
     let tier: TrustSafetyTier = 'explanation';
 
     if (qLower.includes('ignore') || qLower.includes('not reply') || qLower.includes('unanswered')) {
-      answer = `Under Indian legal procedure, if the opposing party fails to respond to your written notice within the stipulated cure period (usually 15 days), their non-response can be cited as prima facie proof of default in subsequent proceedings before the District Legal Services Authority (DLSA) or the competent forum.`;
+      answer = `Under Indian legal procedure, if the opposing party fails to respond to your written notice within the stipulated contractual or statutory cure period (commonly 15 to 30 days depending on the underlying agreement or specific statute), their non-response can be cited as prima facie proof of default in subsequent proceedings before the District Legal Services Authority (DLSA) or the competent forum.`;
       tier = 'explanation';
     } else if (qLower.includes('lawyer') || qLower.includes('hire') || qLower.includes('advocate')) {
       answer = `For pre-litigation notices and forum filings like e-Daakhil (Consumer Commission) or DLSA mediation, Indian law permits complainants to represent themselves in person without mandatory advocate engagement. However, if the opposing party contests with extensive pleadings or the matter involves complex pecuniary cross-examination, formal advocate representation is strongly advised.`;
@@ -182,13 +182,15 @@ export class MatterQAService {
       answer = trans.translatedText;
     }
 
+    const isFullyGrounded = citations.length > 0 && tier !== 'possibility';
+
     return {
       answer,
       tier,
       citations,
-      isFullyGrounded: true,
+      isFullyGrounded,
       suggestedQuestions: [
-        'What should I include in my 15-day formal notice?',
+        'What terms should I specify in my formal legal notice?',
         'Can I file this online on the government portal?',
         'What evidence should I show to a DLSA legal aid advocate?'
       ]

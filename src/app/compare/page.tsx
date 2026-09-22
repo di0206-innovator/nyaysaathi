@@ -185,7 +185,7 @@ export default function ComparePage() {
     : [];
 
   return (
-    <div className="min-h-screen bg-[#FBFBF9] text-[#0A0A0A]">
+    <div className="min-h-screen bg-[#FBFBF9] text-[#0A0A0A] overflow-x-hidden w-full">
       {/* Hero */}
       <section className="bg-[#0A0A0A] text-white pt-12 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto space-y-6">

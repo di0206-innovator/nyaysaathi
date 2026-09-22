@@ -45,8 +45,7 @@ export async function GET(
 
     return NextResponse.json(advocatePack);
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
     Logger.error('Failed to generate Advocate Case Pack', err, { matterId: id });
-    return NextResponse.json({ error: errMsg }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate Advocate Case Pack. Please try again later.' }, { status: 500 });
   }
 }

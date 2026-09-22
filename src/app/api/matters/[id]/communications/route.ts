@@ -117,8 +117,7 @@ export async function POST(
       deadlines: updatedMatter.deadlines
     }, 201);
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
     Logger.error('Failed to record communication', err, { matterId: id });
-    return apiError(errMsg, 500, 'RECORD_COMMUNICATION_ERROR');
+    return apiError('Failed to record communication. Please try again.', 500, 'RECORD_COMMUNICATION_ERROR');
   }
 }

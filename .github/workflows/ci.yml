@@ -91,7 +91,7 @@ jobs:
         run: npm ci
 
       - name: Run Security & Concurrency Regression Tests
-        run: npx tsx --test tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts tests/production-durability-and-storage.test.ts tests/adversarial-security-and-quality.test.ts
+        run: npx tsx --test tests/document-comparison-security.test.ts tests/prompt1-production-security.test.ts tests/security-regression.test.ts tests/rate-limiter-concurrency.test.ts tests/production-durability-and-storage.test.ts tests/adversarial-security-and-quality.test.ts
         env:
           NODE_ENV: test
 

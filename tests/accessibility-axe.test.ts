@@ -7,6 +7,9 @@ import axe from 'axe-core';
 describe('ACCESSIBILITY & SEMANTIC STRUCTURE AUDIT SUITE', () => {
   const routesToAudit = [
     { name: 'Landing Page', path: 'src/app/page.tsx' },
+    { name: 'Document Understanding', path: 'src/app/understand/page.tsx' },
+    { name: 'Document Comparison', path: 'src/app/compare/page.tsx' },
+    { name: 'Document Q&A', path: 'src/app/ask/page.tsx' },
     { name: 'Pilot Registration', path: 'src/app/pilot/page.tsx' },
     { name: 'Matter Index', path: 'src/app/matters/page.tsx' },
     { name: 'New Matter Creator', path: 'src/app/matters/new/page.tsx' },

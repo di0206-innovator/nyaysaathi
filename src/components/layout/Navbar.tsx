@@ -11,7 +11,7 @@ export function Navbar() {
   const { user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 bg-[#0A0A0A] border-b border-stone-800 text-stone-100">
+    <header className="sticky top-0 z-50 bg-[#0A0A0A] border-b border-stone-800 text-stone-100 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo & Tagline - Swiss Modernist Typography */}
@@ -37,7 +37,7 @@ export function Navbar() {
           </div>
 
           {/* Navigation Links - Structural Grid Style */}
-          <nav aria-label="Main Navigation" className="hidden lg:flex items-center space-x-1 border-l border-r border-stone-800 px-2 h-16">
+          <nav aria-label="Main Navigation" className="hidden xl:flex items-center space-x-1 border-l border-r border-stone-800 px-2 h-16">
             <Link
               href="/"
               aria-current={pathname === '/' ? 'page' : undefined}

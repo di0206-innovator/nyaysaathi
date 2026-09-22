@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { apiSuccess, apiError, getOrGenerateRequestId } from '@/lib/api/response';
 import type { DocumentQAAnswer, SourceRef } from '@/types/document-comparison';
+import { enforceRateLimit } from '@/lib/security/rate-limiter';
+import { Logger } from '@/lib/observability/logger';
+import { AuthService } from '@/lib/auth/auth-service';
 
 const AskRequestSchema = z.object({
   question: z.string().min(3, 'Question must be at least 3 characters'),
@@ -22,6 +25,10 @@ export async function POST(req: NextRequest) {
   const requestId = getOrGenerateRequestId(req);
 
   try {
+    const user = await AuthService.getAuthenticatedUser(req);
+    const rateLimitRes = await enforceRateLimit(req, 'ask_question', 25, 60, user?.id, true);
+    if (rateLimitRes) return rateLimitRes;
+
     const body = await req.json();
     const parsed = AskRequestSchema.safeParse(body);
 
@@ -130,8 +137,11 @@ export async function POST(req: NextRequest) {
 
     return apiSuccess(result, 200, undefined, requestId);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Internal Q&A error';
-    return apiError(message, 500, 'INTERNAL_ERROR', undefined, requestId);
+    Logger.error('Document Q&A error', {
+      error: err instanceof Error ? err.message : 'Unknown error',
+      requestId
+    });
+    return apiError('An unexpected error occurred while processing your legal question.', 500, 'INTERNAL_ERROR', undefined, requestId);
   }
 }
 

@@ -103,8 +103,7 @@ export async function PATCH(
       matterStatus: updatedMatter.status
     });
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
     Logger.error('Failed to update escalation', err, { matterId: id });
-    return apiError(errMsg, 500, 'UPDATE_ESCALATION_ERROR');
+    return apiError('Failed to update escalation workflow. Please try again.', 500, 'UPDATE_ESCALATION_ERROR');
   }
 }

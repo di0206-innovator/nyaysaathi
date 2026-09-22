@@ -108,8 +108,7 @@ export async function POST(
       deadlines: updatedMatter.deadlines
     }, 201);
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
     Logger.error('Failed to schedule deadline', err, { matterId: id });
-    return apiError(errMsg, 500, 'SCHEDULE_DEADLINE_ERROR');
+    return apiError('Failed to schedule deadline. Please check the input and try again.', 500, 'SCHEDULE_DEADLINE_ERROR');
   }
 }

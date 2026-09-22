@@ -109,16 +109,13 @@ export function parseAndValidateStoragePath(storagePath: string): CanonicalPathC
 }
 
 /**
- * Check whether a storage path strictly belongs to a specific user.
+ * Check whether a storage path strictly belongs to a specific user using exact segment extraction.
  */
 export function isStoragePathOwnedByUser(storagePath: string, userId: string): boolean {
+  if (!userId || typeof userId !== 'string') return false;
   try {
-    const decoded = decodeURIComponent(storagePath);
-    if (decoded.includes('..') || decoded.startsWith('/') || decoded.includes('\\')) {
-      return false;
-    }
-    const prefix = `user/${userId}/`;
-    return decoded.startsWith(prefix);
+    const components = parseAndValidateStoragePath(storagePath);
+    return components.userId === userId.trim();
   } catch {
     return false;
   }

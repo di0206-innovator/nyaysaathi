@@ -1,5 +1,6 @@
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/db/supabase';
 import { buildDocumentStoragePath, sanitizeFilename } from '@/lib/storage/canonical-path';
+import { validateUploadedFile } from '@/lib/security/file-validator';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface StoredFile {
@@ -8,6 +9,7 @@ export interface StoredFile {
   mimeType: string;
   filename: string;
   storagePath?: string;
+  contentHash?: string;
 }
 
 export interface UploadFileInput {
@@ -42,8 +44,6 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
-
 /**
  * Local memory/data-URL storage provider for development and testing.
  */
@@ -51,12 +51,12 @@ export class LocalStorageProvider implements IStorageProvider {
   private files: Map<string, { buffer: Buffer; mimeType: string }> = new Map();
 
   public async uploadFile(file: UploadFileInput): Promise<StoredFile> {
-    const nodeBuf = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer);
-
-    // Enforce 10MB limit
-    if (nodeBuf.byteLength > MAX_FILE_SIZE_BYTES) {
-      throw new Error(`File size (${formatBytes(nodeBuf.byteLength)}) exceeds maximum permitted 10MB limit.`);
+    const validation = validateUploadedFile(file.buffer, file.filename, file.mimeType);
+    if (!validation.valid) {
+      throw new Error(validation.error || 'File validation failed.');
     }
+
+    const nodeBuf = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer);
 
     const sizeStr = formatBytes(nodeBuf.byteLength);
     const userId = file.userId || 'anonymous';
@@ -66,7 +66,7 @@ export class LocalStorageProvider implements IStorageProvider {
     // Deterministic canonical path
     const storagePath = buildDocumentStoragePath(userId, file.matterId, docId, safeFilename);
 
-    this.files.set(storagePath, { buffer: nodeBuf, mimeType: file.mimeType });
+    this.files.set(storagePath, { buffer: nodeBuf, mimeType: validation.detectedMimeType || file.mimeType });
 
     // In local dev, use an internal API/data URL route
     const fileUrl = `/api/documents/raw?path=${encodeURIComponent(storagePath)}`;
@@ -74,9 +74,10 @@ export class LocalStorageProvider implements IStorageProvider {
     return {
       fileUrl,
       fileSize: sizeStr,
-      mimeType: file.mimeType,
+      mimeType: validation.detectedMimeType || file.mimeType,
       filename: file.filename,
-      storagePath
+      storagePath,
+      contentHash: validation.contentHash
     };
   }
 
@@ -147,12 +148,12 @@ export class SupabaseStorageProvider implements IStorageProvider {
       throw new Error('Supabase client is not configured.');
     }
 
-    const nodeBuf = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer);
-
-    // Enforce 10MB limit
-    if (nodeBuf.byteLength > MAX_FILE_SIZE_BYTES) {
-      throw new Error(`File size (${formatBytes(nodeBuf.byteLength)}) exceeds maximum permitted 10MB limit.`);
+    const validation = validateUploadedFile(file.buffer, file.filename, file.mimeType);
+    if (!validation.valid) {
+      throw new Error(validation.error || 'File validation failed.');
     }
+
+    const nodeBuf = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer);
 
     const sizeStr = formatBytes(nodeBuf.byteLength);
     const userId = file.userId || 'anonymous';
@@ -165,7 +166,7 @@ export class SupabaseStorageProvider implements IStorageProvider {
     const { error } = await client.storage
       .from(this.bucketName)
       .upload(storagePath, nodeBuf, {
-        contentType: file.mimeType,
+        contentType: validation.detectedMimeType || file.mimeType,
         upsert: true
       });
 
@@ -185,9 +186,10 @@ export class SupabaseStorageProvider implements IStorageProvider {
     return {
       fileUrl,
       fileSize: sizeStr,
-      mimeType: file.mimeType,
+      mimeType: validation.detectedMimeType || file.mimeType,
       filename: file.filename,
-      storagePath
+      storagePath,
+      contentHash: validation.contentHash
     };
   }
 

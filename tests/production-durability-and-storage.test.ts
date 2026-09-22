@@ -352,49 +352,34 @@ describe('PROMPT 6: Production Durability, Storage RLS, Idempotency & Job Queue'
     });
   });
 
-  describe('10. Mock Storage Multi-Tenant Isolation Security Fix', () => {
-    it('strictly isolates matters by userId without || true leak', async () => {
-      const { MockMatterStorageProvider } = await import('../src/lib/future/providers');
-      const mockStorage = new MockMatterStorageProvider();
+  describe('10. Matter Service Multi-Tenant Isolation Security', () => {
+    it('strictly isolates matters by userId without leak', async () => {
+      const { getMatterService } = await import('../src/lib/repository');
+      const matterService = getMatterService();
 
-      const userAMatter = {
-        id: 'matter_alice_1',
+      const aliceMatter = await matterService.createMatter({
         userId: 'alice',
         title: 'Alice Security Deposit',
-        category: 'tenancy_security_deposit' as const,
-        description: 'Tenancy deposit dispute',
-        status: 'open' as const,
-        timeline: [],
-        deadlines: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+        category: 'tenancy_housing',
+        userStory: 'Tenancy deposit dispute details'
+      });
 
-      const userBMatter = {
-        id: 'matter_bob_1',
+      const bobMatter = await matterService.createMatter({
         userId: 'bob',
         title: 'Bob Consumer Dispute',
-        category: 'consumer_dispute' as const,
-        description: 'E-commerce dispute',
-        status: 'open' as const,
-        timeline: [],
-        deadlines: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      await mockStorage.saveMatter(userAMatter as unknown as Matter);
-      await mockStorage.saveMatter(userBMatter as unknown as Matter);
+        category: 'consumer_dispute',
+        userStory: 'E-commerce dispute details'
+      });
 
       // When listing matters for Alice, Bob's matter MUST NOT be returned
-      const aliceMatters = await mockStorage.listMatters('alice');
-      assert.strictEqual(aliceMatters.length, 1);
-      assert.strictEqual(aliceMatters[0].id, 'matter_alice_1');
+      const aliceMatters = await matterService.listMatters({ userId: 'alice' });
+      assert.ok(aliceMatters.some(m => m.id === aliceMatter.id));
+      assert.ok(!aliceMatters.some(m => m.id === bobMatter.id));
 
       // When listing matters for Bob, Alice's matter MUST NOT be returned
-      const bobMatters = await mockStorage.listMatters('bob');
-      assert.strictEqual(bobMatters.length, 1);
-      assert.strictEqual(bobMatters[0].id, 'matter_bob_1');
+      const bobMatters = await matterService.listMatters({ userId: 'bob' });
+      assert.ok(bobMatters.some(m => m.id === bobMatter.id));
+      assert.ok(!bobMatters.some(m => m.id === aliceMatter.id));
     });
   });
 

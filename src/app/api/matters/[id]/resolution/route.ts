@@ -105,9 +105,8 @@ export async function POST(
       resolution: updatedMatter.resolution
     });
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
     Logger.error('Failed to resolve matter', err, { matterId: id });
-    return apiError(errMsg, 500, 'RESOLVE_MATTER_ERROR');
+    return apiError('Failed to resolve matter. Please try again.', 500, 'RESOLVE_MATTER_ERROR');
   }
 }
 
@@ -165,8 +164,7 @@ export async function DELETE(
       resolution: updatedMatter.resolution
     });
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
     Logger.error('Failed to reopen matter', err, { matterId: id });
-    return apiError(errMsg, 500, 'REOPEN_MATTER_ERROR');
+    return apiError('Failed to reopen matter. Please try again.', 500, 'REOPEN_MATTER_ERROR');
   }
 }

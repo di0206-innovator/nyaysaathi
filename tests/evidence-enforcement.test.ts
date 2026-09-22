@@ -5,12 +5,13 @@ import { EvidenceGraph } from '../src/lib/graph/evidence-graph';
 import { Orchestrator } from '../src/lib/agents/orchestrator';
 import { DraftingAgent } from '../src/lib/agents/drafting-agent';
 import { EscalationMatcher } from '../src/lib/legal/escalation-matcher';
+import { getMatterService } from '../src/lib/repository';
 import { SEED_MATTERS } from '../src/lib/db/seed-data';
-import { MockDB } from '../src/lib/db/mock-db';
 import type { AgentInput } from '../src/lib/agents/types';
+import type { Matter } from '../src/types/matter';
 
 describe('Phase 3: Evidence Enforcement, Safety Hardening & Future Foundations', () => {
-  const seedMatter = SEED_MATTERS.find(m => m.id === 'matter-bengaluru-rent')!;
+  const seedMatter: Matter = SEED_MATTERS.find((m: Matter) => m.id === 'matter-bengaluru-rent')!;
 
   it('1. Flags unsupported claims and demotes them to unsupported tier', () => {
     const claim = 'The landlord definitely committed a criminal fraud punishable under Section 420 IPC.';
@@ -171,13 +172,13 @@ describe('Phase 3: Evidence Enforcement, Safety Hardening & Future Foundations',
     assert.strictEqual(lastAgent.agentName, 'Safety Verification Agent', 'Safety Verification Agent must always execute last');
   });
 
-  it('7. MockDB.reanalyzeMatter passes existing state to orchestrator and preserves evidence graph', async () => {
-    // Initial fetch of seed matter from MockDB
-    const initialMatter = await MockDB.getMatterById('matter-bengaluru-rent');
-    assert.ok(initialMatter, 'Seed matter should exist in MockDB');
+  it('7. MatterService.reanalyzeMatter passes existing state to orchestrator and preserves evidence graph', async () => {
+    const service = getMatterService();
+    const initialMatter = await service.getMatterById('matter-bengaluru-rent');
+    assert.ok(initialMatter, 'Seed matter should exist in repository');
 
-    // Trigger selective reanalysis via MockDB
-    const reanalyzed = await MockDB.reanalyzeMatter('matter-bengaluru-rent', 'missing_info_answered');
+    // Trigger selective reanalysis via MatterService
+    const reanalyzed = await service.reanalyzeMatter('matter-bengaluru-rent', 'missing_info_answered');
     assert.ok(reanalyzed, 'Reanalyzed matter should be returned');
     assert.strictEqual(reanalyzed.id, 'matter-bengaluru-rent');
 

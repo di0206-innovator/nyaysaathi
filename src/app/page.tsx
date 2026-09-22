@@ -466,7 +466,7 @@ export default function HomePage() {
               </span>
               <h4 className="font-bold text-sm text-white uppercase">Speed Post Notice &amp; Lawyer Brief</h4>
               <p className="text-xs text-stone-400 leading-relaxed font-sans">
-                Generates a formal 15-day legal demand letter and an indexed 10-section Advocate Case Pack for dispute resolution.
+                Generates a formal legal demand letter (specifying contractual/recommended cure period) and an indexed 10-section Advocate Case Pack for dispute resolution.
               </p>
             </div>
           </div>
