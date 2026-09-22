@@ -3,17 +3,26 @@ import Link from 'next/link';
 import {
   ArrowRight,
   ShieldCheck,
-  FolderLock,
   PhoneCall,
   Building2,
   ShoppingBag,
   Briefcase,
   Coins,
   Home,
-  FileText
+  FileText,
+  BookOpen,
+  ArrowLeftRight,
+  MessageSquare,
+  Sparkles,
+  Layers,
+  AlertTriangle,
+  CheckCircle2,
+  FileDiff,
+  Scale
 } from 'lucide-react';
 import { SEED_MATTERS } from '@/lib/db/seed-data';
 import { formatCurrencyINR } from '@/lib/utils';
+import { DEMO_DOCUMENT_SETS } from '@/lib/demo/demo-documents';
 
 export default function HomePage() {
   const sampleCategories = [
@@ -63,7 +72,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#FBFBF9] text-[#0A0A0A] selection:bg-rose-600 selection:text-white font-sans">
-      {/* 1. Swiss Poster Hero Section */}
+      {/* 1. Hero Section — GenAI Legal Document Understanding & Comparison */}
       <section className="bg-[#0A0A0A] text-white border-b-2 border-stone-800 pt-16 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Header Monospace Metadata */}
@@ -71,149 +80,344 @@ export default function HomePage() {
             <div className="flex items-center space-x-2 text-stone-400">
               <span className="w-2 h-2 bg-rose-600 inline-block" />
               <span className="text-white font-bold tracking-widest uppercase">
-                § 00 // SYSTEM DIRECTIVE
+                § 00 // GENAI LEGAL DOCUMENT INTELLIGENCE
               </span>
-              <span className="text-stone-400">• MATTER-BASED LEGAL ACTION ARCHITECTURE</span>
+              <span className="text-stone-400 hidden sm:inline">• UNDERSTAND • COMPARE • ASK • RESOLVE</span>
             </div>
             <div className="text-rose-400 tracking-wider uppercase font-bold text-[11px] pt-1 sm:pt-0">
-              [NOT A CHATBOT // ADMISSIBLE EVIDENCE GROUNDED]
+              [INDIAN LEGAL SYSTEM GROUNDED // STRICT PROVENANCE]
             </div>
           </div>
 
           {/* Bold Display Headline (International Typographic Style) */}
           <div className="space-y-4 max-w-5xl">
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-none">
-              CLEAR CONFUSION.<br />
-              <span className="text-rose-500">ORGANIZE EVIDENCE.</span><br />
-              EXECUTE ACTION.
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-white leading-none">
+              UNDERSTAND CONTRACTS.<br />
+              <span className="text-rose-500">COMPARE REVISIONS.</span><br />
+              RESOLVE DISPUTES.
             </h1>
-            <p className="text-sm sm:text-base text-stone-300 max-w-2xl font-mono leading-relaxed uppercase">
-              Transform unstructured disputes into disciplined pre-litigation matters under Indian law. Verifiable timelines, limitation time-bars, statutory legal notices, and advocate case dossiers.
+            <p className="text-sm sm:text-base text-stone-300 max-w-3xl font-mono leading-relaxed uppercase">
+              The AI legal intelligence platform for India. Extract clauses with verified provenance, run semantic diffs with risk-escalation scoring across agreement versions, ask document-grounded questions without hallucinations, and navigate pre-litigation disputes into actionable dossiers.
             </p>
           </div>
 
-          {/* Action Triggers */}
-          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Core Feature Triggers */}
+          <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Link
+              href="/understand"
+              className="p-4 bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-rose-500 transition-all flex flex-col justify-between group"
+            >
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <BookOpen className="w-5 h-5 text-rose-500" />
+                  <span className="font-mono text-[10px] text-stone-400 uppercase">01 // EXTRACT</span>
+                </div>
+                <h2 className="font-bold text-sm text-white uppercase group-hover:text-rose-400 transition-colors">
+                  Understand Document
+                </h2>
+                <p className="text-xs text-stone-400 leading-relaxed">
+                  Extract key parties, dates, monetary terms, jurisdiction, and clause breakdown with provenance.
+                </p>
+              </div>
+              <div className="mt-4 pt-2 border-t border-stone-800 flex items-center justify-between font-mono text-[11px] text-rose-400 font-bold uppercase">
+                <span>Analyze Now</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+
+            <Link
+              href="/compare"
+              className="p-4 bg-rose-950/40 hover:bg-rose-900/40 border border-rose-800 hover:border-rose-500 transition-all flex flex-col justify-between group"
+            >
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <ArrowLeftRight className="w-5 h-5 text-rose-400" />
+                  <span className="font-mono text-[10px] text-rose-300 uppercase">02 // COMPARE</span>
+                </div>
+                <h2 className="font-bold text-sm text-white uppercase group-hover:text-rose-300 transition-colors">
+                  Compare Revisions
+                </h2>
+                <p className="text-xs text-stone-300 leading-relaxed">
+                  Side-by-side semantic clause diffs, risk change classification, and critical alterations detection.
+                </p>
+              </div>
+              <div className="mt-4 pt-2 border-t border-rose-900/60 flex items-center justify-between font-mono text-[11px] text-rose-300 font-bold uppercase">
+                <span>Compare Studio</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+
+            <Link
+              href="/ask"
+              className="p-4 bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-rose-500 transition-all flex flex-col justify-between group"
+            >
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <MessageSquare className="w-5 h-5 text-sky-400" />
+                  <span className="font-mono text-[10px] text-stone-400 uppercase">03 // ASK</span>
+                </div>
+                <h2 className="font-bold text-sm text-white uppercase group-hover:text-sky-300 transition-colors">
+                  Ask Document AI
+                </h2>
+                <p className="text-xs text-stone-400 leading-relaxed">
+                  Query legal documents directly. Get truthful answers grounded strictly in cited clauses.
+                </p>
+              </div>
+              <div className="mt-4 pt-2 border-t border-stone-800 flex items-center justify-between font-mono text-[11px] text-sky-400 font-bold uppercase">
+                <span>Ask Questions</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+
             <Link
               href="/matters/new"
-              className="px-8 py-4 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-2 border border-black active:translate-y-px"
+              className="p-4 bg-rose-600 hover:bg-rose-500 border border-rose-600 transition-all flex flex-col justify-between group"
             >
-              <span>Start New Matter</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-
-            <Link
-              href="/matters"
-              className="px-8 py-4 bg-stone-900 hover:bg-stone-800 text-stone-200 font-mono text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-2 border border-stone-700"
-            >
-              <FolderLock className="w-4 h-4 text-stone-400" />
-              <span>Explore Existing Matters</span>
-            </Link>
-
-            <Link
-              href="/pilot"
-              className="px-6 py-4 bg-transparent hover:bg-stone-900 text-rose-400 font-mono text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-1.5 border border-rose-900/60"
-            >
-              <span>Pilot Intake</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Scale className="w-5 h-5 text-white" />
+                  <span className="font-mono text-[10px] text-rose-200 uppercase">04 // RESOLVE</span>
+                </div>
+                <h2 className="font-bold text-sm text-white uppercase">
+                  Start New Matter
+                </h2>
+                <p className="text-xs text-rose-100 leading-relaxed">
+                  Transform dispute facts into formal Indian legal notices, limitation calculations, and advocate packs.
+                </p>
+              </div>
+              <div className="mt-4 pt-2 border-t border-rose-700 flex items-center justify-between font-mono text-[11px] text-white font-bold uppercase">
+                <span>Start Dispute Matter</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
             </Link>
           </div>
 
           {/* Technical Metadata Bar */}
           <div className="border-t border-stone-800 pt-4 flex flex-wrap items-center justify-between gap-4 font-mono text-[11px] text-stone-400">
             <div className="flex items-center space-x-2">
-              <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
-              <span>NALSA LEGAL AID HELPLINE: <strong className="text-white">15100</strong></span>
+              <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+              <span>SEMANTIC CLAUSE ALIGNMENT &amp; RISK-DELTA ENGINE</span>
             </div>
             <div className="flex items-center space-x-2">
-              <ShieldCheck className="w-3.5 h-3.5 text-rose-500" />
-              <span>LIMITATION ACT 1963 TIME-BAR ENGINE</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>LIMITATION ACT 1963 &amp; STATUTORY TIME-BAR</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span>STATUTORY COMPLIANCE: ADVOCATES ACT 1961</span>
+              <PhoneCall className="w-3.5 h-3.5 text-sky-400" />
+              <span>NALSA LEGAL AID: <strong className="text-white">15100</strong></span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2. The 5-Stage Modular Grid */}
-      <section className="border-b-2 border-[#0A0A0A] bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="border-b-2 border-[#0A0A0A] pb-4 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+      {/* 2. Interactive Document Comparison Teaser Section */}
+      <section className="border-b-2 border-[#0A0A0A] bg-white py-14 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <div className="border-b-2 border-[#0A0A0A] pb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600">
-                § 01 // ARCHITECTURAL LOOP
+                § 01 // LIVE COMPARISON ENGINE
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-[#0A0A0A]">
+                Semantic Clause Redline &amp; Risk Delta
+              </h2>
+              <p className="text-xs text-stone-600 font-mono mt-1 uppercase">
+                Instantly detect hidden clause shifts, unilateral penalty escalation, and jurisdiction changes across contract revisions.
+              </p>
+            </div>
+
+            <Link
+              href="/compare"
+              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors"
+            >
+              <span>Open Comparison Studio</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Comparison Preview Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Demo 1: Rental Agreement Comparison */}
+            <div className="border-2 border-[#0A0A0A] bg-[#FBFBF9] p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+                <div className="flex items-center space-x-2">
+                  <FileDiff className="w-4 h-4 text-rose-600" />
+                  <span className="font-mono text-xs font-bold uppercase text-stone-900">
+                    {DEMO_DOCUMENT_SETS[0]?.label || 'Rental Agreement'}
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-mono font-bold uppercase border border-rose-200">
+                  Risk Escalated (+40 pts)
+                </span>
+              </div>
+
+              <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                {DEMO_DOCUMENT_SETS[0]?.description}
+              </p>
+
+              {/* Sample Clause Diff View */}
+              <div className="space-y-3 pt-2">
+                <div className="border border-stone-300 bg-white p-3 space-y-2 text-xs">
+                  <div className="flex items-center justify-between font-mono text-[10px] text-stone-500">
+                    <span>CLAUSE: SECURITY DEPOSIT REFUND</span>
+                    <span className="text-rose-600 font-bold">MODIFIED (HIGH RISK)</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-[11px]">
+                    <div className="p-2 bg-stone-50 border border-stone-200 text-stone-700">
+                      <span className="text-[9px] uppercase font-bold text-stone-400 block mb-1">Original (v1)</span>
+                      &quot;Security deposit of ₹1,00,000 shall be refunded within 7 days of handover...&quot;
+                    </div>
+                    <div className="p-2 bg-rose-50 border border-rose-200 text-rose-900">
+                      <span className="text-[9px] uppercase font-bold text-rose-600 block mb-1">Modified (v2)</span>
+                      &quot;Security deposit of ₹1,00,000 shall be refunded within 60 days... subject to mandatory 20% painting deduction.&quot;
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between font-mono text-xs">
+                <span className="text-stone-500">6 CLAUSES COMPARED • 4 MODIFIED • 1 ADDED</span>
+                <Link
+                  href="/compare"
+                  className="font-bold text-rose-600 hover:text-rose-700 uppercase flex items-center space-x-1"
+                >
+                  <span>Load in Studio</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Demo 2: Employment Contract Comparison */}
+            <div className="border-2 border-[#0A0A0A] bg-[#FBFBF9] p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+                <div className="flex items-center space-x-2">
+                  <FileDiff className="w-4 h-4 text-rose-600" />
+                  <span className="font-mono text-xs font-bold uppercase text-stone-900">
+                    {DEMO_DOCUMENT_SETS[1]?.label || 'Employment Contract'}
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono font-bold uppercase border border-amber-200">
+                  Risk Escalated (+35 pts)
+                </span>
+              </div>
+
+              <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                {DEMO_DOCUMENT_SETS[1]?.description}
+              </p>
+
+              {/* Sample Clause Diff View */}
+              <div className="space-y-3 pt-2">
+                <div className="border border-stone-300 bg-white p-3 space-y-2 text-xs">
+                  <div className="flex items-center justify-between font-mono text-[10px] text-stone-500">
+                    <span>CLAUSE: NON-COMPETE &amp; RESTRICTIVE COVENANTS</span>
+                    <span className="text-amber-600 font-bold">MODIFIED (MODERATE RISK)</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-[11px]">
+                    <div className="p-2 bg-stone-50 border border-stone-200 text-stone-700">
+                      <span className="text-[9px] uppercase font-bold text-stone-400 block mb-1">Original (Offer)</span>
+                      &quot;Employee agrees not to solicit existing company clients for 6 months...&quot;
+                    </div>
+                    <div className="p-2 bg-amber-50 border border-amber-200 text-amber-900">
+                      <span className="text-[9px] uppercase font-bold text-amber-600 block mb-1">Modified (Master)</span>
+                      &quot;Employee agrees not to work for any direct competitor anywhere in India for 18 months...&quot;
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between font-mono text-xs">
+                <span className="text-stone-500">6 CLAUSES COMPARED • 4 MODIFIED • 1 ADDED</span>
+                <Link
+                  href="/compare"
+                  className="font-bold text-rose-600 hover:text-rose-700 uppercase flex items-center space-x-1"
+                >
+                  <span>Load in Studio</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. The 4-Pillar GenAI Legal Intelligence Pipeline */}
+      <section className="border-b-2 border-[#0A0A0A] bg-stone-100 py-14 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <div className="border-b-2 border-[#0A0A0A] pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+            <div>
+              <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600">
+                § 02 // TECHNICAL ARCHITECTURE
               </span>
               <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#0A0A0A]">
-                The 5-Stage Legal Action Pipeline
+                The NyaySaathi Document Intelligence Pipeline
               </h2>
             </div>
             <span className="font-mono text-xs text-stone-500 uppercase">
-              STRUCTURED DOSSIER // NOT TRANSIENT CHAT
+              STRUCTURED EXTRACTION // CLAUSE LEVEL MAPPING
             </span>
           </div>
 
-          {/* 5-Column Grid with Hairline Dividers */}
-          <div className="grid grid-cols-1 md:grid-cols-5 border border-[#0A0A0A]">
-            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-[#FBFBF9]">
-              <div className="font-mono text-xs font-black text-rose-600">01.</div>
-              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">CAPTURE</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 border border-[#0A0A0A]">
+            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-white">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-black text-rose-600">01.</span>
+                <Layers className="w-4 h-4 text-stone-400" />
+              </div>
+              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">SEGMENTATION</h3>
               <p className="text-xs text-stone-600 leading-relaxed font-sans">
-                Narrative intake, lease agreements, UPI transaction receipts, and chat exports.
+                Parses raw legal text into discrete numbered clauses categorized by legal role (Rent, Indemnity, Liability, Termination, Jurisdiction, Confidentiality).
               </p>
               <div className="font-mono text-[10px] text-stone-400 uppercase tracking-widest pt-2 border-t border-stone-200">
-                STAGE: INGESTION
+                STAGE: CLAUSE EXTRACTION
               </div>
             </div>
 
-            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-[#FBFBF9]">
-              <div className="font-mono text-xs font-black text-stone-900">02.</div>
-              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">MAP</h3>
+            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-white">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-black text-rose-600">02.</span>
+                <ArrowLeftRight className="w-4 h-4 text-stone-400" />
+              </div>
+              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">SEMANTIC ALIGNMENT</h3>
               <p className="text-xs text-stone-600 leading-relaxed font-sans">
-                Truthful OCR extracts clauses, creates chronological timelines, and locks contract terms.
+                Matches clauses across revisions using title/category heuristics and semantic similarity to detect added, removed, identical, or altered terms.
               </p>
               <div className="font-mono text-[10px] text-stone-400 uppercase tracking-widest pt-2 border-t border-stone-200">
-                STAGE: PROVENANCE
+                STAGE: REVISION PAIRING
               </div>
             </div>
 
-            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-[#FBFBF9]">
-              <div className="font-mono text-xs font-black text-stone-900">03.</div>
-              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">ASSESS</h3>
+            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-white">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-black text-rose-600">03.</span>
+                <AlertTriangle className="w-4 h-4 text-stone-400" />
+              </div>
+              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">RISK-DELTA SCORING</h3>
               <p className="text-xs text-stone-600 leading-relaxed font-sans">
-                Calculates limitation periods, identifies evidentiary gaps, and flags counter-claim risks.
+                Analyzes obligation asymmetry, penal interest jumps, notice window compression, and jurisdiction shifts to quantify user risk change.
               </p>
               <div className="font-mono text-[10px] text-stone-400 uppercase tracking-widest pt-2 border-t border-stone-200">
-                STAGE: LIMITATION
+                STAGE: RISK CALCULATION
               </div>
             </div>
 
-            <div className="p-5 border-b md:border-b-0 md:border-r border-[#0A0A0A] space-y-3 bg-[#FBFBF9]">
-              <div className="font-mono text-xs font-black text-stone-900">04.</div>
-              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">ACT</h3>
-              <p className="text-xs text-stone-600 leading-relaxed font-sans">
-                Generates formal Indian legal notices, consumer complaints, and Speed Post demand letters.
-              </p>
-              <div className="font-mono text-[10px] text-stone-400 uppercase tracking-widest pt-2 border-t border-stone-200">
-                STAGE: DISPATCH
+            <div className="p-5 space-y-3 bg-white">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-black text-rose-600">04.</span>
+                <CheckCircle2 className="w-4 h-4 text-stone-400" />
               </div>
-            </div>
-
-            <div className="p-5 space-y-3 bg-[#FBFBF9]">
-              <div className="font-mono text-xs font-black text-rose-600">05.</div>
-              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">ESCALATE</h3>
+              <h3 className="font-black text-sm uppercase tracking-wider text-[#0A0A0A]">GROUNDED Q&amp;A</h3>
               <p className="text-xs text-stone-600 leading-relaxed font-sans">
-                Assembles a 10-section Advocate Case Pack for DLSA, Lok Adalat, or enrolled legal counsel.
+                Answers user questions strictly with cited clauses, extracted terms, and explicit confidence provenance—never hallucinating facts.
               </p>
               <div className="font-mono text-[10px] text-stone-400 uppercase tracking-widest pt-2 border-t border-stone-200">
-                STAGE: ADVOCACY
+                STAGE: VERIFIED PROVENANCE
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. Primary Wedge: Urban Tenancy Security Deposit Recovery */}
+      {/* Primary Wedge: Urban Tenancy Security Deposit Recovery */}
       <section className="border-b-2 border-[#0A0A0A] bg-[#0A0A0A] text-white py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto space-y-8">
           <div className="border-b border-stone-800 pb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -285,28 +489,35 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 4. Judicial Docket: Live Interactive Matters */}
+      {/* 4. Pre-Litigation Dispute Dossiers & Matter Engine */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="border-b-2 border-[#0A0A0A] pb-4 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600">
-              § 02 // DOCKET SAMPLES
+              § 03 // DISPUTE DOSSIERS &amp; ACTION ARCHITECTURE
             </span>
             <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-[#0A0A0A]">
-              Pre-Analyzed Dispute Dossiers
+              From Document Intelligence to Legal Action
             </h2>
             <p className="text-xs text-stone-600 font-mono mt-1 uppercase">
-              Click any matter to inspect the complete multi-agent pipeline, chronology, and advocate brief.
+              Once documents are analyzed, NyaySaathi builds statutory limitation timelines, formal legal notices, and advocate case packs.
             </p>
           </div>
 
-          <Link
-            href="/matters"
-            className="inline-flex items-center space-x-1 font-mono text-xs font-bold uppercase text-rose-600 hover:text-rose-700 tracking-wider"
-          >
-            <span>VIEW COMPLETE WORKSPACE</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/matters/new"
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors"
+            >
+              Start New Matter
+            </Link>
+            <Link
+              href="/matters"
+              className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-stone-200 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
+            >
+              All Matters
+            </Link>
+          </div>
         </div>
 
         {/* Docket Rows with Visible Swiss Borders */}
@@ -366,7 +577,7 @@ export default function HomePage() {
           <div className="border-b border-stone-300 pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
             <div>
               <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600">
-                § 03 // DISPUTE TAXONOMY
+                § 04 // DISPUTE TAXONOMY
               </span>
               <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#0A0A0A]">
                 Select Dispute Category to Initialize Matter
@@ -409,7 +620,7 @@ export default function HomePage() {
         <div className="bg-[#0A0A0A] text-white p-8 sm:p-12 border-2 border-stone-800 space-y-8">
           <div className="border-b border-stone-800 pb-4 max-w-3xl space-y-2">
             <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-500">
-              § 04 // TRUST &amp; RESPONSIBILITY ARCHITECTURE
+              § 05 // TRUST &amp; RESPONSIBILITY ARCHITECTURE
             </span>
             <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-white">
               Why NyaySaathi is Not a Generic AI Chatbot
@@ -463,21 +674,29 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Sticky Mobile Action Bar - Swiss Design Edition */}
+      {/* Sticky Mobile Action Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-[#0A0A0A] border-t-2 border-stone-800 z-40 flex items-center justify-between gap-3 shadow-2xl font-mono">
         <div className="flex flex-col min-w-0">
           <span className="text-xs font-bold text-white uppercase tracking-wider truncate">
-            DISPUTE DOSSIER INTAKE
+            LEGAL DOC INTELLIGENCE
           </span>
-          <span className="text-[10px] text-rose-500 uppercase">§ BNS / LIMITATION 1963</span>
+          <span className="text-[10px] text-rose-500 uppercase">COMPARE • UNDERSTAND • ACT</span>
         </div>
-        <Link
-          href="/matters/new"
-          className="shrink-0 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-mono font-bold text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5"
-        >
-          <span>START</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/compare"
+            className="px-3 py-2 bg-stone-800 hover:bg-stone-700 text-white font-mono font-bold text-xs uppercase tracking-wider"
+          >
+            COMPARE
+          </Link>
+          <Link
+            href="/understand"
+            className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white font-mono font-bold text-xs uppercase tracking-wider flex items-center gap-1"
+          >
+            <span>START</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </div>
     </div>
   );

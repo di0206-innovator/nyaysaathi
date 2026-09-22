@@ -30,7 +30,7 @@ export function Navbar() {
                   </span>
                 </div>
                 <span className="font-mono text-[10px] text-stone-400 tracking-wider hidden sm:block uppercase">
-                  Matter-Based Legal Action Architecture
+                  Legal Document Intelligence &amp; Action Architecture
                 </span>
               </div>
             </Link>
@@ -41,7 +41,7 @@ export function Navbar() {
             <Link
               href="/"
               aria-current={pathname === '/' ? 'page' : undefined}
-              className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${
+              className={`px-2.5 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${
                 pathname === '/'
                   ? 'bg-stone-800 text-white font-bold'
                   : 'text-stone-300 hover:text-white hover:bg-stone-900'
@@ -50,40 +50,73 @@ export function Navbar() {
               01 // Home
             </Link>
             <Link
+              href="/understand"
+              aria-current={pathname.startsWith('/understand') ? 'page' : undefined}
+              className={`px-2.5 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
+                pathname.startsWith('/understand')
+                  ? 'bg-stone-800 text-white font-bold'
+                  : 'text-stone-300 hover:text-white hover:bg-stone-900'
+              }`}
+            >
+              <span>02 // Understand</span>
+            </Link>
+            <Link
+              href="/compare"
+              aria-current={pathname.startsWith('/compare') ? 'page' : undefined}
+              className={`px-2.5 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
+                pathname.startsWith('/compare')
+                  ? 'bg-stone-800 text-white font-bold'
+                  : 'text-stone-300 hover:text-white hover:bg-stone-900'
+              }`}
+            >
+              <span>03 // Compare</span>
+            </Link>
+            <Link
+              href="/ask"
+              aria-current={pathname.startsWith('/ask') ? 'page' : undefined}
+              className={`px-2.5 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
+                pathname.startsWith('/ask')
+                  ? 'bg-stone-800 text-white font-bold'
+                  : 'text-stone-300 hover:text-white hover:bg-stone-900'
+              }`}
+            >
+              <span>04 // Ask Doc</span>
+            </Link>
+            <Link
               href="/matters"
               aria-current={pathname.startsWith('/matters') && pathname !== '/matters/new' ? 'page' : undefined}
-              className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
                 pathname.startsWith('/matters') && pathname !== '/matters/new'
                   ? 'bg-stone-800 text-white font-bold'
                   : 'text-stone-300 hover:text-white hover:bg-stone-900'
               }`}
             >
               <FolderLock className="w-3.5 h-3.5 text-stone-400" />
-              <span>02 // Matters</span>
+              <span>05 // Matters</span>
             </Link>
             <Link
               href="/pilot"
               aria-current={pathname === '/pilot' ? 'page' : undefined}
-              className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
                 pathname === '/pilot'
                   ? 'bg-rose-950/80 text-rose-300 border border-rose-800/80 font-bold'
                   : 'text-rose-400 hover:text-rose-300 hover:bg-stone-900'
               }`}
             >
               <Users className="w-3.5 h-3.5 text-rose-400" />
-              <span>03 // Pilot Intake</span>
+              <span>06 // Pilot</span>
             </Link>
             <Link
               href="/analytics"
               aria-current={pathname === '/analytics' ? 'page' : undefined}
-              className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors flex items-center space-x-1.5 ${
                 pathname === '/analytics'
                   ? 'bg-stone-800 text-white font-bold'
                   : 'text-stone-300 hover:text-white hover:bg-stone-900'
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5 text-stone-400" />
-              <span>04 // Analytics</span>
+              <span>07 // Analytics</span>
             </Link>
           </nav>
 

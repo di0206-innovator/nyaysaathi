@@ -11,24 +11,26 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://nyaysaathi.in";
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: {
-    default: "NyaySaathi — Matter-Based Legal Action Navigator for India",
+    default: "NyaySaathi — GenAI Legal Document Understanding & Comparison Platform",
     template: "%s | NyaySaathi",
   },
-  description: "Organize legal disputes into actionable matters. Extract verified facts, calculate limitation time-bars, generate formal legal notices, and navigate to e-Daakhil and NALSA free legal aid.",
+  description: "AI-powered legal document understanding, semantic clause comparison, redline diffing, and pre-litigation dispute navigation under Indian law.",
   keywords: [
-    "legal action navigator",
-    "India legal notice generator",
-    "tenant security deposit recovery",
-    "Karnataka Rent Act",
+    "GenAI legal document understanding",
+    "legal document comparison",
+    "contract clause diff",
+    "semantic redline",
+    "document Q&A AI",
+    "legal notice generator India",
+    "rental agreement comparison",
     "Limitation Act 1963",
     "Advocate Case Pack",
-    "e-Daakhil consumer complaint",
-    "NALSA legal aid"
+    "e-Daakhil consumer complaint"
   ],
   authors: [{ name: "NyaySaathi Legal Tech Initiatives" }],
   openGraph: {
-    title: "NyaySaathi — Matter-Based Legal Action Navigator for India",
-    description: "Transform unstructured legal disputes into disciplined matters. Calculate statutory limitation deadlines and generate verifiable legal notices under Indian law.",
+    title: "NyaySaathi — GenAI Legal Document Understanding & Comparison",
+    description: "Understand complex contracts, compare document revisions semantically with risk delta scoring, ask document-grounded questions, and navigate pre-litigation disputes.",
     url: appUrl,
     siteName: "NyaySaathi",
     locale: "en_IN",
@@ -36,8 +38,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "NyaySaathi — Matter-Based Legal Action Navigator for India",
-    description: "Organize legal disputes into actionable matters. Verifiable evidence, statutory timelines, and advocate handoff packs.",
+    title: "NyaySaathi — GenAI Legal Document Understanding & Comparison",
+    description: "Semantic clause comparison, redlines, structured contract understanding, and verifiable legal action dossiers.",
   },
   icons: {
     icon: "/favicon.ico",
