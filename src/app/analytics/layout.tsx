@@ -1,8 +1,12 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Real-World Pilot Analytics & Metrics',
-  description: 'Verifiable legal metrics, time-to-first-useful-action benchmarks, and pilot cohort feedback under real Indian statutory workflows.',
+  title: 'Pilot Telemetry & Recovery Statistics',
+  description: 'Live performance metrics, dispute resolution time-savings, and settlement statistics across NyaySaathi cohorts.',
+  openGraph: {
+    title: 'Pilot Telemetry & Analytics | NyaySaathi',
+    description: 'Explore live case preparation and dispute recovery metrics.',
+  },
 };
 
 export default function AnalyticsLayout({ children }: { children: React.ReactNode }) {

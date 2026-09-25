@@ -5,6 +5,8 @@ import { Footer } from "@/components/layout/Footer";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import { CookieBanner } from "@/components/ui/CookieBanner";
+import { Analytics } from "@/components/ui/Analytics";
+import { StickyMobileCTA } from "@/components/layout/StickyMobileCTA";
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://nyaysaathi.in";
 
@@ -42,8 +44,14 @@ export const metadata: Metadata = {
     description: "Semantic clause comparison, redlines, structured contract understanding, and verifiable legal action dossiers.",
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.svg", type: "image/svg+xml" }
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/icon.svg",
   },
+  manifest: "/manifest.json",
   robots: {
     index: true,
     follow: true,
@@ -56,11 +64,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-[#FAF9F5] text-stone-900">
+    <html lang="en" className="h-full antialiased dark">
+      <body className="min-h-full flex flex-col bg-[#09090b] text-stone-100 selection:bg-rose-600 selection:text-white">
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-stone-900 focus:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:font-mono focus:text-xs"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-stone-900 focus:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:font-mono focus:text-xs border border-rose-500"
         >
           Skip to main content
         </a>
@@ -71,10 +79,13 @@ export default function RootLayout({
               {children}
             </main>
             <Footer />
+            <StickyMobileCTA />
             <CookieBanner />
+            <Analytics />
           </ToastProvider>
         </AuthProvider>
       </body>
     </html>
   );
 }
+

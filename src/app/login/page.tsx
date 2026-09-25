@@ -34,6 +34,7 @@ function LoginFormContent() {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [honeypot, setHoneypot] = useState('');
 
   // If already logged in, show quick welcome banner with redirect option
   if (user) {
@@ -71,6 +72,10 @@ function LoginFormContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (honeypot) {
+      // Drop bot spam silently
+      return;
+    }
     setErrorMsg('');
 
     if (!email || !email.includes('@')) {
@@ -264,6 +269,17 @@ function LoginFormContent() {
 
       {/* Auth Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Anti-spam honeypot */}
+        <div style={{ display: 'none' }} aria-hidden="true">
+          <input
+            type="text"
+            name="auth_validation_hp"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+          />
+        </div>
         {mode === 'signup' && (
           <div className="space-y-1">
             <label className="block font-mono text-xs font-bold uppercase text-stone-800">

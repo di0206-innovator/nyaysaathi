@@ -61,11 +61,13 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', outside);
   }, []);
 
-  // Close on route change
-  useEffect(() => {
+  // Close on route change during render (official React pattern)
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setMobileMenuOpen(false);
     setProductDropdownOpen(false);
-  }, [pathname]);
+  }
 
   const isProductActive = productLinks.some(p => pathname.startsWith(p.href));
 
@@ -116,7 +118,7 @@ export function Navbar() {
                 <span className="font-black text-base tracking-tight uppercase text-white leading-tight font-sans">
                   NyaySaathi
                 </span>
-                <span className="text-[10px] text-white/35 tracking-widest uppercase hidden sm:block leading-tight font-mono font-bold">
+                <span className="text-[10px] text-stone-400 tracking-widest uppercase hidden sm:block leading-tight font-mono font-bold">
                   Legal AI • India
                 </span>
               </div>
@@ -138,8 +140,8 @@ export function Navbar() {
                   onClick={() => setProductDropdownOpen(!productDropdownOpen)}
                   className={`inline-flex items-center space-x-1.5 px-3.5 py-2 text-[11px] font-mono font-bold uppercase tracking-widest rounded-lg transition-all duration-150 ${
                     isProductActive || productDropdownOpen
-                      ? 'text-white bg-white/10 border border-white/15'
-                      : 'text-white/60 hover:text-white hover:bg-white/8 border border-transparent'
+                      ? 'text-white bg-white/12 border border-white/15'
+                      : 'text-stone-200 hover:text-white hover:bg-white/10 border border-transparent'
                   }`}
                 >
                   <span>Product</span>
@@ -187,10 +189,10 @@ export function Navbar() {
                             <link.icon className="w-4 h-4 text-white/80" />
                           </div>
                           <div>
-                            <div className={`text-[11px] font-bold font-mono uppercase tracking-widest leading-tight ${pathname.startsWith(link.href) ? 'text-rose-300' : 'text-white/90'}`}>
+                            <div className={`text-[11px] font-bold font-mono uppercase tracking-widest leading-tight ${pathname.startsWith(link.href) ? 'text-rose-300' : 'text-white'}`}>
                               {link.label}
                             </div>
-                            <div className="text-[10px] text-white/35 mt-0.5 font-mono uppercase tracking-wider">{link.desc}</div>
+                            <div className="text-[10px] text-stone-400 mt-0.5 font-mono uppercase tracking-wider">{link.desc}</div>
                           </div>
                         </Link>
                       ))}
@@ -206,7 +208,7 @@ export function Navbar() {
                             className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors text-[11px] font-mono uppercase tracking-widest font-bold ${
                               pathname === link.href
                                 ? 'text-rose-400 bg-rose-600/10'
-                                : 'text-white/45 hover:text-white/80 hover:bg-white/6'
+                                : 'text-stone-300 hover:text-white hover:bg-white/10'
                             }`}
                           >
                             <link.icon className="w-4 h-4" />
@@ -319,18 +321,18 @@ export function Navbar() {
               <MobileGlassLink href="/features" active={pathname === '/features'}>Features</MobileGlassLink>
 
               <div className="pt-4 pb-1">
-                <p className="text-[10px] font-mono font-bold text-white/25 uppercase tracking-widest px-3 pb-2">
+                <p className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-widest px-3 pb-2">
                   Product Suite
                 </p>
                 {productLinks.map(link => (
                   <MobileGlassLink key={link.href} href={link.href} active={pathname.startsWith(link.href)}>
                     <div className="flex items-center space-x-3">
                       <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br ${link.color} border border-white/10`}>
-                        <link.icon className="w-3.5 h-3.5 text-white/70" />
+                        <link.icon className="w-3.5 h-3.5 text-white" />
                       </div>
                       <div>
-                        <div className="text-[11px] font-mono font-bold uppercase tracking-widest">{link.label}</div>
-                        <div className="text-[10px] text-white/30 font-mono uppercase tracking-wider">{link.desc}</div>
+                        <div className="text-[11px] font-mono font-bold uppercase tracking-widest text-white">{link.label}</div>
+                        <div className="text-[10px] text-stone-400 font-mono uppercase tracking-wider">{link.desc}</div>
                       </div>
                     </div>
                   </MobileGlassLink>
@@ -338,14 +340,14 @@ export function Navbar() {
               </div>
 
               <div className="pt-3 pb-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                <p className="text-[10px] font-mono font-bold text-white/25 uppercase tracking-widest px-3 pb-2">
+                <p className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-widest px-3 pb-2">
                   More
                 </p>
                 {moreLinks.map(link => (
                   <MobileGlassLink key={link.href} href={link.href} active={pathname === link.href}>
                     <div className="flex items-center space-x-3">
-                      <link.icon className="w-4 h-4 text-white/40" />
-                      <span className="text-[11px] font-mono font-bold uppercase tracking-widest">{link.label}</span>
+                      <link.icon className="w-4 h-4 text-stone-300" />
+                      <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-white">{link.label}</span>
                     </div>
                   </MobileGlassLink>
                 ))}
@@ -361,8 +363,8 @@ export function Navbar() {
                         {user.name ? user.name[0].toUpperCase() : 'U'}
                       </div>
                       <div>
-                        <div className="text-[11px] font-mono font-bold uppercase tracking-widest text-white/85">{user.name || 'Account'}</div>
-                        <div className="text-[10px] text-white/35 font-mono tracking-wider">{user.email}</div>
+                        <div className="text-[11px] font-mono font-bold uppercase tracking-widest text-white">{user.name || 'Account'}</div>
+                        <div className="text-[10px] text-stone-400 font-mono tracking-wider">{user.email}</div>
                       </div>
                     </Link>
                     <button
@@ -412,7 +414,7 @@ function GlassNavLink({
       className={`px-3.5 py-2 text-[11px] font-mono font-bold uppercase tracking-widest rounded-lg transition-all duration-150 border ${
         active
           ? 'text-white bg-white/10 border-white/15'
-          : 'text-white/55 hover:text-white hover:bg-white/8 border-transparent hover:border-white/10'
+          : 'text-stone-300 hover:text-white hover:bg-white/8 border-transparent hover:border-white/10'
       }`}
     >
       {children}
@@ -435,7 +437,7 @@ function MobileGlassLink({
       className={`block px-3 py-2.5 rounded-xl text-[11px] font-mono font-bold uppercase tracking-widest transition-all border ${
         active
           ? 'bg-rose-600/15 text-rose-300 border-rose-500/25'
-          : 'text-white/60 hover:text-white hover:bg-white/6 border-transparent hover:border-white/10'
+          : 'text-stone-300 hover:text-white hover:bg-white/6 border-transparent hover:border-white/10'
       }`}
     >
       {children}

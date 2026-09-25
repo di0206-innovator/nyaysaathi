@@ -1,0 +1,21 @@
+{
+  "name": "NyaySaathi — GenAI Legal Document Understanding Platform",
+  "short_name": "NyaySaathi",
+  "description": "AI-powered legal document understanding, semantic clause comparison, redline diffing, and pre-litigation dispute navigation under Indian law.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

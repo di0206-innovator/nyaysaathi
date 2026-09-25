@@ -1,8 +1,12 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Pilot Program Onboarding',
-  description: 'Join the NyaySaathi real-world pilot cohort for pre-litigation legal dispute navigation and tenancy deposit recovery.',
+  title: 'Join Pilot Cohort — NyaySaathi',
+  description: 'Apply for the NyaySaathi pilot cohort. Free access to AI-powered legal document comparison and dispute action packs.',
+  openGraph: {
+    title: 'Join Pilot Cohort | NyaySaathi',
+    description: 'Apply for early access to NyaySaathi pre-litigation document workflows.',
+  },
 };
 
 export default function PilotLayout({ children }: { children: React.ReactNode }) {

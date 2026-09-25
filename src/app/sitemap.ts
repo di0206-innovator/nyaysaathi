@@ -12,10 +12,34 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
     {
+      url: `${baseUrl}/features`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
+    {
       url: `${baseUrl}/pilot`,
       lastModified: now,
       changeFrequency: 'weekly',
       priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/ask`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/compare`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/understand`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.85,
     },
     {
       url: `${baseUrl}/matters/new`,
@@ -24,10 +48,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/login`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
       url: `${baseUrl}/analytics`,
       lastModified: now,
       changeFrequency: 'daily',
       priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/thank-you`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.4,
     },
     {
       url: `${baseUrl}/privacy`,
@@ -43,3 +79,4 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 }
+
