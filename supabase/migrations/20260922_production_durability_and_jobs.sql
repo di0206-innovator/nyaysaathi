@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS public.background_jobs (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL CHECK (type IN ('deep_analysis', 'ocr_processing', 'advocate_pack_export', 'rag_indexing')),
-    matter_id UUID REFERENCES public.matters(id) ON DELETE CASCADE,
+    matter_id TEXT REFERENCES public.matters(id) ON DELETE CASCADE,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'failed', 'retrying')),
     progress_percent INT NOT NULL DEFAULT 0 CHECK (progress_percent >= 0 AND progress_percent <= 100),
@@ -136,8 +136,24 @@ ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS content_hash TEXT;
 CREATE INDEX IF NOT EXISTS idx_documents_matter_hash ON public.documents(matter_id, content_hash);
 
 -- 4. NOTIFICATIONS LIFECYCLE EXTENSION
-ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'queued'
+ALTER TABLE IF EXISTS public.matter_notifications ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'queued'
     CHECK (status IN ('queued', 'processing', 'sent', 'read', 'failed', 'retrying'));
+CREATE INDEX IF NOT EXISTS idx_matter_notifications_status ON public.matter_notifications(status);
+
+-- Provide compatibility table for public.notifications if accessed directly
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID,
+    matter_id TEXT REFERENCES public.matters(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    channel TEXT NOT NULL DEFAULT 'in_app',
+    status TEXT DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'sent', 'read', 'failed', 'retrying')),
+    is_read BOOLEAN DEFAULT FALSE,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 CREATE INDEX IF NOT EXISTS idx_notifications_status ON public.notifications(status);
 
 -- 5. STORAGE OBJECTS RLS POLICIES FOR 'evidence-documents' BUCKET
@@ -193,17 +209,25 @@ CREATE OR REPLACE FUNCTION public.create_matter_atomic(
     p_parties JSONB DEFAULT '[]'::jsonb,
     p_initial_event JSONB DEFAULT NULL
 )
-RETURNS UUID
+RETURNS TEXT
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
-    v_matter_id UUID;
+    v_matter_id TEXT;
+    v_user_uuid UUID;
 BEGIN
-    v_matter_id := (p_matter->>'id')::UUID;
-    IF v_matter_id IS NULL THEN
-        v_matter_id := gen_random_uuid();
+    v_matter_id := p_matter->>'id';
+    IF v_matter_id IS NULL OR v_matter_id = '' THEN
+        v_matter_id := gen_random_uuid()::TEXT;
+    END IF;
+
+    -- Safely parse user_id if valid UUID format, else leave NULL
+    IF (p_matter->>'user_id') IS NOT NULL AND (p_matter->>'user_id') ~ '^[0-9a-fA-F-]{36}$' THEN
+        v_user_uuid := (p_matter->>'user_id')::UUID;
+    ELSE
+        v_user_uuid := NULL;
     END IF;
 
     -- 1. Insert core matter
@@ -227,7 +251,7 @@ BEGIN
         updated_at
     ) VALUES (
         v_matter_id,
-        (p_matter->>'user_id')::UUID,
+        v_user_uuid,
         p_matter->>'title',
         p_matter->>'category',
         p_matter->>'sub_category',
@@ -258,7 +282,7 @@ BEGIN
             state
         )
         SELECT
-            COALESCE((elem->>'id')::UUID, gen_random_uuid()),
+            COALESCE(elem->>'id', gen_random_uuid()::TEXT),
             v_matter_id,
             elem->>'name',
             elem->>'role',
@@ -282,7 +306,7 @@ BEGIN
             source,
             created_at
         ) VALUES (
-            COALESCE((p_initial_event->>'id')::UUID, gen_random_uuid()),
+            COALESCE(p_initial_event->>'id', gen_random_uuid()::TEXT),
             v_matter_id,
             COALESCE(p_initial_event->>'date', CURRENT_DATE::TEXT),
             p_initial_event->>'title',

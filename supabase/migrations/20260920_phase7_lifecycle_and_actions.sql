@@ -4,7 +4,7 @@
 -- 1. Matter Actions (Extended Execution Items)
 CREATE TABLE IF NOT EXISTS public.matter_actions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    matter_id UUID NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
+    matter_id TEXT NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     phase TEXT NOT NULL CHECK (phase IN ('immediate_48h', 'short_term_14d', 'formal_escalation')),
     description TEXT NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS public.matter_actions (
     due_date TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
     evidence_required BOOLEAN DEFAULT FALSE,
-    evidence_document_ids UUID[] DEFAULT '{}',
+    evidence_document_ids TEXT[] DEFAULT '{}',
     notes TEXT,
     blocking_reason TEXT,
     steps JSONB DEFAULT '[]'::jsonb,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS public.matter_actions (
 -- 2. Matter Communications Log
 CREATE TABLE IF NOT EXISTS public.matter_communications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    matter_id UUID NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
+    matter_id TEXT NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
     type TEXT NOT NULL CHECK (type IN (
         'legal_notice', 'email', 'whatsapp', 'phone_call', 'service_request',
         'complaint_filed', 'authority_response', 'mediation_session',
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS public.matter_communications (
     counterparty TEXT NOT NULL,
     summary TEXT NOT NULL,
     reference_number TEXT,
-    document_ids UUID[] DEFAULT '{}',
+    document_ids TEXT[] DEFAULT '{}',
     response_expected_by TIMESTAMPTZ,
     status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'delivered', 'awaiting_response', 'responded', 'overdue', 'resolved')),
     outcome_notes TEXT,
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS public.matter_communications (
 -- 3. Matter Activity Events (Consolidated Historical + User Timeline)
 CREATE TABLE IF NOT EXISTS public.matter_activity_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    matter_id UUID NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
+    matter_id TEXT NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     source TEXT NOT NULL CHECK (source IN ('evidence_derived', 'user_recorded')),
     title TEXT NOT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS public.matter_activity_events (
 -- 4. Matter Deadlines & Reminders (Deadline Engine 2.0)
 CREATE TABLE IF NOT EXISTS public.matter_deadlines (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    matter_id UUID NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
+    matter_id TEXT NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,
     due_date TIMESTAMPTZ NOT NULL,
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS public.matter_deadlines (
 -- 5. Matter Escalation Workflows
 CREATE TABLE IF NOT EXISTS public.matter_escalations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    matter_id UUID NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
+    matter_id TEXT NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
     route_id TEXT NOT NULL,
     authority_name TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN (
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS public.matter_escalations (
     acknowledged_at TIMESTAMPTZ,
     next_step TEXT,
     notes TEXT,
-    document_ids UUID[] DEFAULT '{}',
+    document_ids TEXT[] DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS public.matter_escalations (
 -- 6. Matter Resolutions
 CREATE TABLE IF NOT EXISTS public.matter_resolutions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    matter_id UUID UNIQUE NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
+    matter_id TEXT UNIQUE NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
     resolved_at TIMESTAMPTZ NOT NULL,
     resolution_type TEXT NOT NULL CHECK (resolution_type IN (
         'full_settlement', 'partial_settlement', 'court_order',
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS public.matter_resolutions (
     outcome TEXT NOT NULL,
     amount_recovered NUMERIC(12, 2),
     amount_disputed NUMERIC(12, 2),
-    settlement_document_id UUID,
+    settlement_document_id TEXT,
     notes TEXT,
     is_reopened BOOLEAN DEFAULT FALSE,
     reopened_at TIMESTAMPTZ,
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS public.matter_resolutions (
 -- 7. Matter In-App / Email Notifications
 CREATE TABLE IF NOT EXISTS public.matter_notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    matter_id UUID NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
+    matter_id TEXT NOT NULL REFERENCES public.matters(id) ON DELETE CASCADE,
     user_id UUID,
     type TEXT NOT NULL,
     title TEXT NOT NULL,

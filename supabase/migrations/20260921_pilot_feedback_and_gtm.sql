@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS public.pilot_feedback (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    matter_id UUID REFERENCES public.matters(id) ON DELETE CASCADE,
+    matter_id TEXT REFERENCES public.matters(id) ON DELETE CASCADE,
     rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
     category TEXT NOT NULL,
     feedback_text TEXT,
