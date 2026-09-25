@@ -115,9 +115,9 @@ export default function TermsPage() {
               These Terms shall be governed by and construed in accordance with the laws of the Republic of India. Any dispute arising under these terms shall be subject to the exclusive jurisdiction of the competent courts in Bengaluru, Karnataka, India.
             </p>
             <div className="pt-3 border-t border-stone-800 space-y-1.5 text-stone-300">
-              <p className="font-bold text-white">REGISTERED OFFICE:</p>
+              <p className="font-bold text-white">LEGAL ENTITY &amp; NOTICES:</p>
               <p>NyaySaathi Legal Tech Initiatives</p>
-              <p>#42, 4th Cross, 80 Feet Road, 4th Block, Koramangala, Bengaluru, Karnataka 560034, India</p>
+              <p>Digital Legal Aid &amp; Action Platform • Republic of India</p>
               <p>EMAIL: <a href="mailto:legal@nyaysaathi.in" className="text-rose-400 hover:text-rose-300 underline font-bold">legal@nyaysaathi.in</a></p>
             </div>
           </section>

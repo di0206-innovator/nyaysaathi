@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   ArrowRight,
   ShieldCheck,
-  PhoneCall,
   Building2,
   ShoppingBag,
   Briefcase,
@@ -16,27 +15,15 @@ import {
   ArrowLeftRight,
   MessageSquare,
   Sparkles,
-  Layers,
-  AlertTriangle,
   CheckCircle2,
-  FileDiff,
   Scale,
   Zap,
-  Lock,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
-  Users,
-  BarChart3,
-  Calculator,
-  Compass,
-  FileCheck2,
-  FolderLock,
-  Plus
+  Compass
 } from 'lucide-react';
 import { SEED_MATTERS } from '@/lib/db/seed-data';
 import { formatCurrencyINR } from '@/lib/utils';
-import { DEMO_DOCUMENT_SETS } from '@/lib/demo/demo-documents';
 
 export default function HomePage() {
   // Hero Interactive Showcase State
@@ -147,9 +134,9 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-7 space-y-6">
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-white leading-tight">
-                CONTRACT INTELLIGENCE.<br />
+                UNDERSTAND CONTRACTS.<br />
                 <span className="text-rose-500">CLAUSE REDLINES.</span><br />
-                ACTIONABLE DOSSIERS.
+                MATTER-BASED LEGAL ACTION.
               </h1>
               <p className="text-sm sm:text-base text-stone-300 font-mono leading-relaxed uppercase max-w-2xl">
                 The full-stack AI legal intelligence platform built for Bharat. Extract clauses with verified line provenance, redline agreement revisions with risk-escalation scoring, query contracts with zero hallucinations, and transform disputes into enforceable pre-litigation dossiers.
@@ -162,20 +149,26 @@ export default function HomePage() {
                   className="px-6 py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors shadow-[4px_4px_0px_0px_#FFFFFF] flex items-center space-x-2 active:translate-y-px"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>Explore Full Feature Suite</span>
+                  <span>Explore Feature Suite</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
-                  href="/login"
+                  href="/matters"
                   className="px-6 py-3.5 bg-stone-900 hover:bg-stone-800 text-white border border-stone-700 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
                 >
-                  Sign In / 1-Click Demo
+                  View Matters
                 </Link>
                 <Link
-                  href="/matters/new"
+                  href="/pilot"
+                  className="px-6 py-3.5 bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-800 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
+                >
+                  Join Pilot Cohort
+                </Link>
+                <Link
+                  href="/login"
                   className="px-6 py-3.5 bg-transparent hover:bg-stone-900 text-stone-300 border border-stone-800 font-mono text-xs font-bold uppercase tracking-wider transition-colors"
                 >
-                  Start a Matter
+                  Sign In / Demo
                 </Link>
               </div>
 

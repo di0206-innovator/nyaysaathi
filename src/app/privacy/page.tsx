@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ShieldCheck, Lock, FileText, UserCheck, ArrowLeft, Mail, MapPin } from 'lucide-react';
+import { ShieldCheck, Lock, FileText, UserCheck, ArrowLeft, Mail } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy — DPDPA 2023 Statutory Compliance',
@@ -142,12 +142,9 @@ export default function PrivacyPolicyPage() {
             <div className="space-y-1.5 text-stone-300">
               <p><strong className="text-white">DESIGNATION:</strong> Data Protection &amp; Grievance Redressal Officer</p>
               <p><strong className="text-white">ORGANIZATION:</strong> NyaySaathi Legal Tech Initiatives</p>
-              <p className="flex items-start gap-1.5">
-                <MapPin className="w-4 h-4 text-stone-400 mt-0.5 shrink-0" />
-                <span>#42, 4th Cross, 80 Feet Road, 4th Block, Koramangala, Bengaluru, Karnataka 560034, India</span>
-              </p>
+              <p className="text-stone-400">Digital Legal Aid &amp; Action Platform • Republic of India</p>
               <p className="flex items-center gap-1.5">
-                <Mail className="w-4 h-4 text-stone-400 shrink-0" />
+                <Mail className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>EMAIL: <a href="mailto:grievance@nyaysaathi.in" className="text-rose-400 hover:text-rose-300 underline font-bold">grievance@nyaysaathi.in</a></span>
               </p>
             </div>

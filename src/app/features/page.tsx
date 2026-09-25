@@ -14,18 +14,9 @@ import {
   ShieldCheck,
   Calculator,
   ArrowRight,
-  Sparkles,
   CheckCircle2,
   AlertTriangle,
   Scale,
-  FileText,
-  Clock,
-  Coins,
-  Building2,
-  Home,
-  ShoppingBag,
-  Briefcase,
-  ChevronRight,
   ExternalLink
 } from 'lucide-react';
 import { formatCurrencyINR } from '@/lib/utils';

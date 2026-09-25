@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scale, ExternalLink, ShieldCheck, Mail, MapPin } from 'lucide-react';
+import { Scale, ExternalLink, ShieldCheck, Mail } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -120,14 +120,11 @@ export function Footer() {
             <p className="text-[11px] text-stone-400 leading-relaxed bg-stone-950 p-3 border border-stone-800">
               NyaySaathi is an informational case preparation system under the Advocates Act 1961. It does not provide legal representation or practice law. Consult an enrolled Advocate or visit a DLSA center for formal court representation.
             </p>
-            <div className="font-mono text-[11px] text-stone-400 space-y-1 pt-1">
+            <div className="font-mono text-[11px] text-stone-400 space-y-1.5 pt-1">
               <p className="text-white font-bold">NyaySaathi Legal Tech Initiatives</p>
-              <p className="flex items-start gap-1">
-                <MapPin className="w-3 h-3 text-stone-400 mt-0.5 shrink-0" />
-                <span>#42, 4th Block, Koramangala, Bengaluru, KA 560034</span>
-              </p>
-              <p className="flex items-center gap-1">
-                <Mail className="w-3 h-3 text-stone-400 shrink-0" />
+              <p className="text-stone-400">Digital Legal Aid &amp; Action Navigator • Republic of India</p>
+              <p className="flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                 <a href="mailto:support@nyaysaathi.in" className="text-rose-400 hover:underline">support@nyaysaathi.in</a>
               </p>
             </div>
