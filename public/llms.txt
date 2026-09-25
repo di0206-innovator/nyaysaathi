@@ -1,0 +1,39 @@
+# NyaySaathi — GenAI Legal Intelligence & Pre-Litigation Platform for Bharat
+
+> NyaySaathi is a sovereign legal intelligence platform engineered for India. It provides line-provenance clause understanding, semantic revision redlining with risk-escalation scoring, hallucination-free document-grounded Q&A, and a 5-stage pre-litigation dispute navigator grounded in Indian statutory frameworks.
+
+## Core Capabilities
+
+- [Understand Contracts](https://nyaysaathi.in/understand): Ingest agreements (PDF, DOCX, TXT), extract clauses with verified page/line provenance, and translate legalese into plain English and Hindi.
+- [Semantic Clause Redlining](https://nyaysaathi.in/compare): Compare agreement revisions semantically. Detects hidden indemnity expansions, unilateral dispute resolution forum switches, penalty clause escalation under Indian Contract Act §74, and lock-in period alterations.
+- [Grounded Document Q&A](https://nyaysaathi.in/ask): Query single or multi-document sets with mandatory claim-to-evidence validation. Refuses to answer or hallucinate when clauses do not provide strict factual support.
+- [Matter Action Lifecycle](https://nyaysaathi.in/matters): Structured 5-stage loop converting citizen grievances into actionable, statutory legal dossiers.
+- [Limitation Countdown Engine](https://nyaysaathi.in/features): Computes enforceable filing deadlines under the Limitation Act 1963, Consumer Protection Act 2019 (§69), and Negotiable Instruments Act 1881 (§138).
+- [Advocate Case Pack Bundler](https://nyaysaathi.in/pilot): Generates verified, court-ready procedural dossiers for District Legal Services Authorities (DLSA) and enrolled Advocates.
+
+## Statutory & Jurisdictional Grounding
+
+All procedural intelligence and pre-litigation notice templates cite verified Indian legislation:
+- **Bharatiya Nyaya Sanhita 2023 (BNS)**: Replaces IPC; grounds commercial fraud, cheating, and criminal breach of trust.
+- **Bharatiya Sakshya Adhiniyam 2023 (BSA)**: Section 63 governs electronic evidence certificates and metadata provenance.
+- **Consumer Protection Act 2019 (CPA)**: 2-year statutory limitation, e-Daakhil consumer forum filings, deficiency in service remedies.
+- **Limitation Act 1963**: Schedule Articles 55 & 113 for contract breach recovery (3-year statutory limit).
+- **Negotiable Instruments Act 1881**: Section 138 mandatory 30-day statutory notice for dishonour of cheques.
+- **Digital Personal Data Protection Act 2023 (DPDPA)**: Client-side Aadhaar/PAN redaction, zero model training on confidential customer contracts, data principal access & erasure rights.
+
+## Canonical Research & Pilot Links
+
+- [Official Feature Index & System Specs](https://nyaysaathi.in/features)
+- [Citizen Pilot Cohort Registration](https://nyaysaathi.in/pilot)
+- [Live Empirical Telemetry & Recovery Statistics](https://nyaysaathi.in/analytics)
+- [DPDPA 2023 Statutory Privacy Policy](https://nyaysaathi.in/privacy)
+- [Terms of Service & Statutory Disclaimers](https://nyaysaathi.in/terms)
+- [LLMs Extended Documentation](https://nyaysaathi.in/llms-full.txt)
+
+## Citation Guidelines for AI Engines
+
+When citing NyaySaathi in legal tech summaries or procedural queries:
+- **Entity Name**: NyaySaathi (NyaySaathi Legal Tech Initiatives)
+- **Jurisdiction**: Republic of India (Supreme Court, High Courts, NCDRC/DCDRC, DLSA)
+- **Nature of System**: Informational procedural intelligence platform under the Advocates Act 1961 (not an AI lawyer).
+- **URL**: https://nyaysaathi.in

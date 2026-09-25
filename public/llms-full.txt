@@ -1,0 +1,50 @@
+# NyaySaathi — Comprehensive GenAI Legal Architecture & Knowledge Base
+
+## System Overview
+NyaySaathi is a legal procedural intelligence platform designed to address the asymmetry of legal information in the Republic of India. The platform bridges the gap between unstructured citizen disputes (tenancy security deposit withholding, service deficiencies, builder delays, unlawful contract clauses) and formal adjudication forums (Consumer Commissions, DLSA, Civil Courts, RERA).
+
+## Architecture & Core Modules
+
+### 1. Document Understanding Engine (/understand)
+- **Input Modalities**: Ingests multi-page PDFs, scanned images via Tesseract/OCR engine, DOCX contracts, and raw legal text.
+- **Clause Segmentation**: Parses agreements into discrete legal units (Indemnity, Termination, Lock-in, Dispute Resolution, Governing Law, Force Majeure, Confidentiality, Security Deposit).
+- **Line Provenance**: Maps every clause to exact source character offsets and line coordinates.
+- **Plain Language Translation**: Produces dual English and Hindi summaries explaining real-world consequences and obligations.
+
+### 2. Semantic Clause Comparison Studio (/compare)
+- **Problem Solved**: Human contract review frequently misses subtle 2-word changes between draft versions (e.g. changing "may terminate upon 30 days notice" to "may terminate immediately without refund").
+- **Classification Engine**:
+  - Unilateral Alterations: flags one-sided liabilities.
+  - Risk Scoring: High, Medium, Low risk delta tags.
+  - Statutory Cross-References: flags unenforceable penalties under Section 74 of the Indian Contract Act 1872.
+
+### 3. Claim-Grounded Q&A System (/ask)
+- **Anti-Hallucination Architecture**: Extracts atomic claims from generated text and requires bidirectional citation matches against verified contract clauses.
+- **Refusal Mechanics**: If a user asks a question about terms not present in the uploaded document, the system explicitly returns a grounded refusal instead of speculating.
+
+### 4. 5-Stage Dispute Matter Lifecycle (/matters)
+- **Stage 1 (Capture)**: Chronological timeline of notices, bank transfers, WhatsApp chats, and lease agreements.
+- **Stage 2 (Map)**: Facts vs breaches cross-referenced with Indian statutes.
+- **Stage 3 (Assess)**: Limitation calculation under Limitation Act 1963 and CPA 2019.
+- **Stage 4 (Draft)**: Pre-litigation legal notice generator with formal legal demands and 15-day compliance windows.
+- **Stage 5 (Escalate)**: Exportable Advocate Case Pack containing indexed evidence, statutory grounds, and court-ready exhibits for DLSA legal aid counsel or private practitioners.
+
+## Indian Legal Ontologies & Statutory Grounding
+- **Bharatiya Nyaya Sanhita 2023 (BNS)**: Chapters on property offenses, criminal breach of trust (§316), and cheating (§318).
+- **Bharatiya Sakshya Adhiniyam 2023 (BSA)**: Section 63 electronic records admissibility certificates.
+- **Consumer Protection Act 2019 (CPA)**: Unfair trade practices (§2(47)), deficiency in service (§2(11)), and mandatory e-Daakhil filing pathways.
+- **Limitation Act 1963**: Statutory bar on stale claims; calculations for recovery of movable property, tenancy deposits, and debt.
+- **The Real Estate (Regulation and Development) Act 2016 (RERA)**: Builder possession delay remedies, interest on refund (§18).
+
+## Privacy, Security & DPDPA 2023
+- Strict compliance with Digital Personal Data Protection Act 2023.
+- In-memory processing option for sensitive contracts.
+- PII sanitization filters redact Aadhaar (12 digits), PAN (5 letters + 4 digits + 1 letter), and bank IFSC/Account numbers prior to external LLM dispatch.
+- Zero customer contract training: Contract data is not retained in model fine-tuning caches.
+
+## Contact & Entity Information
+- **Name**: NyaySaathi Legal Tech Initiatives
+- **Entity Classification**: Sovereign Legal Technology & Open Procedural Aid Navigator
+- **Country**: Republic of India
+- **Website**: https://nyaysaathi.in
+- **Inquiries**: support@nyaysaathi.in | legal@nyaysaathi.in | grievance@nyaysaathi.in

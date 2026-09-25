@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { SEED_MATTERS } from '@/lib/db/seed-data';
 import { formatCurrencyINR } from '@/lib/utils';
+import { GenerativeKnowledgeRegistry } from '@/components/seo/GenerativeKnowledgeRegistry';
 
 export default function HomePage() {
   // Hero Interactive Showcase State
@@ -852,8 +853,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 8. Interactive FAQ Accordion */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-8">
+      {/* 8. Generative Knowledge Registry (AEO & GEO Statutory Standards) */}
+      <GenerativeKnowledgeRegistry />
+
+      {/* 9. Interactive FAQ Accordion with Schema.org Microdata */}
+      <section
+        className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-8"
+        itemScope
+        itemType="https://schema.org/FAQPage"
+      >
         <div className="border-b-2 border-stone-900 pb-4 text-center space-y-1">
           <span className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600">
             § 05 // FREQUENTLY ASKED QUESTIONS
@@ -865,12 +873,19 @@ export default function HomePage() {
 
         <div className="space-y-3 font-mono text-xs">
           {faqs.map((faq, fIdx) => (
-            <div key={fIdx} className="bg-white border-2 border-stone-900">
+            <div
+              key={fIdx}
+              className="bg-white border-2 border-stone-900"
+              itemScope
+              itemProp="mainEntity"
+              itemType="https://schema.org/Question"
+            >
               <button
                 onClick={() => toggleFaq(fIdx)}
                 className="w-full p-4 text-left font-bold uppercase text-stone-900 flex items-center justify-between hover:bg-stone-50 transition-colors"
+                aria-expanded={openFaq === fIdx}
               >
-                <span>{faq.q}</span>
+                <span itemProp="name">{faq.q}</span>
                 {openFaq === fIdx ? (
                   <ChevronUp className="w-4 h-4 text-rose-600 shrink-0" />
                 ) : (
@@ -878,8 +893,13 @@ export default function HomePage() {
                 )}
               </button>
               {openFaq === fIdx && (
-                <div className="p-4 pt-0 border-t border-stone-100 text-stone-600 font-sans text-xs leading-relaxed">
-                  {faq.a}
+                <div
+                  className="p-4 pt-0 border-t border-stone-100 text-stone-600 font-sans text-xs leading-relaxed"
+                  itemScope
+                  itemProp="acceptedAnswer"
+                  itemType="https://schema.org/Answer"
+                >
+                  <p itemProp="text">{faq.a}</p>
                 </div>
               )}
             </div>
