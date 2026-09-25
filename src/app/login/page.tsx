@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useToast } from '@/components/ui/Toast';
+import { isSupabaseConfigured } from '@/lib/db/supabase';
 
 function LoginFormContent() {
   const router = useRouter();
@@ -195,7 +196,13 @@ function LoginFormContent() {
       <div className="space-y-3">
         <button
           type="button"
-          onClick={() => signInWithGoogle()}
+          onClick={async () => {
+            const ok = await signInWithGoogle();
+            if (ok && !isSupabaseConfigured()) {
+              showToast('success', 'Logged in as Google User (Demo Mode)');
+              router.push(callbackUrl);
+            }
+          }}
           className="w-full py-3 bg-white border-2 border-stone-900 hover:bg-stone-50 text-stone-900 font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-3 shadow-[4px_4px_0px_0px_#0A0A0A] active:shadow-[1px_1px_0px_0px_#0A0A0A] active:translate-y-[3px] active:translate-x-[3px]"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">

@@ -9,14 +9,14 @@ export interface UserProfile {
   role?: string;
 }
 
-interface AuthContextType {
+  interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
   token: string | null;
   isDemo: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
   signup: (email: string, password?: string, fullName?: string) => Promise<boolean>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<boolean>;
   logout: () => void;
   setDemoUser: (id: string, name?: string) => void;
   enableDemoMode: () => void;
@@ -46,7 +46,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     let active = true;
-    async function checkSession() {
+    let authSubscription: { unsubscribe: () => void } | null = null;
+
+    async function initAuth() {
+      // 1. Check server session via cookie
       try {
         const res = await fetch('/api/auth', { credentials: 'include' });
         if (res.ok) {
@@ -57,13 +60,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch {
         // Unauthenticated session
+      }
+
+      // 2. Subscribe to Supabase client auth events if configured
+      try {
+        const { getSupabaseBrowserClient, isSupabaseConfigured } = await import('@/lib/db/supabase');
+        if (isSupabaseConfigured()) {
+          const client = getSupabaseBrowserClient();
+          if (client) {
+            const { data } = client.auth.onAuthStateChange(async (event, session) => {
+              if (!active) return;
+              if (session?.user) {
+                setUser({
+                  id: session.user.id,
+                  email: session.user.email || '',
+                  name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
+                  role: session.user.role,
+                });
+              } else if (event === 'SIGNED_OUT') {
+                setUser(null);
+              }
+            });
+            authSubscription = data.subscription;
+          }
+        }
+      } catch {
+        // Supabase client not available
       } finally {
         if (active) setLoading(false);
       }
     }
-    checkSession();
+
+    initAuth();
     return () => {
       active = false;
+      authSubscription?.unsubscribe();
     };
   }, []);
 
@@ -111,27 +142,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<boolean> => {
     setLoading(true);
     try {
       const { getSupabaseBrowserClient, isSupabaseConfigured } = await import('@/lib/db/supabase');
       if (isSupabaseConfigured()) {
         const client = getSupabaseBrowserClient();
         if (client) {
-          await client.auth.signInWithOAuth({
+          const { error } = await client.auth.signInWithOAuth({
             provider: 'google',
             options: {
-              redirectTo: `${window.location.origin}/matters`
+              redirectTo: `${window.location.origin}/auth/callback?next=/matters`
             }
           });
-          return;
+          if (error) {
+            console.error('Google Sign-In Error:', error.message);
+            return false;
+          }
+          return true;
         }
       }
       // Fallback for mock mode if Supabase isn't configured
       console.warn('Supabase not configured, using mock Google login');
       setDemoUser('google-demo-user', 'Google User');
+      return true;
     } catch (err) {
       console.error('Google Sign-In Error:', err);
+      return false;
     } finally {
       setLoading(false);
     }
