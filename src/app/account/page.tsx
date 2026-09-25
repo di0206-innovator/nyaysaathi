@@ -84,8 +84,8 @@ export default function AccountPage() {
     return (
       <div className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center font-mono space-y-4">
         <p className="text-stone-400 uppercase tracking-widest text-xs">No active session found</p>
-        <Link href="/pilot" className="px-4 py-2 border border-stone-700 bg-stone-900 text-xs uppercase hover:bg-stone-800">
-          Sign In to Access Account
+        <Link href="/login?callbackUrl=/account" className="px-4 py-2 border border-rose-600 bg-stone-900 text-rose-400 text-xs uppercase hover:bg-stone-800 font-bold">
+          Sign In to Access Account →
         </Link>
       </div>
     );

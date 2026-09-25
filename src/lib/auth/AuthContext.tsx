@@ -16,6 +16,7 @@ interface AuthContextType {
   isDemo: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
   signup: (email: string, password?: string, fullName?: string) => Promise<boolean>;
+  signInWithGoogle: () => Promise<void>;
   logout: () => void;
   setDemoUser: (id: string, name?: string) => void;
   enableDemoMode: () => void;
@@ -110,6 +111,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    try {
+      const { getSupabaseBrowserClient, isSupabaseConfigured } = await import('@/lib/db/supabase');
+      if (isSupabaseConfigured()) {
+        const client = getSupabaseBrowserClient();
+        if (client) {
+          await client.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+              redirectTo: `${window.location.origin}/matters`
+            }
+          });
+          return;
+        }
+      }
+      // Fallback for mock mode if Supabase isn't configured
+      console.warn('Supabase not configured, using mock Google login');
+      setDemoUser('google-demo-user', 'Google User');
+    } catch (err) {
+      console.error('Google Sign-In Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     setUser(null);
     try {
@@ -139,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, token: null, isDemo, login, signup, logout, setDemoUser, enableDemoMode }}>
+    <AuthContext.Provider value={{ user, loading, token: null, isDemo, login, signup, signInWithGoogle, logout, setDemoUser, enableDemoMode }}>
       {children}
     </AuthContext.Provider>
   );

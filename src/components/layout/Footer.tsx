@@ -139,6 +139,14 @@ export function Footer() {
           <div className="flex flex-wrap items-center gap-3">
             <span>© {new Date().getFullYear()} NYAYSAATHI INDIA.</span>
             <span>/</span>
+            <a href="/features" className="text-rose-400 hover:text-white transition-colors underline-offset-2 hover:underline">
+              PRODUCT SUITE
+            </a>
+            <span>/</span>
+            <a href="/login" className="hover:text-white transition-colors underline-offset-2 hover:underline">
+              SIGN IN
+            </a>
+            <span>/</span>
             <a href="/privacy" className="hover:text-white transition-colors underline-offset-2 hover:underline">
               PRIVACY POLICY (DPDPA 2023)
             </a>
