@@ -347,6 +347,9 @@ export class DurableJobQueue {
           }
           const { data, error } = await query.single();
           if (!error && data) {
+            if (userId && data.user_id && data.user_id !== userId) {
+              return null;
+            }
             return {
               id: data.id,
               type: data.type,

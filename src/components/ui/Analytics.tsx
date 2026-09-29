@@ -54,7 +54,8 @@ function AnalyticsTracker() {
 }
 
 export function Analytics() {
-  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  const rawGaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  const gaId = typeof rawGaId === 'string' && /^G-[A-Za-z0-9]+$/.test(rawGaId.trim()) ? rawGaId.trim() : null;
 
   return (
     <>

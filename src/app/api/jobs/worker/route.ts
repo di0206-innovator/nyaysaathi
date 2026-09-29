@@ -5,6 +5,16 @@ import { Logger } from '@/lib/observability/logger';
 import { getMatterService } from '@/lib/repository';
 import { ReanalysisTrigger } from '@/lib/agents/types';
 
+import crypto from 'crypto';
+
+function timingSafeCompare(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 /**
  * Internal Durable Background Worker Route.
  * Invoked by Vercel Cron or secure internal dispatch to atomically claim and process queued jobs.
@@ -23,8 +33,8 @@ async function handleWorkerExecution(req: NextRequest) {
     return apiError('Unauthorized internal worker invocation: worker secret not configured', 401, 'UNAUTHORIZED');
   }
 
-  const isBearerValid = authHeader === `Bearer ${configuredSecret}`;
-  const isCronValid = cronHeader === '1' && (!process.env.CRON_SECRET || authHeader === `Bearer ${process.env.CRON_SECRET}`);
+  const isBearerValid = timingSafeCompare(authHeader, `Bearer ${configuredSecret}`);
+  const isCronValid = cronHeader === '1' && (!process.env.CRON_SECRET || timingSafeCompare(authHeader, `Bearer ${process.env.CRON_SECRET}`));
 
   if (!isBearerValid && !isCronValid) {
     Logger.warn('Unauthorized background worker invocation attempt blocked', {
