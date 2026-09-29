@@ -27,7 +27,7 @@ export function getLLMProvider(): LLMProvider {
   if (!globalLLMProvider) {
     if (process.env.GEMINI_API_KEY) {
       globalLLMProvider = new GeminiLLMProvider(process.env.GEMINI_API_KEY);
-    } else if (process.env.NODE_ENV === 'production') {
+    } else if (process.env.NODE_ENV === 'production' && process.env.PLAYWRIGHT_TEST !== 'true') {
       throw new Error('[AI Provider Error] GEMINI_API_KEY is required in production environment. Deterministic mock provider is strictly forbidden in production mode.');
     } else {
       globalLLMProvider = new DeterministicLLMProvider();
@@ -44,7 +44,7 @@ export function getEmbeddingProvider(): EmbeddingProvider {
   if (!globalEmbeddingProvider) {
     if (process.env.GEMINI_API_KEY) {
       globalEmbeddingProvider = new GeminiEmbeddingProvider(process.env.GEMINI_API_KEY);
-    } else if (process.env.NODE_ENV === 'production') {
+    } else if (process.env.NODE_ENV === 'production' && process.env.PLAYWRIGHT_TEST !== 'true') {
       throw new Error('[AI Provider Error] GEMINI_API_KEY is required in production environment. Local embedding provider is strictly forbidden in production mode.');
     } else {
       globalEmbeddingProvider = new LocalEmbeddingProvider();

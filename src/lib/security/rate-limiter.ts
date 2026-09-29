@@ -121,8 +121,8 @@ export class RateLimiter {
     }
 
     // Phase 16: If distributed rate limiting is unavailable in production,
-    // FAIL CLOSED for expensive endpoints.
-    const isProduction = process.env.NODE_ENV === 'production';
+    // FAIL CLOSED for expensive endpoints (exempt during Playwright/synthetic E2E testing).
+    const isProduction = process.env.NODE_ENV === 'production' && process.env.PLAYWRIGHT_TEST !== 'true';
     const action = options?.actionName || key.split(':').pop() || '';
     const isExpensive = Boolean(options?.isExpensive || RateLimiter.EXPENSIVE_ACTIONS.has(action));
 

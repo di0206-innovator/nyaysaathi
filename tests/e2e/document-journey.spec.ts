@@ -4,7 +4,7 @@ test.describe('DOCUMENT-FIRST END-TO-END JOURNEY', () => {
   test('Full document comparison & grounded Q&A journey', async ({ page }) => {
     // 1. HOME: Visit landing page
     await page.goto('/');
-    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('h1').first()).toBeVisible();
 
     // Check no horizontal overflow
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
@@ -15,7 +15,7 @@ test.describe('DOCUMENT-FIRST END-TO-END JOURNEY', () => {
     const compareLink = page.locator('a[href="/compare"]:visible').first();
     await compareLink.click();
     await expect(page).toHaveURL(/\/compare/);
-    await expect(page.locator('h1')).toContainText(/Compare/i);
+    await expect(page.locator('h1').first()).toContainText(/Compare/i);
     await page.waitForLoadState('domcontentloaded');
 
     // 3. SAMPLE DOCUMENTS: Select rental demo set
@@ -62,7 +62,7 @@ test.describe('DOCUMENT-FIRST END-TO-END JOURNEY', () => {
 
   test('Understand single document journey', async ({ page }) => {
     await page.goto('/understand');
-    await expect(page.locator('h1')).toContainText(/Understand/i);
+    await expect(page.locator('h1').first()).toContainText(/Understand/i);
     await page.waitForLoadState('domcontentloaded');
 
     // Test sample document
@@ -82,7 +82,7 @@ test.describe('DOCUMENT-FIRST END-TO-END JOURNEY', () => {
 
   test('Responsive compare layout check without horizontal overflow', async ({ page }) => {
     await page.goto('/compare');
-    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('h1').first()).toBeVisible();
 
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);

@@ -6,7 +6,7 @@ test.describe('NYAYSAATHI — REAL BROWSER E2E VERIFICATION', () => {
     await page.goto('/');
 
     // Check main title
-    await expect(page.locator('h1')).toContainText(/UNDERSTAND CONTRACTS|COMPARE REVISIONS|CLEAR CONFUSION|MATTER-BASED LEGAL ACTION/i);
+    await expect(page.locator('h1').first()).toContainText(/UNDERSTAND CONTRACTS|COMPARE REVISIONS|CLEAR CONFUSION|MATTER-BASED LEGAL ACTION/i);
 
     // Verify key action links exist (hero action triggers)
     const pilotButton = page.locator('a[href="/pilot"]:visible').first();
@@ -25,14 +25,14 @@ test.describe('NYAYSAATHI — REAL BROWSER E2E VERIFICATION', () => {
   test('Pilot onboarding form enforces consent and classification', async ({ page }) => {
     await page.goto('/pilot');
 
-    await expect(page.locator('h1')).toContainText(/Pilot Onboarding & Intake|PILOT INTAKE/i);
+    await expect(page.locator('h1').first()).toContainText(/Pilot Onboarding & Intake|PILOT INTAKE/i);
 
     // Click submit without consent - must be disabled or show validation
     const startButton = page.locator('button:has-text("Start Recovery Matter")').first();
     await expect(startButton).toBeVisible();
 
     // Check consent box
-    const consentCheckbox = page.locator('input#consent');
+    const consentCheckbox = page.locator('input#consent').first();
     await consentCheckbox.check();
     expect(await consentCheckbox.isChecked()).toBeTruthy();
   });
@@ -42,7 +42,7 @@ test.describe('NYAYSAATHI — REAL BROWSER E2E VERIFICATION', () => {
     await page.goto('/matters');
 
     // Heading should be visible
-    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('h1').first()).toBeVisible();
 
     // Verify seed matters or matter cards exist
     const matterCards = page.locator('a[href^="/matters/"]');
@@ -54,14 +54,14 @@ test.describe('NYAYSAATHI — REAL BROWSER E2E VERIFICATION', () => {
 
     // Verify command center loaded
     await expect(page).toHaveURL(/\/matters\/[^/]+/);
-    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('h1').first()).toBeVisible();
   });
 
   // 4. Analytics Register
   test('Pilot analytics page renders empirical metrics without synthetic claims', async ({ page }) => {
     await page.goto('/analytics');
 
-    await expect(page.locator('h1')).toContainText(/Pilot Analytics/i);
+    await expect(page.locator('h1').first()).toContainText(/Pilot Analytics/i);
 
     // Must show empirical text
     const pageText = await page.textContent('body');

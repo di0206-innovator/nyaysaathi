@@ -215,6 +215,7 @@ jobs:
         run: npx playwright test
         env:
           CI: 'true'
+          PLAYWRIGHT_TEST: 'true'
           PLAYWRIGHT_TEST_BASE_URL: 'http://127.0.0.1:3000'
 
       - name: Upload Playwright Test Report & Artifacts
